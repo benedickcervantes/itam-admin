@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# IT Asset Management — Admin Portal
 
-## Getting Started
+Next.js 16 admin UI for the IT Hardware Asset Management system.
 
-First, run the development server:
+## Prerequisites
+
+- Node.js 20+
+- Running `itam-backend` on port 4001
+
+## Setup
+
+1. Create `.env.local` with:
+
+- `NEXT_PUBLIC_BACKEND_URL=http://localhost:4001`
+- `BACKEND_INTERNAL_URL=http://127.0.0.1:4001` (optional, dev rewrites)
+- `BACKEND_API_KEY` — server-only; must match backend `FRONTEND_API_KEY` (never use `NEXT_PUBLIC_` prefix)
+
+2. Install and run:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 and sign in with the seeded admin account (see backend README).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Pages
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Route | Description |
+|-------|-------------|
+| `/dashboard` | KPIs and summary tables (Excel Dashboard parity) |
+| `/audit-register` | IT Audit Register (37 fields, peripherals) |
+| `/assets` | Asset inventory |
+| `/assignments` | Assignment history |
+| `/maintenance` | Maintenance log |
+| `/disposals` | Disposal log |
+| `/reference-data` | Lookup values (IT only) |
+| `/users` | User management (IT only) |
 
-## Learn More
+## Role-based UI
 
-To learn more about Next.js, take a look at the following resources:
+- Department heads see read-only views and cannot create/edit/delete.
+- IT admins have full access including Users and Reference Data.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Theme
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Corporate blue palette (`#1E3A5F`, `#2E7D9A`) aligned with the Excel template.
 
-## Deploy on Vercel
+## Related
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Backend: `../itam-backend`
+- Excel template: `../../IT-Asset-Management-Template/IT_Asset_Management_Template.xlsx`

@@ -1,0 +1,541 @@
+import {
+  DESKTOP_POWER_CONNECTIONS,
+  INPUT_ISSUE_CONDITIONS,
+  OPERATING_SYSTEM_OPTIONS,
+  PERIPHERAL_CONDITIONS,
+  SCREEN_CONDITIONS,
+} from "./constants";
+import { REFERENCE_DATA } from "@/lib/reference-data";
+
+export function isLaptopDevice(deviceType: string) {
+  return deviceType === "LAPTOP";
+}
+
+export function hasBuiltInScreen(deviceType: string) {
+  return deviceType === "LAPTOP" || deviceType === "ALL_IN_ONE";
+}
+
+export function isDesktopDevice(deviceType: string) {
+  return deviceType === "DESKTOP";
+}
+
+export const END_USER_DEVICE_TYPES = ["DESKTOP", "LAPTOP", "ALL_IN_ONE", "OTHER"] as const;
+export const INFRASTRUCTURE_DEVICE_TYPES = [
+  "SERVER",
+  "POE_SWITCH",
+  "LOAD_BALANCER",
+  "FIREWALL",
+  "ACCESS_POINT",
+  "OTHER",
+] as const;
+
+export type AssetCategory = "end_user" | "infrastructure";
+
+export function isInfrastructureDevice(deviceType: string, assetCategory?: AssetCategory) {
+  if (assetCategory === "infrastructure") return true;
+  if (assetCategory === "end_user") return false;
+  return (
+    deviceType === "SERVER" ||
+    deviceType === "POE_SWITCH" ||
+    deviceType === "LOAD_BALANCER" ||
+    deviceType === "FIREWALL" ||
+    deviceType === "ACCESS_POINT"
+  );
+}
+
+export function isEndUserDevice(deviceType: string) {
+  return (END_USER_DEVICE_TYPES as readonly string[]).includes(deviceType);
+}
+
+export function assetCategoryFromAsset(asset: {
+  device_type?: string | null;
+  assigned_to?: string | null;
+  location?: string | null;
+  management_ip?: string | null;
+  rack_slot?: string | null;
+  port_count?: number | null;
+}): AssetCategory {
+  const deviceType = asset.device_type ?? "";
+  if (deviceType && deviceType !== "OTHER") {
+    return assetCategoryFromDeviceType(deviceType);
+  }
+  const hasInfraFields = Boolean(
+    asset.location || asset.management_ip || asset.rack_slot || asset.port_count != null,
+  );
+  if (hasInfraFields && !asset.assigned_to?.trim()) return "infrastructure";
+  return "end_user";
+}
+
+export function assetCategoryFromDeviceType(deviceType: string): AssetCategory {
+  if (!deviceType) return "end_user";
+  if (
+    deviceType === "SERVER" ||
+    deviceType === "POE_SWITCH" ||
+    deviceType === "LOAD_BALANCER" ||
+    deviceType === "FIREWALL" ||
+    deviceType === "ACCESS_POINT"
+  ) {
+    return "infrastructure";
+  }
+  return "end_user";
+}
+
+export function showsPortCount(deviceType: string) {
+  return ["POE_SWITCH", "LOAD_BALANCER", "FIREWALL", "ACCESS_POINT", "OTHER"].includes(deviceType);
+}
+
+export function showsRackSlot(deviceType: string) {
+  return ["SERVER", "POE_SWITCH", "LOAD_BALANCER", "FIREWALL", "OTHER"].includes(deviceType);
+}
+
+export function showsInfraOs(deviceType: string) {
+  return deviceType === "SERVER" || deviceType === "OTHER";
+}
+
+export function showsInfraServerSpecs(deviceType: string) {
+  return deviceType === "SERVER";
+}
+
+export function showsInfraNetworkSpecs(deviceType: string) {
+  return (
+    deviceType === "POE_SWITCH" ||
+    deviceType === "LOAD_BALANCER" ||
+    deviceType === "FIREWALL" ||
+    deviceType === "ACCESS_POINT" ||
+    deviceType === "OTHER"
+  );
+}
+
+export function deviceTypesForCategory(category: AssetCategory): readonly string[] {
+  return category === "infrastructure" ? INFRASTRUCTURE_DEVICE_TYPES : END_USER_DEVICE_TYPES;
+}
+
+export function emptyFormForCategory(category: AssetCategory): Partial<DeviceFormState> {
+  if (category === "infrastructure") {
+    return {
+      assetCategory: category,
+      deviceType: "",
+      status: "AVAILABLE",
+      employeeName: "",
+      jobTitle: "",
+      departmentId: "",
+      serialNumber: "",
+      location: "",
+      managementIp: "",
+      rackSlot: "",
+      portCount: "",
+      macAddress: "",
+      hasSecondaryStorage: false,
+      hasSecondaryMonitor: false,
+      hasSecondaryPrinter: false,
+      hasExternalKeyboard: false,
+      hasExternalMouse: false,
+    };
+  }
+  return {
+    assetCategory: category,
+    deviceType: "",
+    status: "IN_USE",
+  };
+}
+
+// Avoid circular import - DeviceFormState is defined in form-state.ts
+type DeviceFormState = Record<string, string | boolean>;
+
+export function desktopConnectionLabel(value: string) {
+  return DESKTOP_POWER_CONNECTIONS.find((c) => c.value === value)?.label ?? value;
+}
+
+export function composeLaptopPower(charger: string, battery: string) {
+  const parts: string[] = [];
+  if (charger) parts.push(`${charger} Charger`);
+  if (battery) parts.push(`Battery Status: ${battery}`);
+  if (!parts.length) return "";
+  return `Outlets/ Charger / Battery - ${parts.join(" / ")}`;
+}
+
+export function composeDesktopPower(connectionType: string, details: string) {
+  const label = desktopConnectionLabel(connectionType);
+  const detailText = details.trim();
+  if (!label && !detailText) return "";
+  const setup = label && detailText ? `${label} — ${detailText}` : label || detailText;
+  return `Outlets/ Charger / Battery - ${setup}`;
+}
+
+export function parsePower(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return { charger: "", battery: "", desktopConnectionType: "", desktopDetails: "" };
+  }
+
+  const prefix = "Outlets/ Charger / Battery - ";
+  const body = trimmed.startsWith(prefix) ? trimmed.slice(prefix.length) : trimmed;
+
+  if (/Battery\s*Status:/i.test(body) || /\bCharger\b/i.test(body)) {
+    const chargerM = body.match(/(Good|Failed|Requires Replacement|Missing|Degraded)\s+Charger/i);
+    const batteryM = body.match(/Battery\s*Status:\s*(.+)$/i);
+    return {
+      charger: chargerM?.[1] ?? "",
+      battery: batteryM?.[1]?.trim() ?? "",
+      desktopConnectionType: "",
+      desktopDetails: "",
+    };
+  }
+
+  for (const option of DESKTOP_POWER_CONNECTIONS) {
+    const re = new RegExp(`^${option.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s*[—-]\\s*(.+))?$`, "i");
+    const m = body.match(re);
+    if (m) {
+      return {
+        charger: "",
+        battery: "",
+        desktopConnectionType: option.value,
+        desktopDetails: m[1]?.trim() ?? "",
+      };
+    }
+  }
+
+  if (/ups/i.test(body)) {
+    return { charger: "", battery: "", desktopConnectionType: "UPS", desktopDetails: body.replace(/^ups\s*[—-]?\s*/i, "") };
+  }
+  if (/avr/i.test(body)) {
+    return { charger: "", battery: "", desktopConnectionType: "AVR", desktopDetails: body.replace(/^avr\s*[—-]?\s*/i, "") };
+  }
+  if (/direct\s*plug/i.test(body)) {
+    return {
+      charger: "",
+      battery: "",
+      desktopConnectionType: "DIRECT_PLUG_IN",
+      desktopDetails: body.replace(/^direct\s*plug-?in\s*[—-]?\s*/i, ""),
+    };
+  }
+
+  return { charger: "", battery: "", desktopConnectionType: "", desktopDetails: body };
+}
+
+export function ramSlotDefaults(deviceType: string) {
+  if (deviceType === "LAPTOP" || deviceType === "ALL_IN_ONE") return { total: "2", formFactor: "SODIMM" };
+  if (deviceType === "DESKTOP") return { total: "4", formFactor: "DIMM" };
+  return { total: "2", formFactor: "DIMM" };
+}
+
+export function parseRam(ram: string) {
+  const m = ram.trim().match(/^(\d+\s*GB)\s*(DDR\d)?\s*(\d+\s*MHz)?/i);
+  return {
+    ramSize: m?.[1]?.replace(/\s+/g, "") ?? "",
+    ramType: m?.[2]?.toUpperCase() ?? "",
+    ramSpeed: m?.[3]?.replace(/\s+/g, "") ?? "",
+  };
+}
+
+export function parseRamSlots(value: string) {
+  const m = value.trim().match(/^(\d+)\s*of\s*(\d+)\s*(SODIMM|DIMM)?/i);
+  return {
+    ramSlotsUsedCount: m?.[1] ?? "",
+    ramSlotsTotal: m?.[2] ?? "",
+    ramFormFactor: m?.[3]?.toUpperCase() ?? "",
+  };
+}
+
+export function normalizeStorageType(type: string) {
+  const t = type.trim().toUpperCase();
+  if (t === "NVME" || t === "NVME SSD") return "NVMe SSD";
+  if (t === "SATA SSD" || t === "SATA") return "SATA SSD";
+  if (t === "SSD") return "SATA SSD";
+  if (t === "HDD") return "HDD";
+  return type.trim();
+}
+
+export function parseStorage(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return { size: "", type: "", model: "" };
+
+  const sizeMatch = trimmed.match(/^(\d+(?:\.\d+)?\s*(?:GB|TB))\s*/i);
+  const size = sizeMatch?.[1]?.replace(/\s+/g, "") ?? "";
+  let rest = sizeMatch ? trimmed.slice(sizeMatch[0].length) : trimmed;
+
+  let type = "";
+  for (const pattern of ["NVMe SSD", "SATA SSD", "HDD"]) {
+    const re = new RegExp(`^${pattern.replace(/\s+/g, "\\s+")}\\s*`, "i");
+    if (re.test(rest)) {
+      type = normalizeStorageType(pattern);
+      rest = rest.replace(re, "");
+      break;
+    }
+  }
+  if (!type && /^SSD\s*/i.test(rest)) {
+    type = "SATA SSD";
+    rest = rest.replace(/^SSD\s*/i, "");
+  }
+  if (!type && /^HDD\s*/i.test(rest)) {
+    type = "HDD";
+    rest = rest.replace(/^HDD\s*/i, "");
+  }
+
+  return { size, type, model: rest.trim() };
+}
+
+export function composeRam(form: Record<string, string | boolean>) {
+  const parts = [form.ramSize, form.ramType, form.ramSpeed].filter(Boolean);
+  return parts.join(" ").trim();
+}
+
+export function composeRamSlots(form: Record<string, string | boolean>) {
+  const used = form.ramSlotsUsedCount;
+  const total = form.ramSlotsTotal;
+  const factor = form.ramFormFactor;
+  if (!used && !total && !factor) return "";
+  if (used && total && factor) return `${used} of ${total} ${factor}`;
+  return [used && total ? `${used} of ${total}` : used || total, factor].filter(Boolean).join(" ");
+}
+
+export function composeStorage(type: string, size: string, model?: string) {
+  const base = [size, type].filter(Boolean).join(" ").trim();
+  const modelTrimmed = model?.trim();
+  if (!base && !modelTrimmed) return "";
+  if (!modelTrimmed) return base;
+  if (!base) return modelTrimmed;
+  return `${base} ${modelTrimmed}`;
+}
+
+export function formatCondition(value: string) {
+  if (value === "N_A") return "N/A";
+  return value.replace(/_/g, " ");
+}
+
+export function normalizeConditionLabel(label: string) {
+  const normalized = label.trim().toUpperCase().replace(/\s+/g, "_").replace(/\//g, "_");
+  if (normalized === "N/A" || normalized === "NA") return "N_A";
+  return PERIPHERAL_CONDITIONS.find((c) => c === normalized) ?? "";
+}
+
+export function peripheralConditions() {
+  return REFERENCE_DATA.keyboardConditions.filter((c) => c !== "BUILT_IN_LAPTOP");
+}
+
+export function screenConditions() {
+  return REFERENCE_DATA.screenConditions.length > 0
+    ? [...REFERENCE_DATA.screenConditions]
+    : [...SCREEN_CONDITIONS];
+}
+
+export function isInputIssueCondition(condition: string) {
+  return INPUT_ISSUE_CONDITIONS.includes(condition);
+}
+
+export function parseOperatingSystem(value: string) {
+  const v = value.trim();
+  if (!v) return { os: "", other: "" };
+  if (OPERATING_SYSTEM_OPTIONS.includes(v)) return { os: v, other: "" };
+  return { os: "Other", other: v };
+}
+
+export function composeLaptopKeyboard(
+  builtin: string,
+  builtinNotes: string,
+  hasExternal: boolean,
+  model: string,
+  externalCond: string,
+) {
+  const parts: string[] = [];
+  if (builtin && builtin !== "N_A") {
+    let builtIn = `Built-in — ${formatCondition(builtin)}`;
+    if (isInputIssueCondition(builtin) && builtinNotes.trim()) {
+      builtIn += ` — Notes: ${builtinNotes.trim()}`;
+    }
+    parts.push(builtIn);
+  }
+  if (hasExternal) {
+    const ext: string[] = ["External USB"];
+    if (model.trim()) ext.push(model.trim());
+    if (externalCond && externalCond !== "N_A") ext.push(formatCondition(externalCond));
+    parts.push(ext.join(" — "));
+  }
+  return parts.join(" | ");
+}
+
+export function composeLaptopPointer(
+  trackpad: string,
+  trackpadNotes: string,
+  hasExternal: boolean,
+  model: string,
+  mouseType: string,
+) {
+  const parts: string[] = [];
+  if (trackpad && trackpad !== "N_A") {
+    let builtIn = `Built-in Trackpad — ${formatCondition(trackpad)}`;
+    if (isInputIssueCondition(trackpad) && trackpadNotes.trim()) {
+      builtIn += ` — Notes: ${trackpadNotes.trim()}`;
+    }
+    parts.push(builtIn);
+  }
+  if (hasExternal) {
+    const ext: string[] = ["External USB"];
+    if (model.trim()) ext.push(model.trim());
+    if (mouseType) ext.push(formatCondition(mouseType));
+    parts.push(ext.join(" — "));
+  }
+  return parts.join(" | ");
+}
+
+export function resolveLaptopKeyboardCondition(builtin: string, hasExternal: boolean, externalCond: string) {
+  const issueOrder = ["FAULTY", "NEEDS_REPLACEMENT", "FADING_KEYS", "FAIR", "NEW", "GOOD", "N_A"];
+  const candidates = [builtin, hasExternal ? externalCond : ""].filter((c) => c && c !== "N_A");
+  if (!candidates.length) return "";
+  return candidates.sort((a, b) => issueOrder.indexOf(a) - issueOrder.indexOf(b))[0];
+}
+
+export function parseLaptopKeyboard(value: string) {
+  const result = {
+    builtin: "",
+    builtinNotes: "",
+    hasExternal: false,
+    externalModel: "",
+    externalCond: "",
+  };
+  const trimmed = value.trim();
+  if (!trimmed) return result;
+
+  if (/Built-in|External USB/i.test(trimmed)) {
+    trimmed.split("|").forEach((part) => {
+      const segment = part.trim();
+      if (/^Built-in/i.test(segment)) {
+        const notesM = segment.match(/\s*[—-]\s*Notes:\s*(.+)$/i);
+        const withoutNotes = notesM ? segment.replace(/\s*[—-]\s*Notes:\s*.+$/i, "") : segment;
+        const m = withoutNotes.match(/Built-in\s*[—-]\s*(.+)$/i);
+        if (m) {
+          result.builtin = normalizeConditionLabel(m[1]);
+          result.builtinNotes = notesM?.[1]?.trim() ?? "";
+        }
+      } else if (/^External USB/i.test(segment)) {
+        result.hasExternal = true;
+        const rest = segment.replace(/^External USB\s*(?:[—-]\s*)?/i, "");
+        const pieces = rest.split(/\s*[—-]\s*/);
+        const last = pieces[pieces.length - 1] ?? "";
+        const maybeCond = normalizeConditionLabel(last);
+        if (maybeCond) {
+          result.externalCond = maybeCond;
+          result.externalModel = pieces.slice(0, -1).join(" — ");
+        } else {
+          result.externalModel = rest;
+        }
+      }
+    });
+    return result;
+  }
+
+  result.hasExternal = true;
+  result.externalModel = trimmed;
+  return result;
+}
+
+export function parseLaptopPointer(value: string) {
+  const result = {
+    trackpad: "",
+    trackpadNotes: "",
+    hasExternal: false,
+    externalModel: "",
+    mouseType: "",
+  };
+  const trimmed = value.trim();
+  if (!trimmed) return result;
+
+  if (/Built-in Trackpad|External USB/i.test(trimmed)) {
+    trimmed.split("|").forEach((part) => {
+      const segment = part.trim();
+      if (/^Built-in Trackpad/i.test(segment)) {
+        const notesM = segment.match(/\s*[—-]\s*Notes:\s*(.+)$/i);
+        const withoutNotes = notesM ? segment.replace(/\s*[—-]\s*Notes:\s*.+$/i, "") : segment;
+        const m = withoutNotes.match(/Built-in Trackpad\s*[—-]\s*(.+)$/i);
+        if (m) {
+          result.trackpad = normalizeConditionLabel(m[1]);
+          result.trackpadNotes = notesM?.[1]?.trim() ?? "";
+        }
+      } else if (/^External USB/i.test(segment)) {
+        result.hasExternal = true;
+        const rest = segment.replace(/^External USB\s*(?:[—-]\s*)?/i, "");
+        const pieces = rest.split(/\s*[—-]\s*/);
+        const last = pieces[pieces.length - 1] ?? "";
+        if (["COMPANY_PROVIDED", "PERSONAL_BYOD", "NONE"].includes(last)) {
+          result.mouseType = last;
+          result.externalModel = pieces.slice(0, -1).join(" — ");
+        } else {
+          result.externalModel = rest;
+        }
+      }
+    });
+    return result;
+  }
+
+  result.hasExternal = true;
+  result.externalModel = trimmed;
+  return result;
+}
+
+export function composePeripheralPair(primary: string, hasSecondary: boolean, secondary: string) {
+  const p = primary.trim();
+  const s = secondary.trim();
+  if (!p && !(hasSecondary && s)) return "";
+  if (!hasSecondary || !s) return p;
+  if (!p) return `Secondary — ${s}`;
+  return `Primary — ${p} | Secondary — ${s}`;
+}
+
+export function composeMonitorRecord(deviceType: string, primary: string, hasSecondary: boolean, secondary: string) {
+  const p = primary.trim();
+  const s = secondary.trim();
+  if (!p && !(hasSecondary && s)) return "";
+
+  if (hasBuiltInScreen(deviceType)) {
+    if (!hasSecondary || !s) return `External — ${p}`;
+    if (!p) return `External Secondary — ${s}`;
+    return `External Primary — ${p} | External Secondary — ${s}`;
+  }
+
+  return composePeripheralPair(primary, hasSecondary, secondary);
+}
+
+export function parseMonitorRecord(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return { primary: "", hasSecondary: false, secondary: "" };
+
+  if (/External/i.test(trimmed)) {
+    const primaryM = trimmed.match(/External Primary\s*[—-]\s*([^|]+)/i);
+    const secondaryM = trimmed.match(/External Secondary\s*[—-]\s*(.+)$/i);
+    if (primaryM || secondaryM) {
+      return {
+        primary: primaryM?.[1]?.trim() ?? "",
+        hasSecondary: Boolean(secondaryM?.[1]?.trim()),
+        secondary: secondaryM?.[1]?.trim() ?? "",
+      };
+    }
+    const singleM = trimmed.match(/^External\s*[—-]\s*(.+)$/i);
+    if (singleM) {
+      return { primary: singleM[1].trim(), hasSecondary: false, secondary: "" };
+    }
+  }
+
+  return parsePeripheralPair(trimmed);
+}
+
+export function parsePeripheralPair(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return { primary: "", hasSecondary: false, secondary: "" };
+
+  if (/Primary\s*[—-]/i.test(trimmed) || /Secondary\s*[—-]/i.test(trimmed)) {
+    const primaryM = trimmed.match(/Primary\s*[—-]\s*([^|]+)/i);
+    const secondaryM = trimmed.match(/Secondary\s*[—-]\s*(.+)$/i);
+    return {
+      primary: primaryM?.[1]?.trim() ?? "",
+      hasSecondary: Boolean(secondaryM?.[1]?.trim()),
+      secondary: secondaryM?.[1]?.trim() ?? "",
+    };
+  }
+
+  const parts = trimmed.split("|").map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    return { primary: parts[0], hasSecondary: true, secondary: parts.slice(1).join(" | ") };
+  }
+
+  return { primary: trimmed, hasSecondary: false, secondary: "" };
+}
