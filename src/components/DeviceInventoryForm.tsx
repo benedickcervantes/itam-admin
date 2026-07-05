@@ -29,6 +29,10 @@ import {
   isDesktopDevice,
   isInputIssueCondition,
   isLaptopDevice,
+  hasOsEdition,
+  getOsEditionLabel,
+  getOsEditionOptions,
+  getOsEditionPlaceholder,
   peripheralConditions,
   screenConditions,
   showsInfraOs,
@@ -278,6 +282,13 @@ export function DeviceInventoryForm({
     ],
     [],
   );
+  const osEditionOptions = useMemo(() => {
+    const editions = getOsEditionOptions(String(form.operatingSystem));
+    return [
+      { value: "", label: getOsEditionPlaceholder(String(form.operatingSystem)) },
+      ...editions.map((edition) => ({ value: edition, label: edition })),
+    ];
+  }, [form.operatingSystem]);
   const powerConnectionOptions = useMemo(
     () => [
       { value: "", label: "—" },
@@ -706,19 +717,33 @@ export function DeviceInventoryForm({
           <Field label="Operating System">
             <Select
               value={String(form.operatingSystem)}
-              onChange={(v) => set("operatingSystem", v)}
+              onChange={(v) => {
+                set("operatingSystem", v);
+                if (!hasOsEdition(v)) set("operatingSystemEdition", "");
+              }}
               options={osOptions}
               placeholder="Select operating system..."
               disabled={!write}
             />
           </Field>
+          {hasOsEdition(String(form.operatingSystem)) && (
+            <Field label={getOsEditionLabel(String(form.operatingSystem))}>
+              <Select
+                value={String(form.operatingSystemEdition)}
+                onChange={(v) => set("operatingSystemEdition", v)}
+                options={osEditionOptions}
+                placeholder={getOsEditionPlaceholder(String(form.operatingSystem))}
+                disabled={!write}
+              />
+            </Field>
+          )}
           {form.operatingSystem === "Other" && (
             <Field label="Other Operating System">
               <input
                 className={inputClass}
                 value={String(form.operatingSystemOther)}
                 onChange={(e) => set("operatingSystemOther", e.target.value)}
-                placeholder="e.g. Windows Server 2019, Fedora 40"
+                placeholder="e.g. Windows Server 2019, Ubuntu 24.04 LTS"
                 readOnly={!write}
               />
             </Field>
