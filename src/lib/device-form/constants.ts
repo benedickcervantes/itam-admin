@@ -19,15 +19,37 @@ export const SCREEN_CONDITIONS = [
   "FAULTY",
   "NEEDS_REPLACEMENT",
 ];
-export const OPERATING_SYSTEM_OPTIONS = [
-  "Windows 11",
-  "Windows 10",
-  "Windows 8.1",
-  "Windows 7",
-  "macOS",
-  "Linux",
-  "ChromeOS",
+export const WINDOWS_OS_OPTIONS = ["Windows 11", "Windows 10", "Windows 8.1", "Windows 7"];
+export const WINDOWS_EDITIONS = [
+  "Pro",
+  "Home",
+  "Home Single Language",
+  "Enterprise",
+  "Education",
+  "Pro for Workstations",
 ];
+export const MACOS_VERSIONS = [
+  "Sequoia",
+  "Sonoma",
+  "Ventura",
+  "Monterey",
+  "Big Sur",
+  "Catalina",
+  "Mojave",
+];
+export const LINUX_DISTROS = [
+  "Ubuntu",
+  "Fedora",
+  "Debian",
+  "CentOS",
+  "Rocky Linux",
+  "AlmaLinux",
+  "Linux Mint",
+  "Red Hat Enterprise Linux",
+  "openSUSE",
+  "Arch Linux",
+];
+export const OPERATING_SYSTEM_OPTIONS = [...WINDOWS_OS_OPTIONS, "macOS", "Linux", "ChromeOS"];
 export const INPUT_ISSUE_CONDITIONS = ["FADING_KEYS", "FAULTY", "NEEDS_REPLACEMENT"];
 export const DESKTOP_POWER_CONNECTIONS = [
   { value: "UPS", label: "UPS", hint: "Uninterruptible Power Supply" },
@@ -99,6 +121,7 @@ export const UI_ONLY_KEYS = [
   "powerBatteryStatus",
   "powerDesktopConnectionType",
   "powerDesktopDetails",
+  "operatingSystemEdition",
   "operatingSystemOther",
   "keyboardBuiltinCondition",
   "keyboardBuiltinNotes",
