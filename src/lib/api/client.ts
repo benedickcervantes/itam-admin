@@ -19,9 +19,10 @@ export function resolveBackendFetchUrl(path: string): string {
   return pathPart;
 }
 
+import { getAccessToken } from "../auth/session";
+
 export function getStoredAccessToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("itam_access_token");
+  return getAccessToken();
 }
 
 export function normalizeErrorMessage(payload: unknown, fallback: string): string {

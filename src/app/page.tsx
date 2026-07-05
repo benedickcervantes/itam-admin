@@ -1,33 +1,110 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, Loader2, Lock, Mail, Monitor } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Headphones,
+  Loader2,
+  Lock,
+  Mail,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
+import Grainient from "@/components/Grainient";
+import LoginHeroVisual from "@/components/LoginHeroVisual";
+import TextType from "@/components/TextType";
 import { login } from "@/lib/api/auth";
-import { getAccessToken, persistSession } from "@/lib/auth/session";
+import {
+  buildSupportMailto,
+  buildSupportTel,
+  fetchPortalConfig,
+  type PortalConfig,
+} from "@/lib/api/public";
+import { getAccessToken, getRememberMePreference, persistSession } from "@/lib/auth/session";
+
+const FEATURES = ["Asset Monitoring", "Hardware Inventory", "Initial Asset Audit"] as const;
+
+function WelcomeHeading() {
+  return (
+    <h1 className="text-center text-2xl font-bold leading-tight tracking-tight text-white min-[375px]:text-3xl sm:text-4xl md:text-[2.5rem] lg:text-5xl xl:text-6xl">
+      <TextType
+        as="span"
+        text="Welcome Back!"
+        typingSpeed={120}
+        className="inline-block animate-pulse-subtle"
+        showCursor
+        cursorCharacter="|"
+        cursorClassName="ml-1 text-xl font-light text-[#2E7D9A] min-[375px]:text-2xl sm:text-3xl md:text-4xl lg:text-4xl xl:text-5xl"
+        loop
+        pauseDuration={10000}
+        renderText={(txt) => {
+          if (txt.startsWith("Welcome ")) {
+            return (
+              <>
+                <span className="text-white">Welcome </span>
+                <span className="text-[#2E7D9A]">{txt.slice(8)}</span>
+              </>
+            );
+          }
+          return <span className="text-white">{txt}</span>;
+        }}
+      />
+    </h1>
+  );
+}
+
+function FeaturePills() {
+  return (
+    <div className="mt-6 flex w-full max-w-xl flex-wrap items-center justify-center gap-2 sm:mt-8 sm:gap-2.5 md:mt-10 md:gap-3 lg:mt-10">
+      {FEATURES.map((feature) => (
+        <span
+          key={feature}
+          className="rounded-full border border-slate-700/30 bg-slate-800/30 px-3 py-1.5 text-xs font-medium text-slate-400 shadow-sm backdrop-blur-sm transition-all duration-300 min-[375px]:px-4 min-[375px]:py-2 min-[375px]:text-sm sm:px-5 sm:py-2.5 hover:border-[#2E7D9A]/40 hover:bg-[#1E3A5F]/40 hover:text-white"
+        >
+          {feature}
+        </span>
+      ))}
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [support, setSupport] = useState<PortalConfig | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    setRememberMe(getRememberMePreference());
+  }, []);
 
   useEffect(() => {
     if (getAccessToken()) router.replace("/dashboard");
   }, [router]);
+
+  useEffect(() => {
+    void fetchPortalConfig()
+      .then(setSupport)
+      .catch(() => {
+        /* portal config is optional on login */
+      });
+  }, []);
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
       setError("Enter your email and password.");
       return;
     }
+
     setIsSubmitting(true);
     setError("");
     try {
       const result = await login(email.trim(), password);
-      persistSession(result.accessToken, result.user);
+      persistSession(result.accessToken, result.user, rememberMe);
       router.replace("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.");
@@ -36,79 +113,199 @@ export default function LoginPage() {
     }
   };
 
+  const supportEmail = support?.supportEmail ?? null;
+  const supportPhone = support?.supportPhone ?? null;
+  const supportHref =
+    (supportEmail ? buildSupportMailto(supportEmail) : null) ??
+    (supportPhone ? buildSupportTel(supportPhone) : null);
+  const SupportTag = supportHref ? "a" : "button";
+
   return (
-    <div className="flex min-h-dvh bg-[#0F172A]">
-      <div className="hidden flex-1 flex-col justify-center bg-gradient-to-br from-[#1E3A5F] to-[#0F172A] p-8 lg:flex lg:p-12">
-        <Monitor className="mb-6 h-12 w-12 text-[#2E7D9A]" />
-        <h1 className="max-w-md text-3xl font-bold text-white lg:text-4xl">IT Hardware Asset Management</h1>
-        <p className="mt-4 max-w-md text-slate-300">
-          Track audits, assets, assignments, maintenance, and disposals across all departments.
-        </p>
+    <div className="relative min-h-dvh w-full overflow-x-hidden bg-[#0F172A] text-white">
+      <div className="pointer-events-none fixed inset-0 z-0 opacity-85">
+        <Grainient
+          color1="#1E3A5F"
+          color2="#2E7D9A"
+          color3="#0F172A"
+          timeSpeed={2.5}
+          colorBalance={-0.1}
+          warpStrength={0.8}
+          warpFrequency={4.0}
+          warpSpeed={1.5}
+          warpAmplitude={40.0}
+          blendAngle={30.0}
+          blendSoftness={0.1}
+          rotationAmount={300.0}
+          noiseScale={1.5}
+          grainAmount={0.08}
+          grainScale={1.5}
+          grainAnimated
+          contrast={1.3}
+          gamma={0.9}
+          saturation={1.2}
+          centerX={0.0}
+          centerY={0.0}
+          zoom={0.8}
+        />
       </div>
-      <div className="flex flex-1 flex-col items-center justify-center p-4 sm:p-6">
-        <div className="mb-5 flex items-center gap-2 lg:hidden">
-          <Monitor className="h-7 w-7 text-[#2E7D9A]" />
-          <span className="text-sm font-semibold text-white">IT Asset Management</span>
+
+      <div className="pointer-events-none fixed inset-0 z-10 bg-gradient-to-tr from-[#0F172A] via-[#0F172A]/50 to-[#0F172A]/30" />
+
+      <div className="relative z-20 mx-auto flex min-h-dvh w-full max-w-[1440px] flex-col lg:flex-row lg:items-stretch">
+        {/* Hero — stacked on mobile/tablet, side panel on laptop+ */}
+        <div className="flex shrink-0 flex-col items-center justify-center px-4 pb-2 pt-6 text-center min-[375px]:px-5 min-[375px]:pt-7 sm:px-6 sm:pb-4 sm:pt-8 md:px-8 md:pt-10 lg:flex-1 lg:items-end lg:justify-center lg:px-10 lg:pb-8 lg:pt-12 lg:pr-6 xl:px-14 xl:pr-10 2xl:pr-16">
+          <div className="flex w-full max-w-lg flex-col items-center lg:max-w-xl">
+            <LoginHeroVisual />
+            <WelcomeHeading />
+            <p className="mt-2 flex min-h-[20px] max-w-md items-center justify-center px-2 text-center text-xs leading-relaxed text-slate-400 min-[375px]:mt-3 min-[375px]:min-h-[24px] min-[375px]:text-sm sm:mt-4 sm:text-base md:max-w-lg lg:min-h-[28px] lg:text-lg">
+              <TextType
+                as="span"
+                text="Sign in to monitor your IT hardware assets"
+                typingSpeed={80}
+                initialDelay={1800}
+                loop={false}
+                showCursor={false}
+              />
+            </p>
+            <FeaturePills />
+          </div>
         </div>
-        <div className="w-full max-w-md rounded-2xl border border-slate-700/60 bg-[#1E293B] p-6 shadow-xl sm:p-8">
-          <h2 className="text-xl font-semibold text-white sm:text-2xl">Sign in</h2>
-          <p className="mt-1 text-sm text-slate-400">Use your IT admin or viewer account</p>
-          <form
-            className="mt-8 space-y-5"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void handleLogin();
-            }}
-          >
-            <div>
-              <label htmlFor="email" className="mb-1.5 block text-sm text-slate-300">
-                Email
-              </label>
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-lg border border-slate-600 bg-slate-900/80 py-2.5 pl-10 pr-3 text-white outline-none focus:border-[#2E7D9A]"
-                  placeholder="admin@itam.local"
-                />
-              </div>
-            </div>
-            <div>
-              <label htmlFor="password" className="mb-1.5 block text-sm text-slate-300">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-lg border border-slate-600 bg-slate-900/80 py-2.5 pl-10 pr-10 text-white outline-none focus:border-[#2E7D9A]"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-            {error && <p className="text-sm text-red-400">{error}</p>}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] py-2.5 font-medium text-white hover:bg-[#256f89] disabled:opacity-60"
+
+        {/* Sign-in form */}
+        <section className="flex w-full shrink-0 items-start justify-center px-4 pb-8 pt-2 min-[375px]:px-5 sm:px-6 sm:pb-10 md:px-8 md:pb-12 lg:w-1/2 lg:max-w-none lg:items-center lg:justify-start lg:px-10 lg:py-10 lg:pl-6 xl:px-12 xl:py-12 xl:pl-10 2xl:px-14">
+          <div className="w-full max-w-[480px] rounded-2xl border border-white/10 bg-[#1E293B]/75 p-5 shadow-[0_20px_50px_rgba(0,0,0,0.7),0_0_40px_rgba(46,125,154,0.06)] backdrop-blur-xl transition-all duration-500 min-[375px]:p-6 sm:p-8 md:p-9 lg:p-10 xl:p-12">
+            <h2 className="text-2xl font-bold text-white min-[375px]:text-[1.65rem] sm:text-3xl">Sign in</h2>
+            <p className="mt-1.5 text-sm text-slate-400 min-[375px]:mt-2 sm:text-base">
+              Access your IT asset monitoring portal
+            </p>
+
+            <form
+              className="mt-6 space-y-4 min-[375px]:mt-8 min-[375px]:space-y-5 sm:mt-10 sm:space-y-6"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleLogin();
+              }}
             >
-              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isSubmitting ? "Signing in..." : "Sign in"}
-            </button>
-          </form>
-        </div>
+              <div>
+                <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-slate-200 sm:mb-2">
+                  Email
+                </label>
+                <div className="relative">
+                  <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 sm:left-4" />
+                  <input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (error) setError("");
+                    }}
+                    placeholder="admin@itam.local"
+                    suppressHydrationWarning
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950/80 py-3 pl-10 pr-3 text-sm text-white outline-none transition-all duration-300 placeholder:text-slate-500 focus:border-[#2E7D9A]/50 focus:bg-slate-950 focus:ring-1 focus:ring-[#2E7D9A]/20 min-[375px]:py-3.5 sm:py-4 sm:pl-11 sm:pr-4 sm:text-base"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-slate-200 sm:mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 sm:left-4" />
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (error) setError("");
+                    }}
+                    placeholder="Enter your password"
+                    suppressHydrationWarning
+                    className="w-full rounded-xl border border-slate-700 bg-slate-950/80 py-3 pl-10 pr-10 text-sm text-white outline-none transition-all duration-300 placeholder:text-slate-500 focus:border-[#2E7D9A]/50 focus:bg-slate-950 focus:ring-1 focus:ring-[#2E7D9A]/20 min-[375px]:py-3.5 sm:py-4 sm:pl-11 sm:pr-11 sm:text-base"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-slate-200"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex w-full items-center justify-between text-sm">
+                <label className="flex cursor-pointer items-center gap-2 text-slate-300 transition-colors hover:text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="h-4 w-4 cursor-pointer rounded border-slate-600 bg-slate-900 text-[#2E7D9A] focus:ring-[#2E7D9A]/30"
+                  />
+                  Remember me
+                </label>
+              </div>
+
+              {error && <p className="text-sm text-red-400">{error}</p>}
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                suppressHydrationWarning
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#2E7D9A] py-3 text-sm font-semibold text-white transition-all duration-300 hover:bg-[#256f89] hover:shadow-[0_0_25px_rgba(46,125,154,0.45)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:py-4 sm:text-base lg:hover:scale-[1.01]"
+              >
+                {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isSubmitting ? "Signing in..." : "Sign in"}
+              </button>
+            </form>
+
+            <div className="mt-5 sm:mt-6">
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-slate-700" />
+                <span className="text-xs font-medium text-slate-500">Need help?</span>
+                <div className="h-px flex-1 bg-slate-700" />
+              </div>
+              <div className="mt-3 flex flex-col items-center gap-2 sm:mt-4">
+                <SupportTag
+                  {...(supportHref
+                    ? { href: supportHref }
+                    : { type: "button" as const, disabled: true })}
+                  className="group flex w-full items-center justify-center gap-2 rounded-xl border border-slate-700/80 bg-slate-900/40 px-4 py-2.5 text-sm font-medium text-slate-300 backdrop-blur-sm transition-all duration-300 hover:border-[#2E7D9A]/40 hover:bg-[#1E3A5F]/25 hover:text-white hover:shadow-[0_0_20px_rgba(46,125,154,0.15)] min-[375px]:w-auto min-[375px]:px-6 min-[375px]:py-3 sm:hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Headphones className="h-4 w-4 text-slate-400 transition-colors group-hover:text-white" />
+                  <span>Contact IT Support</span>
+                </SupportTag>
+                {(supportEmail || supportPhone) && (
+                  <p className="text-center text-xs text-slate-500">
+                    {supportEmail && (
+                      <a
+                        href={buildSupportMailto(supportEmail)}
+                        className="text-slate-400 transition-colors hover:text-[#2E7D9A]"
+                      >
+                        {supportEmail}
+                      </a>
+                    )}
+                    {supportEmail && supportPhone && (
+                      <span className="mx-2 text-slate-600">·</span>
+                    )}
+                    {supportPhone && (
+                      <a
+                        href={buildSupportTel(supportPhone) ?? undefined}
+                        className="text-slate-400 transition-colors hover:text-[#2E7D9A]"
+                      >
+                        {supportPhone}
+                      </a>
+                    )}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

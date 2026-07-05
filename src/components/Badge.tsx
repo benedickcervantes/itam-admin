@@ -11,8 +11,15 @@ const STYLES: Record<string, string> = {
   OPEN: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
   IN_PROGRESS: "bg-sky-500/15 text-sky-300 ring-sky-500/30",
   COMPLETED: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+  LOW: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+  MEDIUM: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
   HIGH: "bg-orange-500/15 text-orange-300 ring-orange-500/30",
   IMMEDIATE: "bg-red-500/15 text-red-300 ring-red-500/30",
+  NO_ACTION: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+  UPGRADE: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
+  REPLACE_UNIT: "bg-orange-500/15 text-orange-300 ring-orange-500/30",
+  SOFTWARE_REFRESH: "bg-sky-500/15 text-sky-300 ring-sky-500/30",
+  IMMEDIATE_REPAIR: "bg-red-500/15 text-red-300 ring-red-500/30",
 };
 
 export function Badge({ value }: { value?: string | null }) {

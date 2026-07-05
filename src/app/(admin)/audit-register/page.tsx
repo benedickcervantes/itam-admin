@@ -102,7 +102,17 @@ export default function AuditRegisterPage() {
     setForm(emptyForm());
     setDrawerMode("create");
     setSaving(false);
+    setError("");
+    setSuccess("");
     setDrawerOpen(true);
+  };
+
+  const closeDrawer = () => {
+    setDrawerOpen(false);
+    setSaving(false);
+    setDrawerMode("create");
+    setError("");
+    setSuccess("");
   };
 
   const loadAuditDetail = async (row: AuditRegister) => {
@@ -123,6 +133,8 @@ export default function AuditRegisterPage() {
   const openView = async (row: AuditRegister) => {
     setDrawerMode("view");
     setSaving(false);
+    setError("");
+    setSuccess("");
     setDrawerOpen(true);
     await loadAuditDetail(row);
   };
@@ -130,6 +142,8 @@ export default function AuditRegisterPage() {
   const openEditForm = async (row: AuditRegister) => {
     setDrawerMode("edit");
     setSaving(false);
+    setError("");
+    setSuccess("");
     setDrawerOpen(true);
     await loadAuditDetail(row);
   };
@@ -453,19 +467,28 @@ export default function AuditRegisterPage() {
               ? "Update hardware audit details"
               : "Hardware audit summary"
         }
-        onClose={() => {
-          setDrawerOpen(false);
-          setSaving(false);
-          setDrawerMode("create");
-        }}
+        onClose={closeDrawer}
         wide
         toolbar={drawerMode !== "view" ? <DeviceFormToolbar mode="audit" /> : undefined}
+        banner={
+          drawerMode !== "view" && (error || success) ? (
+            <p
+              className={`rounded-lg border px-3 py-2 text-sm ${
+                error
+                  ? "border-red-900/50 bg-red-950/40 text-red-400"
+                  : "border-emerald-900/50 bg-emerald-950/40 text-emerald-400"
+              }`}
+            >
+              {error || success}
+            </p>
+          ) : undefined
+        }
         footer={
           drawerMode === "view" && editing && write ? (
             <div className="ml-auto flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setDrawerOpen(false)}
+                onClick={closeDrawer}
                 className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center rounded-lg border border-slate-600 px-3 text-sm font-medium leading-none text-slate-200 hover:bg-slate-800"
               >
                 Close
@@ -483,7 +506,7 @@ export default function AuditRegisterPage() {
               <button
                 type="button"
                 disabled={saving}
-                onClick={() => setDrawerOpen(false)}
+                onClick={closeDrawer}
                 className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center rounded-lg border border-slate-600 px-3 text-sm font-medium leading-none text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel
