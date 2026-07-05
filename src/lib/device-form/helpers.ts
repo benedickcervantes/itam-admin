@@ -30,6 +30,8 @@ export const INFRASTRUCTURE_DEVICE_TYPES = [
   "LOAD_BALANCER",
   "FIREWALL",
   "ACCESS_POINT",
+  "CCTV_DVR",
+  "CCTV_CAMERA",
   "OTHER",
 ] as const;
 
@@ -43,7 +45,9 @@ export function isInfrastructureDevice(deviceType: string, assetCategory?: Asset
     deviceType === "POE_SWITCH" ||
     deviceType === "LOAD_BALANCER" ||
     deviceType === "FIREWALL" ||
-    deviceType === "ACCESS_POINT"
+    deviceType === "ACCESS_POINT" ||
+    deviceType === "CCTV_DVR" ||
+    deviceType === "CCTV_CAMERA"
   );
 }
 
@@ -77,7 +81,9 @@ export function assetCategoryFromDeviceType(deviceType: string): AssetCategory {
     deviceType === "POE_SWITCH" ||
     deviceType === "LOAD_BALANCER" ||
     deviceType === "FIREWALL" ||
-    deviceType === "ACCESS_POINT"
+    deviceType === "ACCESS_POINT" ||
+    deviceType === "CCTV_DVR" ||
+    deviceType === "CCTV_CAMERA"
   ) {
     return "infrastructure";
   }
@@ -85,11 +91,11 @@ export function assetCategoryFromDeviceType(deviceType: string): AssetCategory {
 }
 
 export function showsPortCount(deviceType: string) {
-  return ["POE_SWITCH", "LOAD_BALANCER", "FIREWALL", "ACCESS_POINT", "OTHER"].includes(deviceType);
+  return ["POE_SWITCH", "LOAD_BALANCER", "FIREWALL", "ACCESS_POINT", "CCTV_DVR", "OTHER"].includes(deviceType);
 }
 
 export function showsRackSlot(deviceType: string) {
-  return ["SERVER", "POE_SWITCH", "LOAD_BALANCER", "FIREWALL", "OTHER"].includes(deviceType);
+  return ["SERVER", "POE_SWITCH", "LOAD_BALANCER", "FIREWALL", "CCTV_DVR", "OTHER"].includes(deviceType);
 }
 
 export function showsInfraOs(deviceType: string) {
@@ -106,6 +112,8 @@ export function showsInfraNetworkSpecs(deviceType: string) {
     deviceType === "LOAD_BALANCER" ||
     deviceType === "FIREWALL" ||
     deviceType === "ACCESS_POINT" ||
+    deviceType === "CCTV_DVR" ||
+    deviceType === "CCTV_CAMERA" ||
     deviceType === "OTHER"
   );
 }

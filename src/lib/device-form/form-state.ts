@@ -403,9 +403,22 @@ export function prepareComposedForm(form: DeviceFormState): DeviceFormState {
   return body;
 }
 
+const ASSET_ONLY_KEYS = [
+  "macAddress",
+  "serialNumber",
+  "status",
+  "condition",
+  "notes",
+  "location",
+  "managementIp",
+  "rackSlot",
+  "portCount",
+] as const;
+
 export function prepareAuditPayload(form: DeviceFormState): Record<string, string | boolean> {
   const body = prepareComposedForm(form);
   UI_ONLY_KEYS.forEach((k) => delete body[k]);
+  ASSET_ONLY_KEYS.forEach((k) => delete body[k]);
   Object.keys(body).forEach((k) => {
     if (body[k] === "") delete body[k];
   });
