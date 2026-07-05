@@ -10,6 +10,7 @@ export function Drawer({
   children,
   toolbar,
   footer,
+  banner,
   wide,
 }: {
   open: boolean;
@@ -19,6 +20,7 @@ export function Drawer({
   children: React.ReactNode;
   toolbar?: React.ReactNode;
   footer?: React.ReactNode;
+  banner?: React.ReactNode;
   wide?: boolean;
 }) {
   if (!open) return null;
@@ -40,6 +42,7 @@ export function Drawer({
         {toolbar && (
           <div className="shrink-0 border-b border-slate-700/60 px-4 py-2.5 sm:px-5">{toolbar}</div>
         )}
+        {banner && <div className="shrink-0 px-4 pt-3 sm:px-5">{banner}</div>}
         <div data-drawer-scroll className="flex-1 overflow-y-auto p-4 sm:p-5">
           {children}
         </div>

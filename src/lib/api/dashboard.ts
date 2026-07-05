@@ -7,6 +7,8 @@ export type DashboardSummary = {
     auditCompletionRate: number;
     pendingAudits: number;
   };
+  assetStatusBreakdown: { status: string; count: number }[];
+  deviceTypeBreakdown: { deviceType: string; count: number }[];
   auditHealth: {
     okNoIssues: number;
     needsUpgrade: number;

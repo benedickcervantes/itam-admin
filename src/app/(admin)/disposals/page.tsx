@@ -103,7 +103,15 @@ export default function DisposalsPage() {
     setForm(emptyForm());
     setDrawerMode("create");
     setSaving(false);
+    setError("");
     setDrawerOpen(true);
+  };
+
+  const closeDrawer = () => {
+    setDrawerOpen(false);
+    setSaving(false);
+    setDrawerMode("create");
+    setError("");
   };
 
   const openView = (row: DisposalRecord) => {
@@ -111,6 +119,7 @@ export default function DisposalsPage() {
     setForm(formFromRecord(row));
     setDrawerMode("view");
     setSaving(false);
+    setError("");
     setDrawerOpen(true);
   };
 
@@ -119,6 +128,7 @@ export default function DisposalsPage() {
     setForm(formFromRecord(row));
     setDrawerMode("edit");
     setSaving(false);
+    setError("");
     setDrawerOpen(true);
   };
 
@@ -374,17 +384,20 @@ export default function DisposalsPage() {
               ? "Update disposal record details"
               : "Disposal record summary"
         }
-        onClose={() => {
-          setDrawerOpen(false);
-          setSaving(false);
-          setDrawerMode("create");
-        }}
+        onClose={closeDrawer}
+        banner={
+          drawerMode !== "view" && error ? (
+            <p className="rounded-lg border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-400">
+              {error}
+            </p>
+          ) : undefined
+        }
         footer={
           drawerMode === "view" && editing && write ? (
             <div className="ml-auto flex items-center justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setDrawerOpen(false)}
+                onClick={closeDrawer}
                 className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center rounded-lg border border-slate-600 px-3 text-sm font-medium leading-none text-slate-200 hover:bg-slate-800"
               >
                 Close
@@ -402,7 +415,7 @@ export default function DisposalsPage() {
               <button
                 type="button"
                 disabled={saving}
-                onClick={() => setDrawerOpen(false)}
+                onClick={closeDrawer}
                 className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center rounded-lg border border-slate-600 px-3 text-sm font-medium leading-none text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel

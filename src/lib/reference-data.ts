@@ -19,6 +19,8 @@ export const REFERENCE_DATA = {
     "LOAD_BALANCER",
     "FIREWALL",
     "ACCESS_POINT",
+    "CCTV_DVR",
+    "CCTV_CAMERA",
     "OTHER",
   ],
   endUserDeviceTypes: [...END_USER_DEVICE_TYPES],

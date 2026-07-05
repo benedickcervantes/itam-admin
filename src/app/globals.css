@@ -10,6 +10,11 @@
 body {
   background: var(--itam-bg);
   color: #e2e8f0;
+  overflow-x: hidden;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 * {
@@ -70,6 +75,12 @@ table.data-table tbody tr:hover {
   background: rgb(30 41 59 / 0.6);
 }
 
+table.data-table tfoot td {
+  border-top: 1px solid rgb(51 65 85 / 0.8);
+  border-bottom: none;
+  background: rgb(15 23 42 / 0.5);
+}
+
 .card {
   border: 1px solid rgb(51 65 85 / 0.6);
   border-radius: 0.75rem;
@@ -87,4 +98,21 @@ table.data-table tbody tr:hover {
   .kpi-value {
     font-size: 1.75rem;
   }
+}
+
+@keyframes pulse-subtle {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.85;
+    transform: scale(0.98);
+  }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
 }

@@ -12,6 +12,8 @@ const LABELS: Record<string, string> = {
   LOAD_BALANCER: "Load Balancer",
   FIREWALL: "Firewall",
   ACCESS_POINT: "Access Point",
+  CCTV_DVR: "CCTV DVR",
+  CCTV_CAMERA: "CCTV Camera",
   LICENSED: "Licensed",
   CRACKED: "Cracked",
   NOT_ACTIVATED: "Not Activated",
