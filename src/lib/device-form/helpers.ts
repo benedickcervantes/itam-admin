@@ -2,6 +2,10 @@ import {
   DESKTOP_POWER_CONNECTIONS,
   INPUT_ISSUE_CONDITIONS,
   OPERATING_SYSTEM_OPTIONS,
+  WINDOWS_EDITIONS,
+  WINDOWS_OS_OPTIONS,
+  MACOS_VERSIONS,
+  LINUX_DISTROS,
   PERIPHERAL_CONDITIONS,
   SCREEN_CONDITIONS,
 } from "./constants";
@@ -323,11 +327,83 @@ export function isInputIssueCondition(condition: string) {
   return INPUT_ISSUE_CONDITIONS.includes(condition);
 }
 
+export function isWindowsOs(os: string) {
+  return WINDOWS_OS_OPTIONS.includes(os);
+}
+
+export function isMacOs(os: string) {
+  return os === "macOS";
+}
+
+export function isLinuxOs(os: string) {
+  return os === "Linux";
+}
+
+export function hasOsEdition(os: string) {
+  return isWindowsOs(os) || isMacOs(os) || isLinuxOs(os);
+}
+
+export function getOsEditionOptions(os: string): readonly string[] {
+  if (isWindowsOs(os)) return WINDOWS_EDITIONS;
+  if (isMacOs(os)) return MACOS_VERSIONS;
+  if (isLinuxOs(os)) return LINUX_DISTROS;
+  return [];
+}
+
+export function getOsEditionLabel(os: string) {
+  if (isWindowsOs(os)) return "Windows Edition";
+  if (isMacOs(os)) return "macOS Version";
+  if (isLinuxOs(os)) return "Linux Distribution";
+  return "Edition";
+}
+
+export function getOsEditionPlaceholder(os: string) {
+  if (isWindowsOs(os)) return "Select edition...";
+  if (isMacOs(os)) return "Select version...";
+  if (isLinuxOs(os)) return "Select distribution...";
+  return "Select...";
+}
+
 export function parseOperatingSystem(value: string) {
   const v = value.trim();
-  if (!v) return { os: "", other: "" };
-  if (OPERATING_SYSTEM_OPTIONS.includes(v)) return { os: v, other: "" };
-  return { os: "Other", other: v };
+  if (!v) return { os: "", edition: "", other: "" };
+  if (OPERATING_SYSTEM_OPTIONS.includes(v)) return { os: v, edition: "", other: "" };
+
+  for (const version of WINDOWS_OS_OPTIONS) {
+    if (v === version) return { os: version, edition: "", other: "" };
+    if (v.startsWith(`${version} `)) {
+      const edition = v.slice(version.length + 1).trim();
+      if (WINDOWS_EDITIONS.includes(edition)) return { os: version, edition, other: "" };
+      return { os: "Other", edition: "", other: v };
+    }
+  }
+
+  if (v === "macOS") return { os: "macOS", edition: "", other: "" };
+  if (v.startsWith("macOS ")) {
+    const edition = v.slice("macOS ".length).trim();
+    if (MACOS_VERSIONS.includes(edition)) return { os: "macOS", edition, other: "" };
+    return { os: "Other", edition: "", other: v };
+  }
+
+  if (v === "Linux") return { os: "Linux", edition: "", other: "" };
+  if (v.startsWith("Linux ")) {
+    const edition = v.slice("Linux ".length).trim();
+    if (LINUX_DISTROS.includes(edition)) return { os: "Linux", edition, other: "" };
+    return { os: "Other", edition: "", other: v };
+  }
+
+  return { os: "Other", edition: "", other: v };
+}
+
+export function composeOperatingSystem(os: string, edition: string, other: string) {
+  const base = os.trim();
+  if (!base) return "";
+  if (base === "Other") return other.trim();
+  if (hasOsEdition(base)) {
+    const ed = edition.trim();
+    return ed ? `${base} ${ed}` : base;
+  }
+  return base;
 }
 
 export function composeLaptopKeyboard(

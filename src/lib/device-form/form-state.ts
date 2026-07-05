@@ -2,6 +2,7 @@ import type { Asset, AuditRegister } from "@/lib/types";
 import { UI_ONLY_KEYS } from "./constants";
 import {
   assetCategoryFromAsset,
+  composeOperatingSystem,
   composeDesktopPower,
   composeLaptopKeyboard,
   composeLaptopPointer,
@@ -84,6 +85,7 @@ export function emptyForm(): DeviceFormState {
     graphicsGpu: "",
     network: "",
     operatingSystem: "",
+    operatingSystemEdition: "",
     operatingSystemOther: "",
     osLicenseStatus: "",
     monitorPrimary: "",
@@ -184,6 +186,7 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
     graphicsGpu: row.graphics_gpu ?? "",
     network: row.network ?? "",
     operatingSystem: osParsed.os,
+    operatingSystemEdition: osParsed.edition,
     operatingSystemOther: osParsed.other,
     osLicenseStatus: row.os_license_status ?? "",
     monitorPrimary: monitorParsed.primary,
@@ -290,6 +293,7 @@ export function formStateFromAsset(row: Asset): DeviceFormState {
     graphicsGpu: hardware.gpu ?? "",
     network: hardware.network ?? "",
     operatingSystem: osParsed.os,
+    operatingSystemEdition: osParsed.edition,
     operatingSystemOther: osParsed.other,
     osLicenseStatus: hardware.os_license_status ?? "",
     monitorPrimary: monitorParsed.primary,
@@ -341,8 +345,11 @@ export function prepareComposedForm(form: DeviceFormState): DeviceFormState {
         String(body.secondaryStorageModel),
       )
     : "";
-  body.operatingSystem =
-    body.operatingSystem === "Other" ? String(body.operatingSystemOther).trim() : String(body.operatingSystem);
+  body.operatingSystem = composeOperatingSystem(
+    String(body.operatingSystem),
+    String(body.operatingSystemEdition),
+    String(body.operatingSystemOther),
+  );
   body.powerAvrChargerBattery = isLaptopDevice(String(body.deviceType))
     ? composeLaptopPower(String(body.powerChargerStatus), String(body.powerBatteryStatus))
     : composeDesktopPower(String(body.powerDesktopConnectionType), String(body.powerDesktopDetails));
