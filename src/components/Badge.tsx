@@ -1,4 +1,4 @@
-import { labelEnum } from "@/lib/labels";
+import { labelEnum, labelEnumCompact } from "@/lib/labels";
 
 const STYLES: Record<string, string> = {
   OK_NO_ISSUES: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
@@ -22,12 +22,26 @@ const STYLES: Record<string, string> = {
   IMMEDIATE_REPAIR: "bg-red-500/15 text-red-300 ring-red-500/30",
 };
 
-export function Badge({ value }: { value?: string | null }) {
+export function Badge({
+  value,
+  compact,
+  title,
+  className = "",
+}: {
+  value?: string | null;
+  compact?: boolean;
+  title?: string;
+  className?: string;
+}) {
   if (!value) return <span className="text-slate-500">—</span>;
   const style = STYLES[value] ?? "bg-slate-700/50 text-slate-200 ring-slate-600/40";
+  const label = compact ? labelEnumCompact(value) : labelEnum(value);
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${style}`}>
-      {labelEnum(value)}
+    <span
+      title={title ?? (compact ? labelEnum(value) : undefined)}
+      className={`inline-flex max-w-full truncate rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${style} ${className}`}
+    >
+      {label}
     </span>
   );
 }

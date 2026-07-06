@@ -1,6 +1,5 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { labelEnum } from "@/lib/labels";
 
 const DEVICE_TYPE_COLORS: Record<string, string> = {
@@ -14,78 +13,73 @@ const DEVICE_TYPE_COLORS: Record<string, string> = {
   ACCESS_POINT: "#EC4899",
   CCTV_DVR: "#F97316",
   CCTV_CAMERA: "#14B8A6",
-  OTHER: "#64748B",
+  KEYBOARD: "#A855F7",
+  MOUSE: "#22C55E",
+  MONITOR: "#0EA5E9",
+  PRINTER: "#EAB308",
 };
 
 const FALLBACK_COLOR = "#475569";
 
-const ROW_HEIGHT = 40;
-const MIN_HEIGHT = 220;
-const MAX_HEIGHT = 480;
-
 type DeviceTypeRow = { deviceType: string; count: number };
 
 export function DeviceTypeChart({ data = [] }: { data?: DeviceTypeRow[] }) {
-  const chartData = [...data]
-    .sort((a, b) => b.count - a.count)
-    .map((row) => ({ ...row, label: labelEnum(row.deviceType) }));
+  const rows = [...data]
+    .filter((row) => row.deviceType !== "OTHER")
+    .sort((a, b) => {
+      if (a.count !== b.count) return b.count - a.count;
+      return labelEnum(a.deviceType).localeCompare(labelEnum(b.deviceType));
+    });
 
-  const hasData = chartData.some((row) => row.count > 0);
+  const total = rows.reduce((sum, row) => sum + row.count, 0);
+  const maxCount = Math.max(1, ...rows.map((row) => row.count));
 
-  if (!hasData) {
+  if (rows.length === 0) {
     return (
-      <div className="flex h-56 items-center justify-center text-sm text-slate-500">No devices recorded yet</div>
+      <div className="flex h-40 items-center justify-center text-sm text-slate-500">No device types configured</div>
     );
   }
 
-  // Grows with the number of categories so bars stay readable; scrolls once it gets too tall.
-  const naturalHeight = Math.max(MIN_HEIGHT, chartData.length * ROW_HEIGHT);
-  const chartHeight = Math.min(MAX_HEIGHT, naturalHeight);
-  const needsScroll = naturalHeight > MAX_HEIGHT;
-
-  const longestLabel = chartData.reduce((max, row) => Math.max(max, row.label.length), 0);
-  const yAxisWidth = Math.min(160, Math.max(90, longestLabel * 7 + 16));
-
   return (
-    <div className="w-full" style={{ height: chartHeight, overflowY: needsScroll ? "auto" : "visible" }}>
-      <div style={{ height: needsScroll ? naturalHeight : "100%", minHeight: "100%" }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} layout="vertical" margin={{ left: 8, right: 16, top: 8, bottom: 8 }}>
-            <CartesianGrid horizontal={false} stroke="rgb(51 65 85 / 0.4)" />
-            <XAxis
-              type="number"
-              allowDecimals={false}
-              tick={{ fill: "#94a3b8", fontSize: 12 }}
-              axisLine={{ stroke: "rgb(51 65 85 / 0.6)" }}
-              tickLine={false}
-            />
-            <YAxis
-              type="category"
-              dataKey="label"
-              width={yAxisWidth}
-              tick={{ fill: "#cbd5e1", fontSize: 12 }}
-              axisLine={{ stroke: "rgb(51 65 85 / 0.6)" }}
-              tickLine={false}
-            />
-            <Tooltip
-              cursor={{ fill: "rgb(51 65 85 / 0.2)" }}
-              formatter={(value) => [`${value ?? 0} asset(s)`, "Count"]}
-              contentStyle={{
-                background: "#1e293b",
-                border: "1px solid rgb(51 65 85 / 0.6)",
-                borderRadius: "0.5rem",
-                color: "#e2e8f0",
-                fontSize: "0.8125rem",
-              }}
-              labelStyle={{ color: "#94a3b8" }}
-            />
-            <Bar dataKey="count" radius={[0, 4, 4, 0]} maxBarSize={22} isAnimationActive={false}>
-              {chartData.map((row) => (
-                <Cell key={row.deviceType} fill={DEVICE_TYPE_COLORS[row.deviceType] ?? FALLBACK_COLOR} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
+    <div>
+      <div className="mb-4 flex items-baseline justify-between gap-4">
+        <p className="text-xs uppercase tracking-wide text-slate-500">
+          {rows.length} device type{rows.length === 1 ? "" : "s"}
+        </p>
+        <p className="text-sm text-slate-400">
+          <span className="text-lg font-bold text-white">{total}</span> total devices
+        </p>
+      </div>
+
+      <div className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
+        {rows.map((row) => {
+          const color = DEVICE_TYPE_COLORS[row.deviceType] ?? FALLBACK_COLOR;
+          const isEmpty = row.count === 0;
+          const barWidth = isEmpty ? 0 : Math.max(4, (row.count / maxCount) * 100);
+          const share = total === 0 ? 0 : Math.round((row.count / total) * 100);
+
+          return (
+            <div key={row.deviceType}>
+              <div className="mb-1 flex items-center justify-between gap-3 text-sm">
+                <span className={`truncate ${isEmpty ? "text-slate-500" : "text-slate-300"}`}>
+                  {labelEnum(row.deviceType)}
+                </span>
+                <span className="shrink-0 tabular-nums">
+                  <span className={`font-semibold ${isEmpty ? "text-slate-500" : "text-white"}`}>{row.count}</span>
+                  <span className="ml-1.5 text-xs text-slate-500">{share}%</span>
+                </span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-slate-800/80">
+                {!isEmpty && (
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${barWidth}%`, backgroundColor: color }}
+                  />
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

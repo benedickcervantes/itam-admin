@@ -20,7 +20,8 @@ import { fetchDepartments } from "@/lib/api/departments";
 import { canWrite } from "@/lib/auth/permissions";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 import { useSessionUser } from "@/components/SessionContext";
-import { emptyForm, formStateFromAudit, prepareAuditPayload, ramSlotDefaults } from "@/lib/device-form";
+import { emptyForm, formStateFromAudit, prepareAuditPayload, ramSlotDefaults, validateAuditForm } from "@/lib/device-form";
+import { formatItemsNeededList, ITEMS_NEEDED_TABLE_LABEL, labelEnum } from "@/lib/labels";
 import type { Department } from "@/lib/types";
 
 type ViewMode = "table" | "grid";
@@ -34,6 +35,15 @@ function readStoredViewMode(): ViewMode {
   return saved === "grid" ? "grid" : "table";
 }
 
+function auditNotesLabel(assessment?: string | null) {
+  return assessment === "NEEDS_REPLACEMENT" ? "Replacement Notes" : "Upgrade Notes";
+}
+
+const ITEMS_NEEDED_FILTER_OPTIONS = [
+  ...REFERENCE_DATA.upgradeComponents,
+  ...REFERENCE_DATA.replacementOnlyComponents,
+] as const;
+
 export default function AuditRegisterPage() {
   const user = useSessionUser();
   const write = canWrite(user);
@@ -41,7 +51,7 @@ export default function AuditRegisterPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [departmentId, setDepartmentId] = useState("");
+  const [itemNeeded, setItemNeeded] = useState("");
   const [auditStatus, setAuditStatus] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -67,7 +77,7 @@ export default function AuditRegisterPage() {
       const res = await fetchAuditRegisters({
         page,
         search: search || undefined,
-        departmentId: departmentId || undefined,
+        upgradeComponent: itemNeeded || undefined,
         auditStatus: auditStatus || undefined,
       });
       setItems(res.items);
@@ -78,7 +88,7 @@ export default function AuditRegisterPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, departmentId, auditStatus]);
+  }, [page, search, itemNeeded, auditStatus]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput), 300);
@@ -87,7 +97,7 @@ export default function AuditRegisterPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, departmentId, auditStatus]);
+  }, [search, itemNeeded, auditStatus]);
 
   useEffect(() => {
     void load();
@@ -150,29 +160,23 @@ export default function AuditRegisterPage() {
 
   const save = async () => {
     if (saving) return;
-    setSaving(true);
     setError("");
     setSuccess("");
+    const validationError = validateAuditForm(form);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    setSaving(true);
     const body = prepareAuditPayload(form);
     try {
-      if (editing) {
-        const updated = await updateAuditRegister(editing.id, body);
-        if (updated.asset) {
-          if (updated.asset_created) {
-            setSuccess(`Asset ${updated.asset.asset_code} created automatically.`);
-          } else {
-            setSuccess(`Matched existing asset ${updated.asset.asset_code} — no duplicate created.`);
-          }
-        }
-      } else {
-        const created = await createAuditRegister(body);
-        if (created.asset) {
-          if (created.asset_created) {
-            setSuccess(`Asset ${created.asset.asset_code} created automatically.`);
-          } else {
-            setSuccess(`Matched existing asset ${created.asset.asset_code} — no duplicate created.`);
-          }
-        }
+      const result = editing
+        ? await updateAuditRegister(editing.id, body)
+        : await createAuditRegister(body);
+      if (result.assets && result.assets.length > 0) {
+        const codes = result.assets.map((a) => a.asset_code).join(", ");
+        const label = result.assets.length === 1 ? "asset record" : "asset records";
+        setSuccess(`${result.assets.length} ${label} saved to the Asset Dashboard (${codes}).`);
       }
       setDrawerOpen(false);
       setDrawerMode("create");
@@ -262,14 +266,14 @@ export default function AuditRegisterPage() {
             />
           </div>
           <select
-            value={departmentId}
-            onChange={(e) => setDepartmentId(e.target.value)}
+            value={itemNeeded}
+            onChange={(e) => setItemNeeded(e.target.value)}
             className={`${selectClass} w-full sm:w-auto sm:min-w-[10rem]`}
           >
-            <option value="">All departments</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
+            <option value="">All items needed</option>
+            {ITEMS_NEEDED_FILTER_OPTIONS.map((item) => (
+              <option key={item} value={item}>
+                {labelEnum(item)}
               </option>
             ))}
           </select>
@@ -333,10 +337,11 @@ export default function AuditRegisterPage() {
                   <tr>
                     <th>Audit ID</th>
                     <th>Employee</th>
-                    <th>Job Title</th>
+                    <th>Department</th>
                     <th>Computer</th>
                     <th>Status</th>
                     <th>Assessment</th>
+                    <th>{ITEMS_NEEDED_TABLE_LABEL}</th>
                     <th>Priority</th>
                     <th className="w-0">Actions</th>
                   </tr>
@@ -344,13 +349,13 @@ export default function AuditRegisterPage() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={8} className="text-slate-400">
+                      <td colSpan={9} className="text-slate-400">
                         Loading...
                       </td>
                     </tr>
                   ) : items.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="text-slate-400">
+                      <td colSpan={9} className="text-slate-400">
                         No audit records found.
                       </td>
                     </tr>
@@ -358,14 +363,21 @@ export default function AuditRegisterPage() {
                     items.map((row) => (
                       <tr key={row.id} className="cursor-pointer" onClick={() => void openView(row)}>
                         <td className="font-mono text-[#2E7D9A]">{row.audit_code}</td>
-                        <td>{row.employee_name}</td>
-                        <td>{row.job_title || "—"}</td>
-                        <td>{row.computer_name}</td>
+                        <td className="text-slate-300">{row.employee_name}</td>
+                        <td>{row.department?.name ?? "—"}</td>
+                        <td className={row.computer_name?.trim() ? "font-medium text-white" : "text-slate-300"}>
+                          {row.computer_name?.trim() || "—"}
+                        </td>
                         <td>
                           <Badge value={row.audit_status} />
                         </td>
                         <td>
                           <Badge value={row.overall_assessment} />
+                        </td>
+                        <td className="text-slate-300">
+                          {row.upgrade_components && row.upgrade_components.length > 0
+                            ? formatItemsNeededList(row.upgrade_components)
+                            : "—"}
                         </td>
                         <td>
                           <Badge value={row.priority} />
@@ -404,8 +416,12 @@ export default function AuditRegisterPage() {
                     </div>
                     <dl className="space-y-2 text-sm">
                       <div className="flex items-center justify-between gap-2">
+                        <dt className="text-slate-500">Department</dt>
+                        <dd className="truncate text-slate-300">{row.department?.name ?? "—"}</dd>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
                         <dt className="text-slate-500">Computer</dt>
-                        <dd className="truncate font-medium text-slate-200">{row.computer_name}</dd>
+                        <dd className="truncate font-medium text-slate-200">{row.computer_name || "—"}</dd>
                       </div>
                       {row.audit_date && (
                         <div className="flex items-center justify-between gap-2">
@@ -419,6 +435,15 @@ export default function AuditRegisterPage() {
                       <Badge value={row.overall_assessment} />
                       <Badge value={row.priority} />
                     </div>
+                    {row.upgrade_notes?.trim() && (
+                      <p
+                        className="mt-3 line-clamp-3 break-words text-sm text-slate-400"
+                        title={row.upgrade_notes}
+                      >
+                        <span className="text-slate-500">{auditNotesLabel(row.overall_assessment)}: </span>
+                        <span className="text-slate-300">{row.upgrade_notes}</span>
+                      </p>
+                    )}
                   </article>
                 ))}
               </div>

@@ -42,7 +42,7 @@ import {
   showsRackSlot,
   type AssetCategory,
 } from "@/lib/device-form";
-import { labelEnum } from "@/lib/labels";
+import { labelEnum, upgradeChecklistLabel } from "@/lib/labels";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 import type { Department } from "@/lib/types";
 
@@ -67,6 +67,37 @@ export function DeviceInventoryForm({
 }: DeviceInventoryFormProps) {
   const inputConditions = useMemo(() => peripheralConditions(), []);
   const screenConditionOptions = useMemo(() => screenConditions(), []);
+
+  const upgradeComponentsSelected = useMemo(
+    () =>
+      String(form.upgradeComponents ?? "")
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean),
+    [form.upgradeComponents],
+  );
+  const toggleUpgradeComponent = (component: string) => {
+    const next = upgradeComponentsSelected.includes(component)
+      ? upgradeComponentsSelected.filter((c) => c !== component)
+      : [...upgradeComponentsSelected, component];
+    set("upgradeComponents", next.join(","));
+  };
+
+  const overallAssessment = String(form.overallAssessment);
+  const showsComponentChecklist =
+    overallAssessment === "NEEDS_UPGRADE" || overallAssessment === "NEEDS_REPLACEMENT";
+  const componentChecklistOptions = useMemo(
+    () =>
+      overallAssessment === "NEEDS_REPLACEMENT"
+        ? [...REFERENCE_DATA.upgradeComponents, ...REFERENCE_DATA.replacementOnlyComponents]
+        : [...REFERENCE_DATA.upgradeComponents],
+    [overallAssessment],
+  );
+  const componentChecklistTitle = upgradeChecklistLabel(overallAssessment);
+  const componentNotesLabel =
+    overallAssessment === "NEEDS_REPLACEMENT"
+      ? "Replacement Notes (specify other components or details)"
+      : "Upgrade Notes (specify other components or details)";
 
   const ramPreview = useMemo(() => composeRam(form), [form]);
   const ramSlotsPreview = useMemo(() => composeRamSlots(form), [form]);
@@ -327,17 +358,18 @@ export function DeviceInventoryForm({
         <div className="grid gap-3 md:grid-cols-2">
           <Field
             label={mode === "asset" ? "Assigned To" : "Employee Name"}
-            required={mode === "audit" || !infra}
+            required={mode === "audit"}
           >
             <input
               className={inputClass}
               value={String(form.employeeName)}
               onChange={(e) => set("employeeName", e.target.value)}
-              placeholder={infra ? "Unassigned" : undefined}
+              placeholder={mode === "asset" ? "Unassigned — leave blank for spare stock" : undefined}
+              required={mode === "audit"}
               readOnly={!write}
             />
           </Field>
-          <Field label={infra ? "Owning Department" : "Department"} required={mode === "audit" || !infra}>
+          <Field label={infra ? "Owning Department" : "Department"} required={mode === "audit"}>
             <Select
               value={String(form.departmentId)}
               onChange={(v) => set("departmentId", v)}
@@ -373,7 +405,8 @@ export function DeviceInventoryForm({
                   className={inputClass}
                   value={String(form.jobTitle)}
                   onChange={(e) => set("jobTitle", e.target.value)}
-                  readOnly={!write}
+                  placeholder={String(form.employeeName).trim() ? undefined : "—"}
+                  readOnly={!write || !String(form.employeeName).trim()}
                 />
               </Field>
               <Field label="Status">
@@ -384,6 +417,12 @@ export function DeviceInventoryForm({
                   disabled={!write}
                 />
               </Field>
+              {!String(form.employeeName).trim() && (
+                <p className="md:col-span-2 text-xs text-slate-500">
+                  No assignee yet — keep status as <span className="text-slate-300">Available</span> or{" "}
+                  <span className="text-slate-300">Reserved</span>. Assign later via Edit or Assignments.
+                </p>
+              )}
             </>
           )}
           {mode === "asset" && infra && (
@@ -438,6 +477,7 @@ export function DeviceInventoryForm({
               className={inputClass}
               value={String(form.computerName)}
               onChange={(e) => set("computerName", e.target.value)}
+              required
               readOnly={!write}
             />
           </Field>
@@ -1125,6 +1165,34 @@ export function DeviceInventoryForm({
               />
             </Field>
           </div>
+
+          {showsComponentChecklist && (
+            <Subsection title={componentChecklistTitle}>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {componentChecklistOptions.map((component) => (
+                  <label key={component} className="flex items-center gap-2 text-sm text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={upgradeComponentsSelected.includes(component)}
+                      onChange={() => toggleUpgradeComponent(component)}
+                      disabled={!write}
+                      className="rounded border-slate-600"
+                    />
+                    {labelEnum(component)}
+                  </label>
+                ))}
+              </div>
+              <Field label={componentNotesLabel}>
+                <textarea
+                  className={inputClass}
+                  rows={2}
+                  value={String(form.upgradeNotes)}
+                  onChange={(e) => set("upgradeNotes", e.target.value)}
+                  readOnly={!write}
+                />
+              </Field>
+            </Subsection>
+          )}
         </FormSection>
       )}
     </div>

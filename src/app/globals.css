@@ -81,6 +81,30 @@ table.data-table tfoot td {
   background: rgb(15 23 42 / 0.5);
 }
 
+/* Fixed layout: columns keep their width; long text truncates instead of stretching the table */
+table.data-table.data-table--fixed {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 0;
+}
+
+table.data-table td.cell-wrap,
+table.data-table th.cell-wrap {
+  white-space: normal;
+  overflow: hidden;
+  word-break: break-word;
+  vertical-align: middle;
+}
+
+table.data-table td.cell-clip,
+table.data-table th.cell-clip {
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
 .card {
   border: 1px solid rgb(51 65 85 / 0.6);
   border-radius: 0.75rem;
@@ -88,7 +112,6 @@ table.data-table tfoot td {
 }
 
 .kpi-value {
-  color: #2e7d9a;
   font-size: 1.375rem;
   font-weight: 700;
   line-height: 1.1;
