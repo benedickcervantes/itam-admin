@@ -20,7 +20,7 @@ export function KpiCard({ label, value, hint, icon: Icon, color = "teal" }: KpiC
       </span>
       <div className="min-w-0">
         <p className="text-xs uppercase tracking-wide text-slate-400">{label}</p>
-        <p className="kpi-value mt-1">{value}</p>
+        <p className={`kpi-value mt-1 ${style.text}`}>{value}</p>
         {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
       </div>
     </div>

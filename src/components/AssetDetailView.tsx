@@ -45,7 +45,9 @@ export function AssetDetailView({ asset }: { asset: Asset }) {
         <div className="mt-3 flex flex-wrap gap-1.5">
           <Badge value={asset.status} />
           <Badge value={asset.condition} />
-          {asset.device_type && <Badge value={asset.device_type} />}
+          {(asset.item_type || asset.device_type) && (
+            <Badge value={asset.item_type ?? asset.device_type} />
+          )}
         </div>
         {asset.audit_register?.audit_code && (
           <p className="mt-3 text-xs text-slate-500">
@@ -67,6 +69,7 @@ export function AssetDetailView({ asset }: { asset: Asset }) {
 
         <DetailSection title="Device" icon={Monitor}>
           <DetailRow label={infra ? "Asset Name / Hostname" : "Computer"} value={asset.computer_name} />
+          {asset.item_type && <DetailRow label="Type" value={fmtLabel(asset.item_type)} />}
           <DetailRow label="Device Type" value={fmtLabel(asset.device_type)} />
           <DetailRow label="Brand / Model" value={asset.brand_model} />
           {infra && hasInfraFields && (

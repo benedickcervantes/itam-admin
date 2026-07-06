@@ -125,10 +125,11 @@ export function emptyForm(): DeviceFormState {
     findingsSummary: "",
     detailedFindings: "",
     recommendedAction: "",
+    upgradeComponents: "",
     upgradeNotes: "",
     internalNotes: "",
     auditedBy: "",
-    status: "IN_USE",
+    status: "AVAILABLE",
     condition: "",
     notes: "",
     serialNumber: "",
@@ -156,7 +157,7 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
 
   return {
     employeeName: row.employee_name,
-    departmentId: row.department_id,
+    departmentId: row.department_id ?? row.department?.id ?? "",
     jobTitle: row.job_title ?? "",
     employeeStatus: row.employee_status ?? "ACTIVE",
     deviceType,
@@ -230,6 +231,7 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
     findingsSummary: row.findings_summary ?? "",
     detailedFindings: row.detailed_findings ?? "",
     recommendedAction: row.recommended_action ?? "",
+    upgradeComponents: (row.upgrade_components ?? []).join(","),
     upgradeNotes: row.upgrade_notes ?? "",
     internalNotes: row.internal_notes ?? "",
     auditedBy: row.audited_by ?? "",
@@ -415,14 +417,54 @@ const ASSET_ONLY_KEYS = [
   "portCount",
 ] as const;
 
-export function prepareAuditPayload(form: DeviceFormState): Record<string, string | boolean> {
+export function validateAssetForm(form: DeviceFormState): string | null {
+  if (!String(form.computerName ?? "").trim()) {
+    return "Computer name is required.";
+  }
+  const assignedTo = String(form.employeeName ?? "").trim();
+  const status = String(form.status ?? "");
+  if (status === "IN_USE" && !assignedTo) {
+    return "Assigned To is required when status is In Use.";
+  }
+  return null;
+}
+
+export function validateAuditForm(form: DeviceFormState): string | null {
+  if (!String(form.employeeName ?? "").trim()) {
+    return "Employee name is required.";
+  }
+  if (!String(form.departmentId ?? "").trim()) {
+    return "Department is required.";
+  }
+  if (!String(form.computerName ?? "").trim()) {
+    return "Computer name is required.";
+  }
+  return null;
+}
+
+export function prepareAuditPayload(form: DeviceFormState): Record<string, string | boolean | string[]> {
   const body = prepareComposedForm(form);
   UI_ONLY_KEYS.forEach((k) => delete body[k]);
   ASSET_ONLY_KEYS.forEach((k) => delete body[k]);
-  Object.keys(body).forEach((k) => {
-    if (body[k] === "") delete body[k];
+
+  const result: Record<string, string | boolean | string[]> = { ...body };
+  const upgradeComponentsCsv = String(body.upgradeComponents ?? "");
+  delete result.upgradeComponents;
+  const upgradeComponents = upgradeComponentsCsv
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+  if (upgradeComponents.length > 0) result.upgradeComponents = upgradeComponents;
+
+  Object.keys(result).forEach((k) => {
+    if (result[k] === "") delete result[k];
   });
-  return body;
+
+  result.employeeName = String(form.employeeName ?? "").trim();
+  result.computerName = String(form.computerName ?? "").trim();
+  result.departmentId = String(form.departmentId ?? "").trim();
+
+  return result;
 }
 
 const AUDIT_ONLY_KEYS = [
@@ -435,6 +477,7 @@ const AUDIT_ONLY_KEYS = [
   "findingsSummary",
   "detailedFindings",
   "recommendedAction",
+  "upgradeComponents",
   "upgradeNotes",
   "internalNotes",
   "auditedBy",

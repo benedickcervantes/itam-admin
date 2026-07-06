@@ -7,6 +7,7 @@ export type AuditQuery = {
   limit?: number;
   search?: string;
   departmentId?: string;
+  upgradeComponent?: string;
   auditStatus?: string;
   overallAssessment?: string;
   priority?: string;
