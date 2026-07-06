@@ -147,7 +147,7 @@ export function emptyFormForCategory(category: AssetCategory): Partial<DeviceFor
   return {
     assetCategory: category,
     deviceType: "",
-    status: "IN_USE",
+    status: "AVAILABLE",
   };
 }
 

@@ -46,11 +46,12 @@ export type AuditRegister = {
   findings_summary?: string | null;
   detailed_findings?: string | null;
   recommended_action?: string | null;
+  upgrade_components?: string[] | null;
   upgrade_notes?: string | null;
   internal_notes?: string | null;
   audited_by?: string | null;
-  asset?: Asset | null;
-  asset_created?: boolean;
+  assets?: Asset[];
+  assets_created?: number;
 };
 
 export type Asset = {
@@ -59,6 +60,7 @@ export type Asset = {
   audit_id?: string | null;
   computer_name: string;
   device_type?: string | null;
+  item_type?: string | null;
   brand_model?: string | null;
   assigned_to?: string | null;
   job_title?: string | null;

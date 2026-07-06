@@ -14,6 +14,19 @@ const LABELS: Record<string, string> = {
   ACCESS_POINT: "Access Point",
   CCTV_DVR: "CCTV DVR",
   CCTV_CAMERA: "CCTV Camera",
+  KEYBOARD: "Keyboard",
+  MOUSE: "Mouse",
+  MONITOR: "Monitor",
+  PRINTER: "Printer",
+  STORAGE: "Storage",
+  RAM: "RAM",
+  MOTHERBOARD: "Motherboard",
+  WIFI: "Wi-Fi",
+  TOUCHPAD: "Touchpad",
+  LAPTOP_SCREEN: "Laptop Screen",
+  POWER_SUPPLY: "Power Supply",
+  NEW_LAPTOP: "New Laptop",
+  NEW_DESKTOP: "New Desktop",
   LICENSED: "Licensed",
   CRACKED: "Cracked",
   NOT_ACTIVATED: "Not Activated",
@@ -67,9 +80,40 @@ const LABELS: Record<string, string> = {
   SUPER_ADMIN: "Super Admin",
 };
 
+const COMPACT_LABELS: Record<string, string> = {
+  OK_NO_ISSUES: "OK",
+  NEEDS_UPGRADE: "Upgrade",
+  NEEDS_REPLACEMENT: "Replace",
+  CRITICAL_IMMEDIATE_ACTION: "Critical",
+  IN_PROGRESS: "In Prog.",
+  IMMEDIATE_REPAIR: "Repair",
+  SOFTWARE_REFRESH: "Refresh",
+  REPLACE_UNIT: "Replace",
+};
+
 export function labelEnum(value: string | null | undefined): string {
   if (!value) return "—";
   return LABELS[value] ?? value.replace(/_/g, " ");
+}
+
+export function labelEnumCompact(value: string | null | undefined): string {
+  if (!value) return "—";
+  return COMPACT_LABELS[value] ?? LABELS[value] ?? value.replace(/_/g, " ");
+}
+
+/** Comma-separated list for audit table (single-line truncate). */
+export function formatItemsNeededList(components?: string[] | null): string {
+  if (!components?.length) return "";
+  return components.map((c) => labelEnum(c)).join(", ");
+}
+
+/** Table column — covers both parts (upgrade) and whole units (replacement). */
+export const ITEMS_NEEDED_TABLE_LABEL = "Items Needed";
+
+/** Form / detail heading — depends on overall assessment. */
+export function upgradeChecklistLabel(assessment?: string | null): string {
+  if (assessment === "NEEDS_REPLACEMENT") return "Items to Replace";
+  return "Parts to Upgrade";
 }
 
 export function formatPercent(value: number): string {

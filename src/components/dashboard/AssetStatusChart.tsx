@@ -4,7 +4,7 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { labelEnum } from "@/lib/labels";
 
 const STATUS_COLORS: Record<string, string> = {
-  IN_USE: "#2E7D9A",
+  IN_USE: "#0EA5E9",
   AVAILABLE: "#10B981",
   UNDER_REPAIR: "#F59E0B",
   RESERVED: "#8B5CF6",

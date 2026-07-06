@@ -4,6 +4,7 @@ import { ClipboardCheck, Monitor, Mouse, User } from "lucide-react";
 import { Badge } from "@/components/Badge";
 import { DetailNotes, DetailRow, DetailSection, fmtLabel } from "@/components/DetailViewParts";
 import { formatCondition } from "@/lib/device-form";
+import { upgradeChecklistLabel } from "@/lib/labels";
 import type { AuditRegister } from "@/lib/types";
 
 export function AuditDetailView({ audit }: { audit: AuditRegister }) {
@@ -43,9 +44,15 @@ export function AuditDetailView({ audit }: { audit: AuditRegister }) {
           <Badge value={audit.priority} />
           {audit.device_type && <Badge value={audit.device_type} />}
         </div>
-        {audit.asset?.asset_code && (
+        {audit.assets && audit.assets.length > 0 && (
           <p className="mt-3 text-xs text-slate-500">
-            Linked asset: <span className="font-mono text-slate-400">{audit.asset.asset_code}</span>
+            Linked assets:{" "}
+            {audit.assets.map((a, i) => (
+              <span key={a.id}>
+                <span className="font-mono text-slate-400">{a.asset_code}</span>
+                {i < audit.assets!.length - 1 ? ", " : ""}
+              </span>
+            ))}
           </p>
         )}
       </div>
@@ -93,6 +100,26 @@ export function AuditDetailView({ audit }: { audit: AuditRegister }) {
         </DetailSection>
       )}
 
+      {audit.assets && audit.assets.length > 0 && (
+        <DetailSection title="Linked Asset Records" icon={ClipboardCheck}>
+          <div className="space-y-2 py-1">
+            {audit.assets.map((a) => (
+              <div
+                key={a.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-700/60 bg-slate-900/40 px-3 py-2"
+              >
+                <div className="flex items-center gap-2">
+                  <Badge value={a.item_type ?? a.device_type} />
+                  <span className="font-mono text-sm text-[#2E7D9A]">{a.asset_code}</span>
+                  {a.brand_model && <span className="text-sm text-slate-400">{a.brand_model}</span>}
+                </div>
+                <span className="text-sm text-slate-400">{a.assigned_to ?? "—"}</span>
+              </div>
+            ))}
+          </div>
+        </DetailSection>
+      )}
+
       <DetailSection title="Audit" icon={ClipboardCheck}>
         <DetailRow
           label="Audit Date"
@@ -102,12 +129,25 @@ export function AuditDetailView({ audit }: { audit: AuditRegister }) {
         <DetailRow label="Overall Assessment" value={fmtLabel(audit.overall_assessment)} />
         <DetailRow label="Priority" value={fmtLabel(audit.priority)} />
         <DetailRow label="Recommended Action" value={fmtLabel(audit.recommended_action)} />
+        {audit.upgrade_components && audit.upgrade_components.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 py-1.5">
+            <span className="text-sm text-slate-500">{upgradeChecklistLabel(audit.overall_assessment)}:</span>
+            {audit.upgrade_components.map((c) => (
+              <Badge key={c} value={c} />
+            ))}
+          </div>
+        )}
         <DetailRow label="Audited By" value={audit.audited_by} />
       </DetailSection>
 
       <DetailNotes title="Findings Summary" value={audit.findings_summary} />
       <DetailNotes title="Detailed Findings" value={audit.detailed_findings} />
-      <DetailNotes title="Upgrade Notes" value={audit.upgrade_notes} />
+      <DetailNotes
+        title={
+          audit.overall_assessment === "NEEDS_REPLACEMENT" ? "Replacement Notes" : "Upgrade Notes"
+        }
+        value={audit.upgrade_notes}
+      />
       <DetailNotes title="Internal Notes" value={audit.internal_notes} />
       {audit.immediate_action && (
         <DetailNotes title="Immediate Action Notes" value={audit.immediate_action_notes} />

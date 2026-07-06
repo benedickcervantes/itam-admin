@@ -14,13 +14,15 @@ import { canWrite } from "@/lib/auth/permissions";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 import { labelEnum } from "@/lib/labels";
 import { useSessionUser } from "@/components/SessionContext";
-import { emptyForm, emptyFormForCategory, formStateFromAsset, prepareAssetPayload, ramSlotDefaults, showsInfraNetworkSpecs, showsInfraServerSpecs, type AssetCategory } from "@/lib/device-form";
+import { emptyForm, emptyFormForCategory, formStateFromAsset, prepareAssetPayload, ramSlotDefaults, showsInfraNetworkSpecs, showsInfraServerSpecs, validateAssetForm, type AssetCategory } from "@/lib/device-form";
 import type { Asset, Department } from "@/lib/types";
 
 type ViewMode = "table" | "grid";
 type DrawerMode = "create" | "view" | "edit";
 
 const VIEW_MODE_STORAGE_KEY = "assets-view";
+
+const ITEM_TYPES = ["LAPTOP", "DESKTOP", "ALL_IN_ONE", "KEYBOARD", "MOUSE", "MONITOR", "PRINTER", "OTHER"];
 
 function readStoredViewMode(): ViewMode {
   if (typeof window === "undefined") return "table";
@@ -37,6 +39,7 @@ export default function AssetsPage() {
   const [search, setSearch] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [status, setStatus] = useState("");
+  const [itemType, setItemType] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -62,6 +65,7 @@ export default function AssetsPage() {
         search: search || undefined,
         departmentId: departmentId || undefined,
         status: status || undefined,
+        itemType: itemType || undefined,
       });
       setItems(res.items);
       setTotalPages(res.totalPages);
@@ -71,7 +75,7 @@ export default function AssetsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, departmentId, status]);
+  }, [page, search, departmentId, status, itemType]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput), 300);
@@ -80,7 +84,7 @@ export default function AssetsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, departmentId, status]);
+  }, [search, departmentId, status, itemType]);
 
   useEffect(() => {
     void load();
@@ -139,6 +143,11 @@ export default function AssetsPage() {
 
   const save = async () => {
     if (saving) return;
+    const validationError = validateAssetForm(form);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setSaving(true);
     setError("");
     const body = prepareAssetPayload(form);
@@ -206,7 +215,25 @@ export default function AssetsPage() {
     </div>
   );
 
-  const set = (key: string, value: string | boolean) => setForm((f) => ({ ...f, [key]: value }));
+  const set = (key: string, value: string | boolean) =>
+    setForm((f) => {
+      const next = { ...f, [key]: value };
+      if (String(f.assetCategory || "end_user") !== "end_user") return next;
+
+      if (key === "employeeName") {
+        const assignedTo = String(value).trim();
+        if (!assignedTo && String(next.status) === "IN_USE") next.status = "AVAILABLE";
+        if (assignedTo && String(next.status) === "AVAILABLE") next.status = "IN_USE";
+      }
+      if (key === "status") {
+        const assignedTo = String(next.employeeName ?? "").trim();
+        if (value === "AVAILABLE" && assignedTo) {
+          next.employeeName = "";
+          next.jobTitle = "";
+        }
+      }
+      return next;
+    });
 
   const onDeviceTypeChange = (deviceType: string) => {
     const defaults = ramSlotDefaults(deviceType);
@@ -292,6 +319,18 @@ export default function AssetsPage() {
               </option>
             ))}
           </select>
+          <select
+            value={itemType}
+            onChange={(e) => setItemType(e.target.value)}
+            className={`${selectClass} w-full sm:w-auto sm:min-w-[10rem]`}
+          >
+            <option value="">All types</option>
+            {ITEM_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {labelEnum(t)}
+              </option>
+            ))}
+          </select>
           <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="View mode">
             <button
               type="button"
@@ -338,6 +377,7 @@ export default function AssetsPage() {
                 <thead>
                   <tr>
                     <th>Asset ID</th>
+                    <th>Type</th>
                     <th>Computer</th>
                     <th>Assigned To</th>
                     <th>Department</th>
@@ -349,13 +389,13 @@ export default function AssetsPage() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={7} className="text-slate-400">
+                      <td colSpan={8} className="text-slate-400">
                         Loading...
                       </td>
                     </tr>
                   ) : items.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-slate-400">
+                      <td colSpan={8} className="text-slate-400">
                         No assets found.
                       </td>
                     </tr>
@@ -363,6 +403,9 @@ export default function AssetsPage() {
                     items.map((row) => (
                       <tr key={row.id} className="cursor-pointer" onClick={() => void openView(row)}>
                         <td className="font-mono text-[#2E7D9A]">{row.asset_code}</td>
+                        <td>
+                          <Badge value={row.item_type ?? row.device_type} />
+                        </td>
                         <td className="font-medium text-white">{row.computer_name}</td>
                         <td className="text-slate-300">{row.assigned_to ?? "—"}</td>
                         <td>{row.department?.name ?? "—"}</td>
@@ -419,7 +462,7 @@ export default function AssetsPage() {
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       <Badge value={row.status} />
                       <Badge value={row.condition} />
-                      {row.device_type && <Badge value={row.device_type} />}
+                      {(row.item_type || row.device_type) && <Badge value={row.item_type ?? row.device_type} />}
                     </div>
                   </article>
                 ))}

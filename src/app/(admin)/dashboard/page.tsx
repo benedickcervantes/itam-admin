@@ -56,14 +56,14 @@ export default function DashboardPage() {
 
   return (
     <>
-      <Header title="Dashboard" subtitle="Management overview aligned to Excel template metrics" />
+      <Header title="Dashboard" subtitle="Executive overview of asset inventory, audit performance, and operational health" />
       <div className="page-content flex-1 overflow-y-auto">
         {error && <p className="mb-4 text-red-400">{error}</p>}
         {!data && !error && <p className="text-slate-400">Loading metrics...</p>}
         {data && (
           <div className="space-y-6">
             <section>
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[#2E7D9A]">Overview</h2>
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-sky-400">Overview</h2>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <KpiCard icon={ClipboardList} color="teal" label="Total Audits" value={data.overview.totalAudits} />
                 <KpiCard icon={Boxes} color="violet" label="Total Assets" value={data.overview.totalAssets} />
@@ -78,14 +78,14 @@ export default function DashboardPage() {
             </section>
 
             <section>
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[#2E7D9A]">Asset Status</h2>
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-sky-400">Asset Status</h2>
               <div className="card p-4 sm:p-5">
                 <AssetStatusChart data={data.assetStatusBreakdown} />
               </div>
             </section>
 
             <section>
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[#2E7D9A]">Device Type Summary</h2>
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-sky-400">Device Type Summary</h2>
               <div className="card p-4 sm:p-5">
                 <DeviceTypeChart data={data.deviceTypeBreakdown} />
               </div>
