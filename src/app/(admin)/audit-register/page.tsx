@@ -53,6 +53,7 @@ export default function AuditRegisterPage() {
   const [search, setSearch] = useState("");
   const [itemNeeded, setItemNeeded] = useState("");
   const [auditStatus, setAuditStatus] = useState("");
+  const [priority, setPriority] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -79,6 +80,7 @@ export default function AuditRegisterPage() {
         search: search || undefined,
         upgradeComponent: itemNeeded || undefined,
         auditStatus: auditStatus || undefined,
+        priority: priority || undefined,
       });
       setItems(res.items);
       setTotalPages(res.totalPages);
@@ -88,7 +90,7 @@ export default function AuditRegisterPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, itemNeeded, auditStatus]);
+  }, [page, search, itemNeeded, auditStatus, priority]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput), 300);
@@ -97,7 +99,7 @@ export default function AuditRegisterPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, itemNeeded, auditStatus]);
+  }, [search, itemNeeded, auditStatus, priority]);
 
   useEffect(() => {
     void load();
@@ -289,6 +291,18 @@ export default function AuditRegisterPage() {
               </option>
             ))}
           </select>
+          <select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+            className={`${selectClass} w-full sm:w-auto sm:min-w-[10rem]`}
+          >
+            <option value="">All priorities</option>
+            {REFERENCE_DATA.priorities.map((p) => (
+              <option key={p} value={p}>
+                {labelEnum(p)}
+              </option>
+            ))}
+          </select>
           <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="View mode">
             <button
               type="button"
@@ -337,7 +351,6 @@ export default function AuditRegisterPage() {
                   <tr>
                     <th>Audit ID</th>
                     <th>Employee</th>
-                    <th>Department</th>
                     <th>Computer</th>
                     <th>Status</th>
                     <th>Assessment</th>
@@ -349,13 +362,13 @@ export default function AuditRegisterPage() {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={9} className="text-slate-400">
+                      <td colSpan={8} className="text-slate-400">
                         Loading...
                       </td>
                     </tr>
                   ) : items.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="text-slate-400">
+                      <td colSpan={8} className="text-slate-400">
                         No audit records found.
                       </td>
                     </tr>
@@ -364,7 +377,6 @@ export default function AuditRegisterPage() {
                       <tr key={row.id} className="cursor-pointer" onClick={() => void openView(row)}>
                         <td className="font-mono text-[#2E7D9A]">{row.audit_code}</td>
                         <td className="text-slate-300">{row.employee_name}</td>
-                        <td>{row.department?.name ?? "—"}</td>
                         <td className={row.computer_name?.trim() ? "font-medium text-white" : "text-slate-300"}>
                           {row.computer_name?.trim() || "—"}
                         </td>
@@ -415,10 +427,6 @@ export default function AuditRegisterPage() {
                       <div onClick={(e) => e.stopPropagation()}>{renderRowActions(row)}</div>
                     </div>
                     <dl className="space-y-2 text-sm">
-                      <div className="flex items-center justify-between gap-2">
-                        <dt className="text-slate-500">Department</dt>
-                        <dd className="truncate text-slate-300">{row.department?.name ?? "—"}</dd>
-                      </div>
                       <div className="flex items-center justify-between gap-2">
                         <dt className="text-slate-500">Computer</dt>
                         <dd className="truncate font-medium text-slate-200">{row.computer_name || "—"}</dd>
