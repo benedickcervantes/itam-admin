@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Eye, LayoutGrid, List, Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Eye, LayoutGrid, List, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/Badge";
 import { Drawer, Field, inputClass, selectClass } from "@/components/Drawer";
+import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { MaintenanceDetailView } from "@/components/MaintenanceDetailView";
 import { useSessionUser } from "@/components/SessionContext";
@@ -204,28 +205,21 @@ export default function MaintenancePage() {
     <>
       <Header title="Maintenance Log" subtitle="Repairs and actions (Open → In Progress → Completed)" />
       <div className="page-content flex-1 overflow-y-auto">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="relative min-w-0 flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-            <input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search record ID, computer, employee, issue..."
-              className={`${inputClass} pl-9`}
-            />
-          </div>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className={`${selectClass} w-full sm:w-auto sm:min-w-[10rem]`}
-          >
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <FilterSearch
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Search record ID, computer, employee, issue..."
+            className="min-w-0 flex-1"
+          />
+          <FilterSelect label="Status" value={status} onChange={setStatus} className="w-full sm:w-auto">
             <option value="">All statuses</option>
             {REFERENCE_DATA.maintenanceStatuses.map((s) => (
               <option key={s} value={s}>
                 {labelEnum(s)}
               </option>
             ))}
-          </select>
+          </FilterSelect>
           <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="View mode">
             <button
               type="button"
