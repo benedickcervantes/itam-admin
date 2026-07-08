@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { Drawer, Field, inputClass } from "@/components/Drawer";
+import { Drawer, Field, inputClass, selectClass } from "@/components/Drawer";
 import { Header } from "@/components/Header";
 import { createAssignment, deleteAssignment, fetchAssignments, updateAssignment } from "@/lib/api/assignments";
 import { fetchAssets } from "@/lib/api/assets";
@@ -81,7 +81,7 @@ export default function AssignmentsPage() {
       <Drawer open={open} title={editing ? editing.record_code : "New Assignment"} onClose={() => setOpen(false)}>
         <div className="space-y-3">
           <Field label="Asset" required>
-            <select className={inputClass} value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })} disabled={!write}>
+            <select className={selectClass} value={form.assetId} onChange={(e) => setForm({ ...form, assetId: e.target.value })} disabled={!write}>
               <option value="">Select asset...</option>
               {assets.map((a) => <option key={a.id} value={a.id}>{a.asset_code} — {a.computer_name}</option>)}
             </select>

@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Eye, LayoutGrid, List, Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Eye, LayoutGrid, List, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/Badge";
 import { AuditDetailView } from "@/components/AuditDetailView";
 import { DeviceFormToolbar } from "@/components/DeviceFormToolbar";
 import { DeviceInventoryForm } from "@/components/DeviceInventoryForm";
 import { Drawer, inputClass, selectClass } from "@/components/Drawer";
+import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import {
   createAuditRegister,
@@ -257,52 +258,37 @@ export default function AuditRegisterPage() {
     <>
       <Header title="IT Audit Register" subtitle="Employee device audits with peripherals and assessment" />
       <div className="page-content flex-1 overflow-y-auto">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="relative min-w-0 flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-            <input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search employee, computer, audit ID..."
-              className={`${inputClass} pl-9`}
-            />
-          </div>
-          <select
-            value={itemNeeded}
-            onChange={(e) => setItemNeeded(e.target.value)}
-            className={`${selectClass} w-full sm:w-auto sm:min-w-[10rem]`}
-          >
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <FilterSearch
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Search employee, computer, audit ID..."
+            className="min-w-0 flex-1"
+          />
+          <FilterSelect label="Items needed" value={itemNeeded} onChange={setItemNeeded} className="w-full sm:w-auto">
             <option value="">All items needed</option>
             {ITEMS_NEEDED_FILTER_OPTIONS.map((item) => (
               <option key={item} value={item}>
                 {labelEnum(item)}
               </option>
             ))}
-          </select>
-          <select
-            value={auditStatus}
-            onChange={(e) => setAuditStatus(e.target.value)}
-            className={`${selectClass} w-full sm:w-auto sm:min-w-[10rem]`}
-          >
+          </FilterSelect>
+          <FilterSelect label="Status" value={auditStatus} onChange={setAuditStatus} className="w-full sm:w-auto">
             <option value="">All statuses</option>
             {REFERENCE_DATA.auditStatuses.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
             ))}
-          </select>
-          <select
-            value={priority}
-            onChange={(e) => setPriority(e.target.value)}
-            className={`${selectClass} w-full sm:w-auto sm:min-w-[10rem]`}
-          >
+          </FilterSelect>
+          <FilterSelect label="Priority" value={priority} onChange={setPriority} className="w-full sm:w-auto">
             <option value="">All priorities</option>
             {REFERENCE_DATA.priorities.map((p) => (
               <option key={p} value={p}>
                 {labelEnum(p)}
               </option>
             ))}
-          </select>
+          </FilterSelect>
           <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="View mode">
             <button
               type="button"
