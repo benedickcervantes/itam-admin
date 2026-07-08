@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SessionProvider } from "@/components/SessionContext";
 import { fetchProfile } from "@/lib/api/auth";
-import { getAccessToken, persistSession } from "@/lib/auth/session";
+import { clearSession, getAccessToken, persistSession } from "@/lib/auth/session";
 import type { ItamUser } from "@/lib/auth/session";
 
 export default function AdminSessionGuard({ children }: { children: React.ReactNode }) {
@@ -25,6 +25,7 @@ export default function AdminSessionGuard({ children }: { children: React.ReactN
         setReady(true);
       })
       .catch(() => {
+        clearSession();
         router.replace("/");
       });
   }, [router]);

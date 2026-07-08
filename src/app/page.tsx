@@ -13,14 +13,19 @@ import { useRouter } from "next/navigation";
 import Grainient from "@/components/Grainient";
 import LoginHeroVisual from "@/components/LoginHeroVisual";
 import TextType from "@/components/TextType";
-import { login } from "@/lib/api/auth";
+import { fetchProfile, login } from "@/lib/api/auth";
 import {
   buildSupportMailto,
   buildSupportTel,
   fetchPortalConfig,
   type PortalConfig,
 } from "@/lib/api/public";
-import { getAccessToken, getRememberMePreference, persistSession } from "@/lib/auth/session";
+import {
+  clearSession,
+  getAccessToken,
+  getRememberMePreference,
+  persistSession,
+} from "@/lib/auth/session";
 
 const FEATURES = ["Asset Monitoring", "Hardware Inventory", "Initial Asset Audit"] as const;
 
@@ -76,6 +81,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [support, setSupport] = useState<PortalConfig | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
@@ -83,7 +89,17 @@ export default function LoginPage() {
   }, []);
 
   useEffect(() => {
-    if (getAccessToken()) router.replace("/dashboard");
+    const token = getAccessToken();
+    if (!token) {
+      setCheckingSession(false);
+      return;
+    }
+    fetchProfile()
+      .then(() => router.replace("/dashboard"))
+      .catch(() => {
+        clearSession();
+        setCheckingSession(false);
+      });
   }, [router]);
 
   useEffect(() => {
@@ -119,6 +135,14 @@ export default function LoginPage() {
     (supportEmail ? buildSupportMailto(supportEmail) : null) ??
     (supportPhone ? buildSupportTel(supportPhone) : null);
   const SupportTag = supportHref ? "a" : "button";
+
+  if (checkingSession) {
+    return (
+      <div className="flex h-dvh items-center justify-center bg-[#0F172A] text-slate-300">
+        Loading session...
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-dvh w-full overflow-x-hidden bg-[#0F172A] text-white">

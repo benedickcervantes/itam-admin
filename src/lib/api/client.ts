@@ -19,7 +19,7 @@ export function resolveBackendFetchUrl(path: string): string {
   return pathPart;
 }
 
-import { getAccessToken } from "../auth/session";
+import { clearSession, getAccessToken } from "../auth/session";
 
 export function getStoredAccessToken(): string | null {
   return getAccessToken();
@@ -62,6 +62,9 @@ export async function apiJson<T>(path: string, options: ApiFetchOptions = {}): P
   const res = await apiFetch(path, options);
   const payload = await res.json().catch(() => ({}));
   if (!res.ok) {
+    if (res.status === 401 && options.auth && typeof window !== "undefined") {
+      clearSession();
+    }
     throw new Error(normalizeErrorMessage(payload, `Request failed (${res.status})`));
   }
   return payload as T;
