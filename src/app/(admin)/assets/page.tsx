@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Eye, LayoutGrid, List, Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Eye, LayoutGrid, List, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/Badge";
 import { AssetDetailView } from "@/components/AssetDetailView";
 import { DeviceFormToolbar } from "@/components/DeviceFormToolbar";
 import { DeviceInventoryForm } from "@/components/DeviceInventoryForm";
 import { Drawer, inputClass, selectClass } from "@/components/Drawer";
+import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { createAsset, deleteAsset, fetchAsset, fetchAssets, updateAsset } from "@/lib/api/assets";
 import { fetchDepartments } from "@/lib/api/departments";
@@ -285,52 +286,37 @@ export default function AssetsPage() {
     <>
       <Header title="Assets" subtitle="Long-term hardware inventory linked to audits" />
       <div className="page-content flex-1 overflow-y-auto">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="relative min-w-0 flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-            <input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search asset ID, computer, assigned to..."
-              className={`${inputClass} pl-9`}
-            />
-          </div>
-          <select
-            value={departmentId}
-            onChange={(e) => setDepartmentId(e.target.value)}
-            className={`${selectClass} w-full sm:w-auto sm:min-w-[10rem]`}
-          >
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <FilterSearch
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Search asset ID, computer, assigned to..."
+            className="min-w-0 flex-1"
+          />
+          <FilterSelect label="Department" value={departmentId} onChange={setDepartmentId} className="w-full sm:w-auto">
             <option value="">All departments</option>
             {departments.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}
               </option>
             ))}
-          </select>
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            className={`${selectClass} w-full sm:w-auto sm:min-w-[10rem]`}
-          >
+          </FilterSelect>
+          <FilterSelect label="Status" value={status} onChange={setStatus} className="w-full sm:w-auto">
             <option value="">All statuses</option>
             {REFERENCE_DATA.assetStatuses.map((s) => (
               <option key={s} value={s}>
                 {labelEnum(s)}
               </option>
             ))}
-          </select>
-          <select
-            value={itemType}
-            onChange={(e) => setItemType(e.target.value)}
-            className={`${selectClass} w-full sm:w-auto sm:min-w-[10rem]`}
-          >
+          </FilterSelect>
+          <FilterSelect label="Item type" value={itemType} onChange={setItemType} className="w-full sm:w-auto">
             <option value="">All types</option>
             {ITEM_TYPES.map((t) => (
               <option key={t} value={t}>
                 {labelEnum(t)}
               </option>
             ))}
-          </select>
+          </FilterSelect>
           <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="View mode">
             <button
               type="button"

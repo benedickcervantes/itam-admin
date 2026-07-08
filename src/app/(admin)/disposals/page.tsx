@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Eye, LayoutGrid, List, Loader2, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Eye, LayoutGrid, List, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { DisposalDetailView } from "@/components/DisposalDetailView";
 import { Drawer, Field, inputClass, selectClass } from "@/components/Drawer";
+import { FilterSearch } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { useSessionUser } from "@/components/SessionContext";
 import { fetchAssets } from "@/lib/api/assets";
@@ -206,16 +207,13 @@ export default function DisposalsPage() {
     <>
       <Header title="Disposal Log" subtitle="Retired and disposed assets with certificate tracking" />
       <div className="page-content flex-1 overflow-y-auto">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="relative min-w-0 flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-            <input
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search record ID, asset, reason..."
-              className={`${inputClass} pl-9`}
-            />
-          </div>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <FilterSearch
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Search record ID, asset, reason..."
+            className="min-w-0 flex-1"
+          />
           <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="View mode">
             <button
               type="button"
