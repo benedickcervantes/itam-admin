@@ -70,6 +70,7 @@ export function AuditDetailView({ audit }: { audit: AuditRegister }) {
           <DetailRow label="Computer" value={audit.computer_name} />
           <DetailRow label="Device Type" value={fmtLabel(audit.device_type)} />
           <DetailRow label="Brand / Model" value={audit.laptop_brand_model} />
+          <DetailRow label="Condition" value={fmtLabel(audit.condition)} />
           {screenDisplay && <DetailRow label="Display" value={screenDisplay} />}
           {hasDeviceSpecs ? (
             <>
@@ -97,6 +98,7 @@ export function AuditDetailView({ audit }: { audit: AuditRegister }) {
           <DetailRow label="Keyboard Condition" value={fmtLabel(audit.keyboard_condition)} />
           <DetailRow label="Mouse" value={audit.mouse} />
           <DetailRow label="Mouse Type" value={fmtLabel(audit.mouse_type)} />
+          <DetailRow label="Mouse Condition" value={fmtLabel(audit.mouse_condition)} />
           <DetailRow label="Printer" value={audit.printer} />
         </DetailSection>
       )}

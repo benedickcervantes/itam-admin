@@ -43,12 +43,55 @@ type AssetHardwareFields = Asset & {
   printer?: string | null;
   monitor?: string | null;
   keyboard?: string | null;
+  keyboard_condition?: string | null;
   mouse?: string | null;
   mouse_type?: string | null;
+  mouse_condition?: string | null;
   power_avr_charger_battery?: string | null;
   screen?: string | null;
   screen_condition?: string | null;
 };
+
+function normalizeAssetRecord(row: Asset): AssetHardwareFields {
+  const raw = row as AssetHardwareFields & Record<string, unknown>;
+  return {
+    ...(row as AssetHardwareFields),
+    screen: row.screen ?? (raw.screen as string | null | undefined) ?? null,
+    screen_condition:
+      row.screen_condition ?? (raw.screenCondition as string | null | undefined) ?? null,
+    ram_slots_used: row.ram_slots_used ?? (raw.ramSlotsUsed as string | null | undefined) ?? null,
+    power_avr_charger_battery:
+      row.power_avr_charger_battery ??
+      (raw.powerAvrChargerBattery as string | null | undefined) ??
+      null,
+    keyboard_condition:
+      row.keyboard_condition ?? (raw.keyboardCondition as string | null | undefined) ?? null,
+    mouse_type: row.mouse_type ?? (raw.mouseType as string | null | undefined) ?? null,
+    mouse_condition:
+      row.mouse_condition ?? (raw.mouseCondition as string | null | undefined) ?? null,
+  };
+}
+
+function assetHardwareWithAuditFallback(row: Asset): AssetHardwareFields {
+  const hardware = normalizeAssetRecord(row);
+  const audit = row.audit_register;
+  if (!audit) return hardware;
+
+  return {
+    ...hardware,
+    screen: hardware.screen ?? audit.screen,
+    screen_condition: hardware.screen_condition ?? audit.screen_condition,
+    ram_slots_used: hardware.ram_slots_used ?? audit.ram_slots_used,
+    power_avr_charger_battery: hardware.power_avr_charger_battery ?? audit.power_avr_charger_battery,
+    keyboard: hardware.keyboard ?? audit.keyboard,
+    keyboard_condition: hardware.keyboard_condition ?? audit.keyboard_condition,
+    mouse: hardware.mouse ?? audit.mouse,
+    mouse_type: hardware.mouse_type ?? audit.mouse_type,
+    mouse_condition: hardware.mouse_condition ?? audit.mouse_condition,
+    gpu: hardware.gpu ?? audit.graphics_gpu,
+    network: hardware.network ?? audit.network,
+  };
+}
 
 export function emptyForm(): DeviceFormState {
   return {
@@ -103,6 +146,7 @@ export function emptyForm(): DeviceFormState {
     keyboardExternalCondition: "",
     keyboard: "",
     keyboardCondition: "",
+    mouseCondition: "",
     desktopKeyboardModel: "",
     trackpadCondition: "",
     trackpadNotes: "",
@@ -209,6 +253,7 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
     keyboardExternalCondition: kbParsed?.externalCond ?? "",
     keyboard: row.keyboard ?? "",
     keyboardCondition: isLaptopDevice(deviceType) ? "" : savedKeyboardCondition,
+    mouseCondition: isLaptopDevice(deviceType) ? "" : (row.mouse_condition ?? ""),
     desktopKeyboardModel: isLaptopDevice(deviceType) ? "" : (row.keyboard ?? ""),
     trackpadCondition: pointerParsed?.trackpad ?? "",
     trackpadNotes: pointerParsed?.trackpadNotes ?? "",
@@ -236,13 +281,13 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
     internalNotes: row.internal_notes ?? "",
     auditedBy: row.audited_by ?? "",
     status: "IN_USE",
-    condition: "",
+    condition: row.condition ?? "",
     notes: "",
   };
 }
 
 export function formStateFromAsset(row: Asset): DeviceFormState {
-  const hardware = row as AssetHardwareFields;
+  const hardware = assetHardwareWithAuditFallback(row);
   const deviceType = hardware.device_type ?? "";
   const slotDefaults = ramSlotDefaults(deviceType);
   const ramParsed = parseRam(hardware.ram ?? "");
@@ -255,6 +300,7 @@ export function formStateFromAsset(row: Asset): DeviceFormState {
   const monitorParsed = parseMonitorRecord(hardware.monitor ?? "");
   const printerParsed = parsePeripheralPair(hardware.printer ?? "");
   const osParsed = parseOperatingSystem(hardware.os ?? "");
+  const savedKeyboardCondition = hardware.keyboard_condition ?? "";
 
   return {
     ...emptyForm(),
@@ -306,12 +352,18 @@ export function formStateFromAsset(row: Asset): DeviceFormState {
     hasSecondaryPrinter: printerParsed.hasSecondary,
     printerSecondary: printerParsed.secondary,
     printer: hardware.printer ?? "",
-    keyboardBuiltinCondition: kbParsed?.builtin ?? "",
+    keyboardBuiltinCondition:
+      kbParsed?.builtin ||
+      (isLaptopDevice(deviceType) && savedKeyboardCondition && savedKeyboardCondition !== "BUILT_IN_LAPTOP"
+        ? savedKeyboardCondition
+        : ""),
     keyboardBuiltinNotes: kbParsed?.builtinNotes ?? "",
     hasExternalKeyboard: kbParsed?.hasExternal ?? false,
     keyboardExternalModel: kbParsed?.externalModel ?? "",
     keyboardExternalCondition: kbParsed?.externalCond ?? "",
     keyboard: hardware.keyboard ?? "",
+    keyboardCondition: isLaptopDevice(deviceType) ? "" : (hardware.keyboard_condition ?? ""),
+    mouseCondition: isLaptopDevice(deviceType) ? "" : (hardware.mouse_condition ?? ""),
     desktopKeyboardModel: isLaptopDevice(deviceType) ? "" : (hardware.keyboard ?? ""),
     trackpadCondition: pointerParsed?.trackpad ?? "",
     trackpadNotes: pointerParsed?.trackpadNotes ?? "",
@@ -377,9 +429,11 @@ export function prepareComposedForm(form: DeviceFormState): DeviceFormState {
       String(body.mouseType),
     );
     if (!body.hasExternalMouse) body.mouseType = "";
+    body.mouseCondition = "";
   } else {
     body.keyboard = String(body.desktopKeyboardModel);
     body.mouse = String(body.desktopMouseModel);
+    body.mouseType = "";
   }
 
   body.monitor = composeMonitorRecord(
@@ -409,7 +463,6 @@ const ASSET_ONLY_KEYS = [
   "macAddress",
   "serialNumber",
   "status",
-  "condition",
   "notes",
   "location",
   "managementIp",
@@ -486,6 +539,7 @@ const AUDIT_ONLY_KEYS = [
   "screenCondition",
   "keyboardCondition",
   "mouseType",
+  "mouseCondition",
   "powerAvrChargerBattery",
   "ramSlotsUsed",
 ] as const;
@@ -538,6 +592,13 @@ export function prepareAssetPayload(form: DeviceFormState): Record<string, strin
     payload.monitor = composed.monitor;
     payload.keyboard = composed.keyboard;
     payload.mouse = composed.mouse;
+    if (composed.screen) payload.screen = composed.screen;
+    if (composed.screenCondition) payload.screenCondition = composed.screenCondition;
+    if (composed.ramSlotsUsed) payload.ramSlotsUsed = composed.ramSlotsUsed;
+    if (composed.powerAvrChargerBattery) payload.powerAvrChargerBattery = composed.powerAvrChargerBattery;
+    if (composed.keyboardCondition) payload.keyboardCondition = composed.keyboardCondition;
+    if (composed.mouseType) payload.mouseType = composed.mouseType;
+    if (composed.mouseCondition) payload.mouseCondition = composed.mouseCondition;
   }
 
   Object.keys(payload).forEach((k) => {

@@ -38,7 +38,7 @@ type DrawerMode = "create" | "view" | "edit";
 
 const VIEW_MODE_STORAGE_KEY = "assets-view";
 
-const ITEM_TYPES = ["LAPTOP", "DESKTOP", "ALL_IN_ONE", "KEYBOARD", "MOUSE", "MONITOR", "PRINTER", "OTHER"];
+const ITEM_TYPES = ["LAPTOP", "DESKTOP", "ALL_IN_ONE", "KEYBOARD", "MOUSE", "MONITOR", "PRINTER", "UPS", "AVR", "OTHER"];
 
 function readStoredViewMode(): ViewMode {
   if (typeof window === "undefined") return "table";
@@ -625,7 +625,10 @@ export default function AssetsPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setDrawerMode("edit")}
+                onClick={() => {
+                  if (editing) setForm(formStateFromAsset(editing));
+                  setDrawerMode("edit");
+                }}
                 className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center rounded-lg bg-[#2E7D9A] px-3 text-sm font-medium leading-none text-white hover:bg-[#256b85]"
               >
                 Edit
@@ -654,12 +657,10 @@ export default function AssetsPage() {
           ) : undefined
         }
       >
-        {drawerMode === "view" && editing ? (
-          detailLoading ? (
-            <p className="py-12 text-center text-sm text-slate-400">Loading asset details...</p>
-          ) : (
-            <AssetDetailView asset={editing} />
-          )
+        {detailLoading ? (
+          <p className="py-12 text-center text-sm text-slate-400">Loading asset details...</p>
+        ) : drawerMode === "view" && editing ? (
+          <AssetDetailView asset={editing} />
         ) : (
           <DeviceInventoryForm
             mode="asset"
