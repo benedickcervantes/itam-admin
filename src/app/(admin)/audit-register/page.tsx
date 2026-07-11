@@ -164,6 +164,12 @@ export default function AuditRegisterPage() {
   }, [page, search, itemNeeded, auditStatus, priority]);
 
   useEffect(() => {
+    if (!success) return;
+    const timer = window.setTimeout(() => setSuccess(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [success]);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput), 300);
     return () => window.clearTimeout(timer);
   }, [searchInput]);
@@ -610,7 +616,10 @@ export default function AuditRegisterPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setDrawerMode("edit")}
+                onClick={() => {
+                  if (editing) setForm(formStateFromAudit(editing));
+                  setDrawerMode("edit");
+                }}
                 className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center rounded-lg bg-[#2E7D9A] px-3 text-sm font-medium leading-none text-white hover:bg-[#256b85]"
               >
                 Edit
@@ -639,12 +648,10 @@ export default function AuditRegisterPage() {
           ) : undefined
         }
       >
-        {drawerMode === "view" && editing ? (
-          detailLoading ? (
-            <p className="py-12 text-center text-sm text-slate-400">Loading audit details...</p>
-          ) : (
-            <AuditDetailView audit={editing} />
-          )
+        {detailLoading ? (
+          <p className="py-12 text-center text-sm text-slate-400">Loading audit details...</p>
+        ) : drawerMode === "view" && editing ? (
+          <AuditDetailView audit={editing} />
         ) : (
           <DeviceInventoryForm
             mode="audit"

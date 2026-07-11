@@ -137,61 +137,68 @@ export default function DashboardPage() {
     void load(period);
   }, [load, period]);
 
+  const toolbar = (
+    <>
+      <div className="flex items-center gap-2 text-xs text-slate-500">
+        {loading ? (
+          <span className="inline-flex items-center gap-1.5 text-slate-400">
+            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+            Refreshing data…
+          </span>
+        ) : updatedAt ? (
+          <span className="inline-flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 text-slate-500" />
+            Last updated {formatUpdatedAt(updatedAt)}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 text-slate-500" />
+            Loading…
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="inline-flex rounded-lg border border-slate-700 bg-slate-800/60 p-0.5">
+          {PERIOD_OPTIONS.map((opt) => {
+            const active = period === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setPeriod(opt.value)}
+                disabled={loading}
+                aria-pressed={active}
+                className={`rounded-md px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed ${
+                  active
+                    ? "bg-sky-500/20 text-sky-300 ring-1 ring-sky-500/40"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => void load(period)}
+          disabled={loading}
+          title="Refresh data"
+          aria-label="Refresh data"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+          <span className="hidden sm:inline">Refresh</span>
+        </button>
+      </div>
+    </>
+  );
+
   return (
     <>
       <Header title="Dashboard" subtitle="Executive overview of asset inventory, audit performance, and operational health" />
-      <div className="page-content flex-1 overflow-y-auto">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            {loading ? (
-              <span className="inline-flex items-center gap-1.5 text-slate-400">
-                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                Refreshing data…
-              </span>
-            ) : (
-              updatedAt && (
-                <span className="inline-flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5 text-slate-500" />
-                  Last updated {formatUpdatedAt(updatedAt)}
-                </span>
-              )
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="inline-flex rounded-lg border border-slate-700 bg-slate-800/60 p-0.5">
-              {PERIOD_OPTIONS.map((opt) => {
-                const active = period === opt.value;
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setPeriod(opt.value)}
-                    disabled={loading}
-                    aria-pressed={active}
-                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed ${
-                      active
-                        ? "bg-sky-500/20 text-sky-300 ring-1 ring-sky-500/40"
-                        : "text-slate-400 hover:text-slate-200"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              type="button"
-              onClick={() => void load(period)}
-              disabled={loading}
-              title="Refresh data"
-              aria-label="Refresh data"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
-          </div>
-        </div>
+      <div className="page-content flex-1 overflow-y-auto" style={{ paddingTop: 0 }}>
+        <DashboardSectionNav sections={SECTIONS} toolbar={toolbar} />
         {readOnly && (
           <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200 sm:text-sm">
             <Eye className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
@@ -204,9 +211,7 @@ export default function DashboardPage() {
         {error && <p className="mb-4 text-red-400">{error}</p>}
         {!data && !error && <DashboardSkeleton />}
         {data && (
-          <div>
-            <DashboardSectionNav sections={SECTIONS} />
-            <div className="space-y-6">
+          <div className="space-y-6">
             <AttentionBand
               criticalAudits={data.auditHealth.critical}
               immediateActions={data.riskCompliance.immediateActions}
@@ -216,12 +221,12 @@ export default function DashboardPage() {
               crackedOs={data.riskCompliance.crackedOs}
             />
 
-            <section id="glance" className="scroll-mt-16">
+            <section id="glance" className="scroll-mt-[var(--dashboard-nav-offset,4rem)]">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-sky-400">Asset Status at a Glance</h2>
               <AssetStatusGlance data={data.assetStatusBreakdown} />
             </section>
 
-            <section id="overview" className="scroll-mt-16">
+            <section id="overview" className="scroll-mt-[var(--dashboard-nav-offset,4rem)]">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-sky-400">Overview</h2>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <KpiCard icon={ClipboardList} color="teal" label="Total Audits" value={data.overview.totalAudits} />
@@ -236,7 +241,7 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <section id="breakdown" className="grid scroll-mt-16 items-stretch gap-6 xl:grid-cols-2">
+            <section id="breakdown" className="grid scroll-mt-[var(--dashboard-nav-offset,4rem)] items-stretch gap-6 xl:grid-cols-2">
               <div className="flex flex-col">
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-sky-400">Asset Status Breakdown</h2>
                 <div className="card flex flex-1 items-center p-4 sm:p-5">
@@ -253,7 +258,7 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <section id="health" className="grid scroll-mt-16 gap-6 lg:grid-cols-2">
+            <section id="health" className="grid scroll-mt-[var(--dashboard-nav-offset,4rem)] gap-6 lg:grid-cols-2">
               <div className="card p-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <h3 className="font-medium text-white">Audit Health</h3>
@@ -280,7 +285,7 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <section id="workforce" className="grid scroll-mt-16 gap-6 lg:grid-cols-2">
+            <section id="workforce" className="grid scroll-mt-[var(--dashboard-nav-offset,4rem)] gap-6 lg:grid-cols-2">
               <div className="card p-4">
                 <h3 className="mb-3 font-medium text-white">Workforce & Devices</h3>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -305,7 +310,7 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <section id="departments" className="grid scroll-mt-16 gap-6 lg:grid-cols-2">
+            <section id="departments" className="grid scroll-mt-[var(--dashboard-nav-offset,4rem)] gap-6 lg:grid-cols-2">
               <div className="card overflow-hidden">
                 <div className="flex items-center justify-between border-b border-slate-700 px-3 py-2.5 font-medium text-white sm:px-4 sm:py-3">
                   <span>By Department</span>
@@ -382,7 +387,7 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <section id="priority" className="grid scroll-mt-16 gap-6 lg:grid-cols-2">
+            <section id="priority" className="grid scroll-mt-[var(--dashboard-nav-offset,4rem)] gap-6 lg:grid-cols-2">
               <div className="card overflow-hidden">
                 <div className="border-b border-slate-700 px-3 py-2.5 font-medium text-white sm:px-4 sm:py-3">By Priority</div>
                 <div className="table-scroll">
@@ -436,7 +441,6 @@ export default function DashboardPage() {
                 </div>
               </div>
             </section>
-            </div>
           </div>
         )}
       </div>

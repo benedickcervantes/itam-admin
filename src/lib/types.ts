@@ -19,6 +19,7 @@ export type AuditRegister = {
   device_type?: string | null;
   computer_name: string;
   laptop_brand_model?: string | null;
+  condition?: string | null;
   screen?: string | null;
   screen_condition?: string | null;
   processor?: string | null;
@@ -36,6 +37,7 @@ export type AuditRegister = {
   keyboard_condition?: string | null;
   mouse?: string | null;
   mouse_type?: string | null;
+  mouse_condition?: string | null;
   power_avr_charger_battery?: string | null;
   audit_date?: string | null;
   audit_status?: string;
@@ -79,7 +81,14 @@ export type Asset = {
   printer?: string | null;
   monitor?: string | null;
   keyboard?: string | null;
+  keyboard_condition?: string | null;
   mouse?: string | null;
+  mouse_type?: string | null;
+  mouse_condition?: string | null;
+  screen?: string | null;
+  screen_condition?: string | null;
+  ram_slots_used?: string | null;
+  power_avr_charger_battery?: string | null;
   status?: string;
   condition?: string | null;
   notes?: string | null;
@@ -92,6 +101,15 @@ export type Asset = {
     audit_code: string;
     network?: string | null;
     graphics_gpu?: string | null;
+    screen?: string | null;
+    screen_condition?: string | null;
+    ram_slots_used?: string | null;
+    power_avr_charger_battery?: string | null;
+    keyboard?: string | null;
+    keyboard_condition?: string | null;
+    mouse?: string | null;
+    mouse_type?: string | null;
+    mouse_condition?: string | null;
   } | null;
 };
 
