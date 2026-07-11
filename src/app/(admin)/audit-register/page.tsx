@@ -275,11 +275,16 @@ export default function AuditRegisterPage() {
           e.stopPropagation();
           void openView(row);
         }}
-        className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-[#2E7D9A]"
+        className={
+          write
+            ? "rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-[#2E7D9A]"
+            : "inline-flex items-center gap-1.5 rounded-md border border-slate-700 px-2 py-1 text-xs font-medium text-slate-300 transition hover:border-[#2E7D9A]/50 hover:text-[#2E7D9A]"
+        }
         title="View record"
         aria-label="View record"
       >
         <Eye className="h-4 w-4" />
+        {!write && <span>View</span>}
       </button>
       {write && (
         <>
@@ -459,7 +464,7 @@ export default function AuditRegisterPage() {
                     <th>Assessment</th>
                     <th className="cell-wrap">{ITEMS_NEEDED_TABLE_LABEL}</th>
                     <th>Priority</th>
-                    <th>Actions</th>
+                    <th>{write ? "Actions" : "View"}</th>
                   </tr>
                 </thead>
                 <tbody>

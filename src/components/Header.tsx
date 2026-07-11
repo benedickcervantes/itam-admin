@@ -30,7 +30,7 @@ export function Header({ title, subtitle }: { title: string; subtitle?: string }
         </div>
         {isViewer(user) && (
           <span className="max-w-[45%] shrink-0 truncate rounded-full bg-amber-500/15 px-2 py-1 text-[10px] font-medium text-amber-300 ring-1 ring-amber-500/30 sm:max-w-none sm:px-3 sm:text-xs">
-            Read-only
+            View-only
           </span>
         )}
       </div>

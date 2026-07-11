@@ -22,8 +22,11 @@ import {
   Keyboard,
   Mouse,
   Hammer,
+  Eye,
 } from "lucide-react";
 import { Header } from "@/components/Header";
+import { useSessionUser } from "@/components/SessionContext";
+import { isViewer } from "@/lib/auth/permissions";
 import { Badge } from "@/components/Badge";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { MiniStat } from "@/components/dashboard/MiniStat";
@@ -108,6 +111,8 @@ function formatUpdatedAt(date: Date) {
 }
 
 export default function DashboardPage() {
+  const user = useSessionUser();
+  const readOnly = isViewer(user);
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -152,28 +157,50 @@ export default function DashboardPage() {
               )
             )}
           </div>
-          <div className="inline-flex rounded-lg border border-slate-700 bg-slate-800/60 p-0.5">
-            {PERIOD_OPTIONS.map((opt) => {
-              const active = period === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setPeriod(opt.value)}
-                  disabled={loading}
-                  aria-pressed={active}
-                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed ${
-                    active
-                      ? "bg-sky-500/20 text-sky-300 ring-1 ring-sky-500/40"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
+          <div className="flex items-center gap-2">
+            <div className="inline-flex rounded-lg border border-slate-700 bg-slate-800/60 p-0.5">
+              {PERIOD_OPTIONS.map((opt) => {
+                const active = period === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setPeriod(opt.value)}
+                    disabled={loading}
+                    aria-pressed={active}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed ${
+                      active
+                        ? "bg-sky-500/20 text-sky-300 ring-1 ring-sky-500/40"
+                        : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={() => void load(period)}
+              disabled={loading}
+              title="Refresh data"
+              aria-label="Refresh data"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
           </div>
         </div>
+        {readOnly && (
+          <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200 sm:text-sm">
+            <Eye className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
+            <p>
+              Your account has <span className="font-semibold">view-only</span> permissions. You may review and
+              monitor all dashboards and records; modifications are restricted to administrators.
+            </p>
+          </div>
+        )}
         {error && <p className="mb-4 text-red-400">{error}</p>}
         {!data && !error && <DashboardSkeleton />}
         {data && (
