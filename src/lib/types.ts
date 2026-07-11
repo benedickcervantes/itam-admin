@@ -73,6 +73,7 @@ export type Asset = {
   primary_storage?: string | null;
   secondary_storage?: string | null;
   gpu?: string | null;
+  network?: string | null;
   os?: string | null;
   os_license_status?: string | null;
   printer?: string | null;
@@ -87,7 +88,11 @@ export type Asset = {
   rack_slot?: string | null;
   port_count?: number | null;
   last_audit_date?: string | null;
-  audit_register?: { audit_code: string } | null;
+  audit_register?: {
+    audit_code: string;
+    network?: string | null;
+    graphics_gpu?: string | null;
+  } | null;
 };
 
 export type Assignment = {

@@ -63,6 +63,8 @@ const COLUMN_SECTIONS: ColumnSection[] = [
       { header: "Processor", width: 26, value: (r) => r.processor ?? "" },
       { header: "RAM", width: 18, value: (r) => r.ram ?? "" },
       { header: "Storage", width: 30, value: joinStorage },
+      { header: "Graphics Card", width: 24, value: (r) => r.graphics_gpu ?? "" },
+      { header: "Network", width: 24, value: (r) => r.network ?? "" },
       { header: "Operating System", width: 18, value: (r) => r.operating_system ?? "" },
       { header: "OS License", width: 14, value: (r) => labelEnumOrBlank(r.os_license_status) },
     ],
