@@ -437,14 +437,6 @@ export function DeviceInventoryForm({
           )}
           {mode === "asset" && (
             <>
-              <Field label="Condition">
-                <Select
-                  value={String(form.condition)}
-                  onChange={(v) => set("condition", v)}
-                  options={conditionOptions}
-                  disabled={!write}
-                />
-              </Field>
               <div className="md:col-span-2">
                 <Field label="Notes">
                   {write ? (
@@ -487,6 +479,14 @@ export function DeviceInventoryForm({
               onChange={onDeviceTypeChange}
               options={deviceTypeOptions}
               placeholder="Select device type..."
+              disabled={!write}
+            />
+          </Field>
+          <Field label="Condition">
+            <Select
+              value={String(form.condition)}
+              onChange={(v) => set("condition", v)}
+              options={conditionOptions}
               disabled={!write}
             />
           </Field>
@@ -1085,11 +1085,11 @@ export function DeviceInventoryForm({
                 readOnly={!write}
               />
             </Field>
-            <Field label="Mouse Type">
+            <Field label="Mouse Condition">
               <Select
-                value={String(form.mouseType)}
-                onChange={(v) => set("mouseType", v)}
-                options={mouseTypeOptions}
+                value={String(form.mouseCondition)}
+                onChange={(v) => set("mouseCondition", v)}
+                options={inputConditionOptions.filter((o) => o.value !== "N_A")}
                 disabled={!write}
               />
             </Field>
