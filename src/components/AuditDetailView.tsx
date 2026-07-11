@@ -16,6 +16,7 @@ export function AuditDetailView({ audit }: { audit: AuditRegister }) {
     audit.primary_storage,
     audit.secondary_storage,
     audit.graphics_gpu,
+    audit.network,
     audit.operating_system,
     audit.os_license_status,
     audit.laptop_brand_model,

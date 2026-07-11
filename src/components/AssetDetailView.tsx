@@ -12,6 +12,9 @@ export function AssetDetailView({ asset }: { asset: Asset }) {
   const infra = isInfrastructureDevice(asset.device_type ?? "", assetCategory);
   const infraServer = infra && showsInfraServerSpecs(asset.device_type ?? "");
   const infraNetwork = infra && showsInfraNetworkSpecs(asset.device_type ?? "");
+  const showsComputerHardware = !infra || infraServer;
+  const displayGpu = asset.gpu?.trim() || asset.audit_register?.graphics_gpu?.trim() || null;
+  const displayNetwork = asset.network?.trim() || asset.audit_register?.network?.trim() || null;
   const hasPeripherals =
     !infra && [asset.keyboard, asset.mouse, asset.printer].some((v) => v?.trim());
   const hasInfraFields = [asset.location, asset.management_ip, asset.rack_slot, asset.port_count].some(
@@ -22,7 +25,8 @@ export function AssetDetailView({ asset }: { asset: Asset }) {
     asset.ram,
     asset.primary_storage,
     asset.secondary_storage,
-    asset.gpu,
+    displayGpu,
+    displayNetwork,
     asset.os,
     asset.os_license_status,
     asset.brand_model,
@@ -88,11 +92,14 @@ export function AssetDetailView({ asset }: { asset: Asset }) {
               {(!infra || infraServer) && <DetailRow label="Processor" value={asset.processor} />}
               {infraNetwork && <DetailRow label="MAC Address" value={asset.mac_address} />}
               {(!infra || infraServer) && <DetailRow label="Memory (RAM)" value={asset.ram} />}
-              {(!infra || infraServer) && <DetailRow label="Primary Storage" value={asset.primary_storage} />}
-              {(!infra || infraServer) && <DetailRow label="Secondary Storage" value={asset.secondary_storage} />}
-              <DetailRow label="GPU" value={asset.gpu} />
+              {showsComputerHardware && <DetailRow label="Primary Storage" value={asset.primary_storage} />}
+              {showsComputerHardware && <DetailRow label="Secondary Storage" value={asset.secondary_storage} />}
+              {showsComputerHardware && <DetailRow label="Graphics Card / GPU" value={displayGpu} />}
               <DetailRow label="Operating System" value={asset.os} />
               {!infra && <DetailRow label="OS License" value={fmtLabel(asset.os_license_status)} />}
+              {showsComputerHardware && (
+                <DetailRow label="Network (Wi-Fi/Ethernet)" value={displayNetwork} />
+              )}
               {!infra && <DetailRow label="Monitor" value={asset.monitor} />}
             </>
           ) : (

@@ -487,7 +487,6 @@ const AUDIT_ONLY_KEYS = [
   "keyboardCondition",
   "mouseType",
   "powerAvrChargerBattery",
-  "network",
   "ramSlotsUsed",
 ] as const;
 
@@ -510,6 +509,7 @@ export function prepareAssetPayload(form: DeviceFormState): Record<string, strin
     primaryStorage: composed.primaryStorage,
     secondaryStorage: composed.secondaryStorage,
     gpu: composed.graphicsGpu,
+    network: composed.network,
     os: composed.operatingSystem,
     osLicenseStatus: composed.osLicenseStatus,
     status: composed.status,

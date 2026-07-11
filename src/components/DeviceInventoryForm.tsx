@@ -752,6 +752,29 @@ export function DeviceInventoryForm({
         </Subsection>
         )}
 
+        {(!infra || infraServer) && (
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="Graphics Card / GPU">
+            <input
+              className={inputClass}
+              value={String(form.graphicsGpu)}
+              onChange={(e) => set("graphicsGpu", e.target.value)}
+              placeholder="e.g. NVIDIA RTX 3060, Intel UHD Graphics 620"
+              readOnly={!write}
+            />
+          </Field>
+          <Field label="Network (Wi-Fi/Ethernet)">
+            <input
+              className={inputClass}
+              value={String(form.network)}
+              onChange={(e) => set("network", e.target.value)}
+              placeholder="e.g. Intel Wi-Fi 6 AX201, Realtek PCIe GbE"
+              readOnly={!write}
+            />
+          </Field>
+        </div>
+        )}
+
         {(infra ? showsInfraOs(deviceType) : true) && (
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Operating System">
