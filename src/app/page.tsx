@@ -2,16 +2,20 @@
 
 import { useEffect, useState } from "react";
 import {
+  AlertCircle,
+  ArrowRight,
   Eye,
   EyeOff,
   Headphones,
   Loader2,
   Lock,
   Mail,
+  Monitor,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Grainient from "@/components/Grainient";
 import LoginHeroVisual from "@/components/LoginHeroVisual";
+import LoginSuccessOverlay from "@/components/LoginSuccessOverlay";
 import TextType from "@/components/TextType";
 import { fetchProfile, login } from "@/lib/api/auth";
 import {
@@ -29,30 +33,27 @@ import {
 
 const FEATURES = ["Asset Monitoring", "Hardware Inventory", "Initial Asset Audit"] as const;
 
+const GREETINGS = ["Welcome Back!", "Good to See You!", "Let's Get to Work."] as const;
+
 function WelcomeHeading() {
   return (
     <h1 className="text-center text-2xl font-bold leading-tight tracking-tight text-white min-[375px]:text-3xl sm:text-4xl md:text-[2.5rem] lg:text-5xl xl:text-6xl">
       <TextType
         as="span"
-        text="Welcome Back!"
-        typingSpeed={120}
-        className="inline-block animate-pulse-subtle"
+        text={[...GREETINGS]}
+        variableSpeed={{ min: 55, max: 120 }}
+        deletingSpeed={35}
+        pauseDuration={2600}
+        className="inline-block align-baseline"
         showCursor
         cursorCharacter="|"
-        cursorClassName="ml-1 text-xl font-light text-[#2E7D9A] min-[375px]:text-2xl sm:text-3xl md:text-4xl lg:text-4xl xl:text-5xl"
+        cursorClassName="text-[1em] font-light leading-none text-[#4FB0CE]"
         loop
-        pauseDuration={10000}
-        renderText={(txt) => {
-          if (txt.startsWith("Welcome ")) {
-            return (
-              <>
-                <span className="text-white">Welcome </span>
-                <span className="text-[#2E7D9A]">{txt.slice(8)}</span>
-              </>
-            );
-          }
-          return <span className="text-white">{txt}</span>;
-        }}
+        renderText={(txt) => (
+          <span className="bg-gradient-to-r from-white via-[#9fdcef] to-[#2E7D9A] bg-clip-text text-transparent">
+            {txt}
+          </span>
+        )}
       />
     </h1>
   );
@@ -79,9 +80,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
+  const [capsLockOn, setCapsLockOn] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [support, setSupport] = useState<PortalConfig | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [loginSuccess, setLoginSuccess] = useState(false);
+  const [successName, setSuccessName] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -119,12 +123,13 @@ export default function LoginPage() {
     setIsSubmitting(true);
     setError("");
     try {
-      const result = await login(email.trim(), password);
+      const result = await login(email.trim(), password, rememberMe);
       persistSession(result.accessToken, result.user, rememberMe);
-      router.replace("/dashboard");
+      router.prefetch("/dashboard");
+      setSuccessName(result.user.fullName ?? null);
+      setLoginSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.");
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -138,14 +143,27 @@ export default function LoginPage() {
 
   if (checkingSession) {
     return (
-      <div className="flex h-dvh items-center justify-center bg-[#0F172A] text-slate-300">
-        Loading session...
+      <div className="flex h-dvh flex-col items-center justify-center gap-4 bg-[#0F172A] text-slate-300">
+        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2E7D9A] to-[#1E3A5F] text-white shadow-lg shadow-[#2E7D9A]/20 ring-1 ring-white/10">
+          <Monitor className="h-7 w-7" />
+        </span>
+        <div className="flex items-center gap-2 text-sm text-slate-400">
+          <Loader2 className="h-4 w-4 animate-spin text-[#2E7D9A]" />
+          Loading session…
+        </div>
       </div>
     );
   }
 
   return (
     <div className="relative min-h-dvh w-full overflow-x-hidden bg-[#0F172A] text-white">
+      {loginSuccess && (
+        <LoginSuccessOverlay
+          userName={successName}
+          onComplete={() => router.replace("/dashboard")}
+        />
+      )}
+
       <div className="pointer-events-none fixed inset-0 z-0 opacity-85">
         <Grainient
           color1="#1E3A5F"
@@ -220,6 +238,7 @@ export default function LoginPage() {
                     id="email"
                     type="email"
                     autoComplete="email"
+                    autoFocus
                     value={email}
                     onChange={(e) => {
                       setEmail(e.target.value);
@@ -247,6 +266,9 @@ export default function LoginPage() {
                       setPassword(e.target.value);
                       if (error) setError("");
                     }}
+                    onKeyUp={(e) => setCapsLockOn(e.getModifierState("CapsLock"))}
+                    onKeyDown={(e) => setCapsLockOn(e.getModifierState("CapsLock"))}
+                    onBlur={() => setCapsLockOn(false)}
                     placeholder="Enter your password"
                     suppressHydrationWarning
                     className="w-full rounded-xl border border-slate-700 bg-slate-950/80 py-3 pl-10 pr-10 text-sm text-white outline-none transition-all duration-300 placeholder:text-slate-500 focus:border-[#2E7D9A]/50 focus:bg-slate-950 focus:ring-1 focus:ring-[#2E7D9A]/20 min-[375px]:py-3.5 sm:py-4 sm:pl-11 sm:pr-11 sm:text-base"
@@ -260,6 +282,12 @@ export default function LoginPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                {capsLockOn && (
+                  <p className="mt-1.5 flex items-center gap-1.5 text-xs text-amber-300">
+                    <AlertCircle className="h-3.5 w-3.5" />
+                    Caps Lock is on
+                  </p>
+                )}
               </div>
 
               <div className="flex w-full items-center justify-between text-sm">
@@ -274,16 +302,33 @@ export default function LoginPage() {
                 </label>
               </div>
 
-              {error && <p className="text-sm text-red-400">{error}</p>}
+              {error && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2.5 text-sm text-red-300"
+                >
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
 
               <button
                 type="submit"
                 disabled={isSubmitting}
                 suppressHydrationWarning
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#2E7D9A] py-3 text-sm font-semibold text-white transition-all duration-300 hover:bg-[#256f89] hover:shadow-[0_0_25px_rgba(46,125,154,0.45)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:py-4 sm:text-base lg:hover:scale-[1.01]"
+                className="group flex w-full items-center justify-center gap-2 rounded-xl bg-[#2E7D9A] py-3 text-sm font-semibold text-white transition-all duration-300 hover:bg-[#256f89] hover:shadow-[0_0_25px_rgba(46,125,154,0.45)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 sm:py-4 sm:text-base lg:hover:scale-[1.01]"
               >
-                {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                {isSubmitting ? "Signing in..." : "Sign in"}
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  <>
+                    Sign in
+                    <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                  </>
+                )}
               </button>
             </form>
 

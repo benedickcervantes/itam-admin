@@ -1,7 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Eye, LayoutGrid, List, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ChevronDown,
+  Download,
+  Eye,
+  FileSpreadsheet,
+  FileText,
+  LayoutGrid,
+  List,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { Badge } from "@/components/Badge";
 import { AssetDetailView } from "@/components/AssetDetailView";
 import { DeviceFormToolbar } from "@/components/DeviceFormToolbar";
@@ -9,7 +21,10 @@ import { DeviceInventoryForm } from "@/components/DeviceInventoryForm";
 import { Drawer, inputClass, selectClass } from "@/components/Drawer";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
-import { createAsset, deleteAsset, fetchAsset, fetchAssets, updateAsset } from "@/lib/api/assets";
+import { Pagination } from "@/components/Pagination";
+import { CardGridSkeleton, TableSkeleton } from "@/components/TableSkeleton";
+import { createAsset, deleteAsset, fetchAllAssets, fetchAsset, fetchAssets, updateAsset } from "@/lib/api/assets";
+import { exportAssetsExcel, exportAssetsPdf } from "@/lib/export-assets";
 import { fetchDepartments } from "@/lib/api/departments";
 import { canWrite } from "@/lib/auth/permissions";
 import { REFERENCE_DATA } from "@/lib/reference-data";
@@ -49,13 +64,68 @@ export default function AssetsPage() {
   const [editing, setEditing] = useState<Asset | null>(null);
   const [form, setForm] = useState(() => emptyForm());
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>(readStoredViewMode);
+  const [exporting, setExporting] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   const changeViewMode = (mode: ViewMode) => {
     setViewMode(mode);
     localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+  };
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [exportMenuOpen]);
+
+  const buildFilterSummary = () => {
+    const parts: string[] = [];
+    if (search) parts.push(`Search: "${search}"`);
+    if (departmentId) parts.push(`Department: ${departments.find((d) => d.id === departmentId)?.name ?? departmentId}`);
+    if (status) parts.push(`Status: ${labelEnum(status)}`);
+    if (itemType) parts.push(`Type: ${labelEnum(itemType)}`);
+    return parts.length ? parts.join(" · ") : "None (all records)";
+  };
+
+  const runExport = async (format: "excel" | "pdf") => {
+    if (exporting) return;
+    setExportMenuOpen(false);
+    setExporting(true);
+    setError("");
+    setSuccess("");
+    try {
+      const rows = await fetchAllAssets({
+        search: search || undefined,
+        departmentId: departmentId || undefined,
+        status: status || undefined,
+        itemType: itemType || undefined,
+      });
+      if (rows.length === 0) {
+        setError("No assets match the current filters to export.");
+        return;
+      }
+      if (format === "excel") {
+        await exportAssetsExcel(rows, buildFilterSummary());
+      } else {
+        exportAssetsPdf(rows, buildFilterSummary());
+      }
+      const label = format === "excel" ? "Excel" : "PDF";
+      setSuccess(`Exported ${rows.length} asset ${rows.length === 1 ? "record" : "records"} to ${label}.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const load = useCallback(async () => {
@@ -343,6 +413,43 @@ export default function AssetsPage() {
               <span className="hidden sm:inline">Grid</span>
             </button>
           </div>
+          <div className="relative w-full sm:w-auto" ref={exportMenuRef}>
+            <button
+              type="button"
+              onClick={() => setExportMenuOpen((o) => !o)}
+              disabled={exporting}
+              aria-haspopup="menu"
+              aria-expanded={exportMenuOpen}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            >
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {exporting ? "Exporting..." : "Export"}
+              {!exporting && <ChevronDown className="h-4 w-4" />}
+            </button>
+            {exportMenuOpen && !exporting && (
+              <div
+                role="menu"
+                className="absolute right-0 z-20 mt-1 w-full min-w-[11rem] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-lg sm:w-auto"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void runExport("excel")}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                >
+                  <FileSpreadsheet className="h-4 w-4 text-emerald-400" /> Export as Excel
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void runExport("pdf")}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                >
+                  <FileText className="h-4 w-4 text-red-400" /> Export as PDF
+                </button>
+              </div>
+            )}
+          </div>
           {write && (
             <button
               type="button"
@@ -355,30 +462,37 @@ export default function AssetsPage() {
         </div>
 
         {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
+        {success && <p className="mb-3 text-sm text-emerald-400">{success}</p>}
 
         {viewMode === "table" ? (
           <div className="card overflow-hidden">
             <div className="table-scroll">
-              <table className="data-table">
+              <table className="data-table data-table--fixed" style={{ minWidth: "68rem" }}>
+                <colgroup>
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "11%" }} />
+                  <col style={{ width: "19%" }} />
+                  <col style={{ width: "16%" }} />
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "11%" }} />
+                  <col style={{ width: "10%" }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Asset ID</th>
                     <th>Type</th>
-                    <th>Computer</th>
-                    <th>Assigned To</th>
-                    <th>Department</th>
+                    <th className="cell-wrap">Computer</th>
+                    <th className="cell-wrap">Assigned To</th>
+                    <th className="cell-wrap">Department</th>
                     <th>Status</th>
                     <th>Condition</th>
-                    <th className="w-0">Actions</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr>
-                      <td colSpan={8} className="text-slate-400">
-                        Loading...
-                      </td>
-                    </tr>
+                    <TableSkeleton columns={8} />
                   ) : items.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="text-slate-400">
@@ -392,16 +506,16 @@ export default function AssetsPage() {
                         <td>
                           <Badge value={row.item_type ?? row.device_type} />
                         </td>
-                        <td className="font-medium text-white">{row.computer_name}</td>
-                        <td className="text-slate-300">{row.assigned_to ?? "—"}</td>
-                        <td>{row.department?.name ?? "—"}</td>
+                        <td className="cell-wrap font-medium text-white">{row.computer_name}</td>
+                        <td className="cell-wrap text-slate-300">{row.assigned_to ?? "—"}</td>
+                        <td className="cell-wrap">{row.department?.name ?? "—"}</td>
                         <td>
                           <Badge value={row.status} />
                         </td>
                         <td>
                           <Badge value={row.condition} />
                         </td>
-                        <td onClick={(e) => e.stopPropagation()} className="w-0">
+                        <td onClick={(e) => e.stopPropagation()}>
                           {renderRowActions(row)}
                         </td>
                       </tr>
@@ -414,7 +528,7 @@ export default function AssetsPage() {
         ) : (
           <div>
             {loading ? (
-              <p className="py-8 text-center text-sm text-slate-400">Loading...</p>
+              <CardGridSkeleton />
             ) : items.length === 0 ? (
               <p className="py-8 text-center text-sm text-slate-400">No assets found.</p>
             ) : (
@@ -457,29 +571,7 @@ export default function AssetsPage() {
           </div>
         )}
 
-        <div className="mt-4 flex flex-col gap-3 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-          <span>
-            Page {page} of {totalPages}
-          </span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="rounded border border-slate-600 px-3 py-1 disabled:opacity-40"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="rounded border border-slate-600 px-3 py-1 disabled:opacity-40"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
       </div>
 
       <Drawer

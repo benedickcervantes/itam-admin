@@ -1,7 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Eye, LayoutGrid, List, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ChevronDown,
+  Download,
+  Eye,
+  FileSpreadsheet,
+  FileText,
+  LayoutGrid,
+  List,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { Badge } from "@/components/Badge";
 import { AuditDetailView } from "@/components/AuditDetailView";
 import { DeviceFormToolbar } from "@/components/DeviceFormToolbar";
@@ -9,14 +21,18 @@ import { DeviceInventoryForm } from "@/components/DeviceInventoryForm";
 import { Drawer, inputClass, selectClass } from "@/components/Drawer";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
+import { Pagination } from "@/components/Pagination";
+import { CardGridSkeleton, TableSkeleton } from "@/components/TableSkeleton";
 import {
   createAuditRegister,
   deleteAuditRegister,
+  fetchAllAuditRegisters,
   fetchAuditRegister,
   fetchAuditRegisters,
   updateAuditRegister,
   type AuditRegister,
 } from "@/lib/api/auditRegisters";
+import { exportAuditsExcel, exportAuditsPdf } from "@/lib/export-audit";
 import { fetchDepartments } from "@/lib/api/departments";
 import { canWrite } from "@/lib/auth/permissions";
 import { REFERENCE_DATA } from "@/lib/reference-data";
@@ -67,10 +83,64 @@ export default function AuditRegisterPage() {
   const [saving, setSaving] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>(readStoredViewMode);
+  const [exporting, setExporting] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   const changeViewMode = (mode: ViewMode) => {
     setViewMode(mode);
     localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+  };
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [exportMenuOpen]);
+
+  const buildFilterSummary = () => {
+    const parts: string[] = [];
+    if (search) parts.push(`Search: "${search}"`);
+    if (itemNeeded) parts.push(`Items needed: ${labelEnum(itemNeeded)}`);
+    if (auditStatus) parts.push(`Status: ${auditStatus}`);
+    if (priority) parts.push(`Priority: ${labelEnum(priority)}`);
+    return parts.length ? parts.join(" · ") : "None (all records)";
+  };
+
+  const runExport = async (format: "excel" | "pdf") => {
+    if (exporting) return;
+    setExportMenuOpen(false);
+    setExporting(true);
+    setError("");
+    setSuccess("");
+    try {
+      const rows = await fetchAllAuditRegisters({
+        search: search || undefined,
+        upgradeComponent: itemNeeded || undefined,
+        auditStatus: auditStatus || undefined,
+        priority: priority || undefined,
+      });
+      if (rows.length === 0) {
+        setError("No audit records match the current filters to export.");
+        return;
+      }
+      if (format === "excel") {
+        await exportAuditsExcel(rows, buildFilterSummary());
+      } else {
+        exportAuditsPdf(rows, buildFilterSummary());
+      }
+      const label = format === "excel" ? "Excel" : "PDF";
+      setSuccess(`Exported ${rows.length} audit ${rows.length === 1 ? "record" : "records"} to ${label}.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const load = useCallback(async () => {
@@ -315,6 +385,43 @@ export default function AuditRegisterPage() {
               <span className="hidden sm:inline">Grid</span>
             </button>
           </div>
+          <div className="relative w-full sm:w-auto" ref={exportMenuRef}>
+            <button
+              type="button"
+              onClick={() => setExportMenuOpen((o) => !o)}
+              disabled={exporting}
+              aria-haspopup="menu"
+              aria-expanded={exportMenuOpen}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            >
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {exporting ? "Exporting..." : "Export"}
+              {!exporting && <ChevronDown className="h-4 w-4" />}
+            </button>
+            {exportMenuOpen && !exporting && (
+              <div
+                role="menu"
+                className="absolute right-0 z-20 mt-1 w-full min-w-[11rem] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-lg sm:w-auto"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void runExport("excel")}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                >
+                  <FileSpreadsheet className="h-4 w-4 text-emerald-400" /> Export as Excel
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void runExport("pdf")}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                >
+                  <FileText className="h-4 w-4 text-red-400" /> Export as PDF
+                </button>
+              </div>
+            )}
+          </div>
           {write && (
             <button
               type="button"
@@ -332,26 +439,32 @@ export default function AuditRegisterPage() {
         {viewMode === "table" ? (
           <div className="card overflow-hidden">
             <div className="table-scroll">
-              <table className="data-table">
+              <table className="data-table data-table--fixed" style={{ minWidth: "68rem" }}>
+                <colgroup>
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "19%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "13%" }} />
+                  <col style={{ width: "15%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Audit ID</th>
-                    <th>Employee</th>
-                    <th>Computer</th>
+                    <th className="cell-wrap">Employee</th>
+                    <th className="cell-wrap">Computer</th>
                     <th>Status</th>
                     <th>Assessment</th>
-                    <th>{ITEMS_NEEDED_TABLE_LABEL}</th>
+                    <th className="cell-wrap">{ITEMS_NEEDED_TABLE_LABEL}</th>
                     <th>Priority</th>
-                    <th className="w-0">Actions</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr>
-                      <td colSpan={8} className="text-slate-400">
-                        Loading...
-                      </td>
-                    </tr>
+                    <TableSkeleton columns={8} />
                   ) : items.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="text-slate-400">
@@ -362,8 +475,8 @@ export default function AuditRegisterPage() {
                     items.map((row) => (
                       <tr key={row.id} className="cursor-pointer" onClick={() => void openView(row)}>
                         <td className="font-mono text-[#2E7D9A]">{row.audit_code}</td>
-                        <td className="text-slate-300">{row.employee_name}</td>
-                        <td className={row.computer_name?.trim() ? "font-medium text-white" : "text-slate-300"}>
+                        <td className="cell-wrap text-slate-300">{row.employee_name}</td>
+                        <td className={`cell-wrap ${row.computer_name?.trim() ? "font-medium text-white" : "text-slate-300"}`}>
                           {row.computer_name?.trim() || "—"}
                         </td>
                         <td>
@@ -372,7 +485,7 @@ export default function AuditRegisterPage() {
                         <td>
                           <Badge value={row.overall_assessment} />
                         </td>
-                        <td className="text-slate-300">
+                        <td className="cell-wrap text-slate-300">
                           {row.upgrade_components && row.upgrade_components.length > 0
                             ? formatItemsNeededList(row.upgrade_components)
                             : "—"}
@@ -380,7 +493,7 @@ export default function AuditRegisterPage() {
                         <td>
                           <Badge value={row.priority} />
                         </td>
-                        <td onClick={(e) => e.stopPropagation()} className="w-0">
+                        <td onClick={(e) => e.stopPropagation()}>
                           {renderRowActions(row)}
                         </td>
                       </tr>
@@ -393,7 +506,7 @@ export default function AuditRegisterPage() {
         ) : (
           <div>
             {loading ? (
-              <p className="py-8 text-center text-sm text-slate-400">Loading...</p>
+              <CardGridSkeleton />
             ) : items.length === 0 ? (
               <p className="py-8 text-center text-sm text-slate-400">No audit records found.</p>
             ) : (
@@ -445,29 +558,7 @@ export default function AuditRegisterPage() {
           </div>
         )}
 
-        <div className="mt-4 flex flex-col gap-3 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-          <span>
-            Page {page} of {totalPages}
-          </span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="rounded border border-slate-600 px-3 py-1 disabled:opacity-40"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="rounded border border-slate-600 px-3 py-1 disabled:opacity-40"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
       </div>
 
       <Drawer

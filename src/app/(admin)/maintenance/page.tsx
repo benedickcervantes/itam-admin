@@ -6,6 +6,8 @@ import { Badge } from "@/components/Badge";
 import { Drawer, Field, inputClass, selectClass } from "@/components/Drawer";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
+import { Pagination } from "@/components/Pagination";
+import { CardGridSkeleton, TableSkeleton } from "@/components/TableSkeleton";
 import { MaintenanceDetailView } from "@/components/MaintenanceDetailView";
 import { useSessionUser } from "@/components/SessionContext";
 import { createMaintenance, deleteMaintenance, fetchMaintenance, updateMaintenance } from "@/lib/api/maintenance";
@@ -275,11 +277,7 @@ export default function MaintenancePage() {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <tr>
-                      <td colSpan={6} className="text-slate-400">
-                        Loading...
-                      </td>
-                    </tr>
+                    <TableSkeleton columns={6} />
                   ) : items.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="text-slate-400">
@@ -309,7 +307,7 @@ export default function MaintenancePage() {
         ) : (
           <div>
             {loading ? (
-              <p className="py-8 text-center text-sm text-slate-400">Loading...</p>
+              <CardGridSkeleton />
             ) : items.length === 0 ? (
               <p className="py-8 text-center text-sm text-slate-400">No maintenance records found.</p>
             ) : (
@@ -355,29 +353,7 @@ export default function MaintenancePage() {
           </div>
         )}
 
-        <div className="mt-4 flex flex-col gap-3 text-sm text-slate-400 sm:flex-row sm:items-center sm:justify-between">
-          <span>
-            Page {page} of {totalPages}
-          </span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="rounded border border-slate-600 px-3 py-1 disabled:opacity-40"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="rounded border border-slate-600 px-3 py-1 disabled:opacity-40"
-            >
-              Next
-            </button>
-          </div>
-        </div>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
       </div>
 
       <Drawer

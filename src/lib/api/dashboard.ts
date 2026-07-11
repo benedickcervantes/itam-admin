@@ -1,6 +1,9 @@
 import { apiJson } from "./client";
 
+export type DashboardPeriod = "week" | "month" | "quarter" | "year" | "all";
+
 export type DashboardSummary = {
+  period?: DashboardPeriod;
   overview: {
     totalAudits: number;
     totalAssets: number;
@@ -40,6 +43,7 @@ export type DashboardSummary = {
   byRecommendedAction: { action: string; count: number }[];
 };
 
-export function fetchDashboardSummary() {
-  return apiJson<DashboardSummary>("/api/v1/dashboard/summary", { auth: true });
+export function fetchDashboardSummary(period: DashboardPeriod = "month") {
+  const query = period && period !== "all" ? `?period=${period}` : "";
+  return apiJson<DashboardSummary>(`/api/v1/dashboard/summary${query}`, { auth: true });
 }
