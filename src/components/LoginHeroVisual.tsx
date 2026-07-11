@@ -7,10 +7,12 @@ function IconTile({
   icon: Icon,
   variant = "secondary",
   size = "md",
+  online = false,
 }: {
   icon: ComponentType<{ className?: string }>;
   variant?: "primary" | "secondary";
   size?: "sm" | "md" | "lg";
+  online?: boolean;
 }) {
   const shell =
     variant === "primary"
@@ -34,8 +36,14 @@ function IconTile({
   const iconColor = variant === "primary" ? "text-[#2E7D9A]" : "text-slate-300";
 
   return (
-    <div className={`flex items-center justify-center border ${shell} ${dimensions}`}>
+    <div className={`relative flex items-center justify-center border ${shell} ${dimensions}`}>
       <Icon className={`${iconSize} ${iconColor}`} />
+      {online && (
+        <span className="absolute -right-0.5 -top-0.5 flex h-2 w-2 sm:h-2.5 sm:w-2.5">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
+          <span className="relative inline-flex h-full w-full rounded-full bg-emerald-400 ring-2 ring-[#0F172A]" />
+        </span>
+      )}
     </div>
   );
 }
@@ -47,26 +55,38 @@ export default function LoginHeroVisual() {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(46,125,154,0.2),transparent_55%)]" />
 
         <div className="relative z-10 h-full w-full">
+          {/* Connection lines with animated data-flow dots */}
+          <div className="pointer-events-none absolute left-1/2 top-[31%] h-[18%] w-px -translate-x-1/2 bg-gradient-to-b from-[#2E7D9A]/40 to-transparent sm:top-[32%] sm:h-[16%]">
+            <span className="hero-dot hero-dot--v hero-flow-up" />
+          </div>
+          <div className="pointer-events-none absolute bottom-[31%] left-1/2 h-[18%] w-px -translate-x-1/2 bg-gradient-to-t from-[#2E7D9A]/40 to-transparent sm:bottom-[32%] sm:h-[16%]">
+            <span className="hero-dot hero-dot--v hero-flow-down" style={{ animationDelay: "0.6s" }} />
+          </div>
+          <div className="pointer-events-none absolute left-[24%] top-1/2 h-px w-[20%] -translate-y-1/2 bg-gradient-to-r from-transparent via-[#2E7D9A]/30 to-transparent sm:left-[26%] sm:w-[22%]">
+            <span className="hero-dot hero-dot--h hero-flow-left" style={{ animationDelay: "1.2s" }} />
+          </div>
+          <div className="pointer-events-none absolute right-[24%] top-1/2 h-px w-[20%] -translate-y-1/2 bg-gradient-to-l from-transparent via-[#2E7D9A]/30 to-transparent sm:right-[26%] sm:w-[22%]">
+            <span className="hero-dot hero-dot--h hero-flow-right" style={{ animationDelay: "1.8s" }} />
+          </div>
+
+          {/* Pulsing glow behind the central hub */}
+          <div className="hero-hub-glow pointer-events-none absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#2E7D9A]/40 blur-2xl sm:h-24 sm:w-24" />
+
           <div className="absolute left-1/2 top-[14%] -translate-x-1/2 sm:top-[16%]">
-            <IconTile icon={Laptop} variant="primary" size="md" />
+            <IconTile icon={Laptop} variant="primary" size="md" online />
           </div>
           <div className="absolute left-[10%] top-1/2 -translate-y-1/2 sm:left-[12%]">
-            <IconTile icon={Printer} size="sm" />
+            <IconTile icon={Printer} size="sm" online />
           </div>
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             <IconTile icon={Server} variant="primary" size="lg" />
           </div>
           <div className="absolute right-[10%] top-1/2 -translate-y-1/2 sm:right-[12%]">
-            <IconTile icon={Monitor} variant="primary" size="md" />
+            <IconTile icon={Monitor} variant="primary" size="md" online />
           </div>
           <div className="absolute bottom-[18%] left-1/2 -translate-x-1/2 sm:bottom-[20%]">
-            <IconTile icon={Router} size="sm" />
+            <IconTile icon={Router} size="sm" online />
           </div>
-
-          <div className="pointer-events-none absolute left-1/2 top-[31%] h-[18%] w-px -translate-x-1/2 bg-gradient-to-b from-[#2E7D9A]/40 to-transparent sm:top-[32%] sm:h-[16%]" />
-          <div className="pointer-events-none absolute bottom-[31%] left-1/2 h-[18%] w-px -translate-x-1/2 bg-gradient-to-t from-[#2E7D9A]/40 to-transparent sm:bottom-[32%] sm:h-[16%]" />
-          <div className="pointer-events-none absolute left-[24%] top-1/2 h-px w-[20%] -translate-y-1/2 bg-gradient-to-r from-transparent via-[#2E7D9A]/30 to-transparent sm:left-[26%] sm:w-[22%]" />
-          <div className="pointer-events-none absolute right-[24%] top-1/2 h-px w-[20%] -translate-y-1/2 bg-gradient-to-l from-transparent via-[#2E7D9A]/30 to-transparent sm:right-[26%] sm:w-[22%]" />
         </div>
 
         <div className="pointer-events-none absolute inset-x-0 bottom-2 sm:bottom-3 md:bottom-4">

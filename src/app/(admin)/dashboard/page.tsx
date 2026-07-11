@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   ClipboardList,
   Boxes,
@@ -14,16 +14,51 @@ import {
   Flame,
   ShieldOff,
   KeyRound,
+  Users,
+  UserMinus,
+  UserPlus,
+  Monitor,
+  Laptop,
+  Keyboard,
+  Mouse,
+  Hammer,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { Badge } from "@/components/Badge";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { MiniStat } from "@/components/dashboard/MiniStat";
 import { AssetStatusChart } from "@/components/dashboard/AssetStatusChart";
+import { AssetStatusGlance } from "@/components/dashboard/AssetStatusGlance";
+import { AttentionBand } from "@/components/dashboard/AttentionBand";
+import {
+  DashboardSectionNav,
+  type DashboardSection,
+} from "@/components/dashboard/DashboardSectionNav";
 import { DeviceTypeChart } from "@/components/dashboard/DeviceTypeChart";
 import { CountPill, PercentBar } from "@/components/dashboard/TableBits";
-import { fetchDashboardSummary, type DashboardSummary } from "@/lib/api/dashboard";
+import {
+  fetchDashboardSummary,
+  type DashboardSummary,
+  type DashboardPeriod,
+} from "@/lib/api/dashboard";
 import { formatPercent } from "@/lib/labels";
+
+const PERIOD_OPTIONS: { value: DashboardPeriod; label: string }[] = [
+  { value: "week", label: "Weekly" },
+  { value: "month", label: "Monthly" },
+  { value: "quarter", label: "Quarterly" },
+  { value: "year", label: "Yearly" },
+];
+
+const SECTIONS: DashboardSection[] = [
+  { id: "glance", label: "At a Glance" },
+  { id: "overview", label: "Overview" },
+  { id: "breakdown", label: "Breakdown" },
+  { id: "health", label: "Health & Risk" },
+  { id: "workforce", label: "Workforce" },
+  { id: "departments", label: "Departments" },
+  { id: "priority", label: "Priority" },
+];
 
 function SectionAlert({ count, label }: { count: number; label: string }) {
   if (count <= 0) return null;
@@ -44,25 +79,122 @@ function EmptyRow({ colSpan }: { colSpan: number }) {
   );
 }
 
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="h-20 rounded-xl bg-slate-800/50" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-28 rounded-xl bg-slate-800/50" />
+        ))}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-20 rounded-xl bg-slate-800/50" />
+        ))}
+      </div>
+      <div className="h-64 rounded-xl bg-slate-800/50" />
+    </div>
+  );
+}
+
+function formatUpdatedAt(date: Date) {
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [period, setPeriod] = useState<DashboardPeriod>("month");
+
+  const load = useCallback(async (selected: DashboardPeriod) => {
+    setLoading(true);
+    setError("");
+    try {
+      const summary = await fetchDashboardSummary(selected);
+      setData(summary);
+      setUpdatedAt(new Date());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load dashboard");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    fetchDashboardSummary()
-      .then(setData)
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load dashboard"));
-  }, []);
+    void load(period);
+  }, [load, period]);
 
   return (
     <>
       <Header title="Dashboard" subtitle="Executive overview of asset inventory, audit performance, and operational health" />
       <div className="page-content flex-1 overflow-y-auto">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            {loading ? (
+              <span className="inline-flex items-center gap-1.5 text-slate-400">
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                Refreshing data…
+              </span>
+            ) : (
+              updatedAt && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-slate-500" />
+                  Last updated {formatUpdatedAt(updatedAt)}
+                </span>
+              )
+            )}
+          </div>
+          <div className="inline-flex rounded-lg border border-slate-700 bg-slate-800/60 p-0.5">
+            {PERIOD_OPTIONS.map((opt) => {
+              const active = period === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setPeriod(opt.value)}
+                  disabled={loading}
+                  aria-pressed={active}
+                  className={`rounded-md px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed ${
+                    active
+                      ? "bg-sky-500/20 text-sky-300 ring-1 ring-sky-500/40"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         {error && <p className="mb-4 text-red-400">{error}</p>}
-        {!data && !error && <p className="text-slate-400">Loading metrics...</p>}
+        {!data && !error && <DashboardSkeleton />}
         {data && (
-          <div className="space-y-6">
-            <section>
+          <div>
+            <DashboardSectionNav sections={SECTIONS} />
+            <div className="space-y-6">
+            <AttentionBand
+              criticalAudits={data.auditHealth.critical}
+              immediateActions={data.riskCompliance.immediateActions}
+              assetsUnderRepair={data.peripheralsMaintenance.assetsUnderRepair}
+              openMaintenance={data.peripheralsMaintenance.openMaintenance}
+              highPriority={data.riskCompliance.highPriority}
+              crackedOs={data.riskCompliance.crackedOs}
+            />
+
+            <section id="glance" className="scroll-mt-16">
+              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-sky-400">Asset Status at a Glance</h2>
+              <AssetStatusGlance data={data.assetStatusBreakdown} />
+            </section>
+
+            <section id="overview" className="scroll-mt-16">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-sky-400">Overview</h2>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <KpiCard icon={ClipboardList} color="teal" label="Total Audits" value={data.overview.totalAudits} />
@@ -77,21 +209,24 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <section>
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-sky-400">Asset Status</h2>
-              <div className="card p-4 sm:p-5">
-                <AssetStatusChart data={data.assetStatusBreakdown} />
+            <section id="breakdown" className="grid scroll-mt-16 items-stretch gap-6 xl:grid-cols-2">
+              <div className="flex flex-col">
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-sky-400">Asset Status Breakdown</h2>
+                <div className="card flex flex-1 items-center p-4 sm:p-5">
+                  <div className="w-full">
+                    <AssetStatusChart data={data.assetStatusBreakdown} />
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-sky-400">Device Type Summary</h2>
+                <div className="card flex flex-1 flex-col p-4 sm:p-5">
+                  <DeviceTypeChart data={data.deviceTypeBreakdown} />
+                </div>
               </div>
             </section>
 
-            <section>
-              <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-sky-400">Device Type Summary</h2>
-              <div className="card p-4 sm:p-5">
-                <DeviceTypeChart data={data.deviceTypeBreakdown} />
-              </div>
-            </section>
-
-            <section className="grid gap-6 lg:grid-cols-2">
+            <section id="health" className="grid scroll-mt-16 gap-6 lg:grid-cols-2">
               <div className="card p-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <h3 className="font-medium text-white">Audit Health</h3>
@@ -118,7 +253,32 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <section className="grid gap-6 lg:grid-cols-2">
+            <section id="workforce" className="grid scroll-mt-16 gap-6 lg:grid-cols-2">
+              <div className="card p-4">
+                <h3 className="mb-3 font-medium text-white">Workforce & Devices</h3>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <MiniStat icon={Users} color="emerald" label="Active Employees" value={data.workforceDevices.activeEmployees} />
+                  <MiniStat icon={UserPlus} color="teal" label="New Hires" value={data.workforceDevices.newHires} />
+                  <MiniStat icon={UserMinus} color="amber" label="Resigned" value={data.workforceDevices.resigned} />
+                  <MiniStat icon={Monitor} color="violet" label="Desktops" value={data.workforceDevices.desktops} />
+                  <MiniStat icon={Laptop} color="violet" label="Laptops" value={data.workforceDevices.laptops} />
+                </div>
+              </div>
+              <div className="card p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h3 className="font-medium text-white">Peripherals & Maintenance</h3>
+                  <SectionAlert count={data.peripheralsMaintenance.openMaintenance} label="Open" />
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <MiniStat icon={Hammer} color="orange" label="Open Maintenance" value={data.peripheralsMaintenance.openMaintenance} />
+                  <MiniStat icon={RefreshCw} color="amber" label="Assets Under Repair" value={data.peripheralsMaintenance.assetsUnderRepair} />
+                  <MiniStat icon={Keyboard} color="red" label="Keyboard Issues" value={data.peripheralsMaintenance.keyboardIssues} />
+                  <MiniStat icon={Mouse} color="teal" label="Personal Mouse (BYOD)" value={data.peripheralsMaintenance.personalMouse} />
+                </div>
+              </div>
+            </section>
+
+            <section id="departments" className="grid scroll-mt-16 gap-6 lg:grid-cols-2">
               <div className="card overflow-hidden">
                 <div className="flex items-center justify-between border-b border-slate-700 px-3 py-2.5 font-medium text-white sm:px-4 sm:py-3">
                   <span>By Department</span>
@@ -195,7 +355,7 @@ export default function DashboardPage() {
               </div>
             </section>
 
-            <section className="grid gap-6 lg:grid-cols-2">
+            <section id="priority" className="grid scroll-mt-16 gap-6 lg:grid-cols-2">
               <div className="card overflow-hidden">
                 <div className="border-b border-slate-700 px-3 py-2.5 font-medium text-white sm:px-4 sm:py-3">By Priority</div>
                 <div className="table-scroll">
@@ -249,6 +409,7 @@ export default function DashboardPage() {
                 </div>
               </div>
             </section>
+            </div>
           </div>
         )}
       </div>
