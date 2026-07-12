@@ -7,6 +7,7 @@ import {
   composeLaptopKeyboard,
   composeLaptopPointer,
   composeLaptopPower,
+  composeGpuPair,
   composeMonitorRecord,
   composePeripheralPair,
   composeRam,
@@ -21,6 +22,7 @@ import {
   isLaptopDevice,
   parseLaptopKeyboard,
   parseLaptopPointer,
+  parseGpuPair,
   parseMonitorRecord,
   parseOperatingSystem,
   parsePeripheralPair,
@@ -131,6 +133,8 @@ export function emptyForm(): DeviceFormState {
     secondaryStorageModel: "",
     secondaryStorage: "",
     graphicsGpu: "",
+    hasSecondaryGpu: false,
+    graphicsGpuSecondary: "",
     network: "",
     operatingSystem: "",
     operatingSystemEdition: "",
@@ -206,6 +210,7 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
   const pointerParsed = isLaptopDevice(deviceType) ? parseLaptopPointer(row.mouse ?? "") : null;
   const monitorParsed = parseMonitorRecord(row.monitor ?? "");
   const printerParsed = parsePeripheralPair(row.printer ?? "");
+  const gpuParsed = parseGpuPair(row.graphics_gpu ?? "");
   const osParsed = parseOperatingSystem(row.operating_system ?? "");
   const savedKeyboardCondition = row.keyboard_condition ?? "";
 
@@ -238,7 +243,9 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
     secondaryStorageSize: secondaryParsed.size,
     secondaryStorageModel: secondaryParsed.model,
     secondaryStorage: row.secondary_storage ?? "",
-    graphicsGpu: row.graphics_gpu ?? "",
+    graphicsGpu: gpuParsed.primary,
+    hasSecondaryGpu: gpuParsed.hasSecondary,
+    graphicsGpuSecondary: gpuParsed.secondary,
     network: row.network ?? "",
     operatingSystem: osParsed.os,
     operatingSystemEdition: osParsed.edition,
@@ -314,6 +321,7 @@ export function formStateFromAsset(row: Asset): DeviceFormState {
   const pointerParsed = isLaptopDevice(deviceType) ? parseLaptopPointer(hardware.mouse ?? "") : null;
   const monitorParsed = parseMonitorRecord(hardware.monitor ?? "");
   const printerParsed = parsePeripheralPair(hardware.printer ?? "");
+  const gpuParsed = parseGpuPair(hardware.gpu ?? "");
   const osParsed = parseOperatingSystem(hardware.os ?? "");
   const savedKeyboardCondition = hardware.keyboard_condition ?? "";
 
@@ -354,7 +362,9 @@ export function formStateFromAsset(row: Asset): DeviceFormState {
     secondaryStorageSize: secondaryParsed.size,
     secondaryStorageModel: secondaryParsed.model,
     secondaryStorage: hardware.secondary_storage ?? "",
-    graphicsGpu: hardware.gpu ?? "",
+    graphicsGpu: gpuParsed.primary,
+    hasSecondaryGpu: gpuParsed.hasSecondary,
+    graphicsGpuSecondary: gpuParsed.secondary,
     network: hardware.network ?? "",
     operatingSystem: osParsed.os,
     operatingSystemEdition: osParsed.edition,
@@ -420,6 +430,11 @@ export function prepareComposedForm(form: DeviceFormState): DeviceFormState {
         String(body.secondaryStorageModel),
       )
     : "";
+  body.graphicsGpu = composeGpuPair(
+    String(body.graphicsGpu),
+    Boolean(body.hasSecondaryGpu),
+    String(body.graphicsGpuSecondary),
+  );
   body.operatingSystem = composeOperatingSystem(
     String(body.operatingSystem),
     String(body.operatingSystemEdition),
