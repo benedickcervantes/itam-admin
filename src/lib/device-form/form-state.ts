@@ -13,6 +13,7 @@ import {
   composeRamSlots,
   composeStorage,
   hasBuiltInScreen,
+  isComponentItemType,
   showsInfraServerSpecs,
   isLaptopDevice,
   parseLaptopKeyboard,
@@ -101,6 +102,7 @@ export function emptyForm(): DeviceFormState {
     jobTitle: "",
     employeeStatus: "ACTIVE",
     deviceType: "",
+    itemType: "",
     computerName: "",
     laptopBrandModel: "",
     screenCondition: "",
@@ -132,12 +134,16 @@ export function emptyForm(): DeviceFormState {
     operatingSystemOther: "",
     osLicenseStatus: "",
     monitorPrimary: "",
+    monitorPrimaryCondition: "",
     hasSecondaryMonitor: false,
     monitorSecondary: "",
+    monitorSecondaryCondition: "",
     monitor: "",
     printerPrimary: "",
+    printerPrimaryCondition: "",
     hasSecondaryPrinter: false,
     printerSecondary: "",
+    printerSecondaryCondition: "",
     printer: "",
     keyboardBuiltinCondition: "",
     keyboardBuiltinNotes: "",
@@ -159,6 +165,7 @@ export function emptyForm(): DeviceFormState {
     powerBatteryStatus: "",
     powerDesktopConnectionType: "",
     powerDesktopDetails: "",
+    powerDesktopCondition: "",
     powerAvrChargerBattery: "",
     auditDate: "",
     auditStatus: "PENDING",
@@ -235,12 +242,16 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
     operatingSystemOther: osParsed.other,
     osLicenseStatus: row.os_license_status ?? "",
     monitorPrimary: monitorParsed.primary,
+    monitorPrimaryCondition: monitorParsed.primaryCondition,
     hasSecondaryMonitor: monitorParsed.hasSecondary,
     monitorSecondary: monitorParsed.secondary,
+    monitorSecondaryCondition: monitorParsed.secondaryCondition,
     monitor: row.monitor ?? "",
     printerPrimary: printerParsed.primary,
+    printerPrimaryCondition: printerParsed.primaryCondition,
     hasSecondaryPrinter: printerParsed.hasSecondary,
     printerSecondary: printerParsed.secondary,
+    printerSecondaryCondition: printerParsed.secondaryCondition,
     printer: row.printer ?? "",
     keyboardBuiltinCondition:
       kbParsed?.builtin ||
@@ -266,6 +277,7 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
     powerBatteryStatus: powerParsed.battery,
     powerDesktopConnectionType: powerParsed.desktopConnectionType,
     powerDesktopDetails: powerParsed.desktopDetails,
+    powerDesktopCondition: powerParsed.desktopCondition,
     powerAvrChargerBattery: row.power_avr_charger_battery ?? "",
     auditDate: row.audit_date ? row.audit_date.slice(0, 10) : "",
     auditStatus: row.audit_status ?? "PENDING",
@@ -309,6 +321,7 @@ export function formStateFromAsset(row: Asset): DeviceFormState {
     jobTitle: hardware.job_title ?? "",
     departmentId: hardware.department_id ?? "",
     deviceType,
+    itemType: hardware.item_type ?? "",
     computerName: hardware.computer_name,
     laptopBrandModel: hardware.brand_model ?? "",
     serialNumber: hardware.serial_number ?? "",
@@ -345,12 +358,16 @@ export function formStateFromAsset(row: Asset): DeviceFormState {
     operatingSystemOther: osParsed.other,
     osLicenseStatus: hardware.os_license_status ?? "",
     monitorPrimary: monitorParsed.primary,
+    monitorPrimaryCondition: monitorParsed.primaryCondition,
     hasSecondaryMonitor: monitorParsed.hasSecondary,
     monitorSecondary: monitorParsed.secondary,
+    monitorSecondaryCondition: monitorParsed.secondaryCondition,
     monitor: hardware.monitor ?? "",
     printerPrimary: printerParsed.primary,
+    printerPrimaryCondition: printerParsed.primaryCondition,
     hasSecondaryPrinter: printerParsed.hasSecondary,
     printerSecondary: printerParsed.secondary,
+    printerSecondaryCondition: printerParsed.secondaryCondition,
     printer: hardware.printer ?? "",
     keyboardBuiltinCondition:
       kbParsed?.builtin ||
@@ -376,6 +393,7 @@ export function formStateFromAsset(row: Asset): DeviceFormState {
     powerBatteryStatus: powerParsed.battery,
     powerDesktopConnectionType: powerParsed.desktopConnectionType,
     powerDesktopDetails: powerParsed.desktopDetails,
+    powerDesktopCondition: powerParsed.desktopCondition,
     powerAvrChargerBattery: hardware.power_avr_charger_battery ?? "",
     status: hardware.status ?? "IN_USE",
     condition: hardware.condition ?? "",
@@ -406,7 +424,13 @@ export function prepareComposedForm(form: DeviceFormState): DeviceFormState {
   );
   body.powerAvrChargerBattery = isLaptopDevice(String(body.deviceType))
     ? composeLaptopPower(String(body.powerChargerStatus), String(body.powerBatteryStatus))
-    : composeDesktopPower(String(body.powerDesktopConnectionType), String(body.powerDesktopDetails));
+    : composeDesktopPower(
+        String(body.powerDesktopConnectionType),
+        String(body.powerDesktopDetails),
+        ["AVR", "UPS"].includes(String(body.powerDesktopConnectionType))
+          ? String(body.powerDesktopCondition)
+          : "",
+      );
 
   if (isLaptopDevice(String(body.deviceType))) {
     body.keyboard = composeLaptopKeyboard(
@@ -441,11 +465,15 @@ export function prepareComposedForm(form: DeviceFormState): DeviceFormState {
     String(body.monitorPrimary),
     Boolean(body.hasSecondaryMonitor),
     String(body.monitorSecondary),
+    String(body.monitorPrimaryCondition),
+    String(body.monitorSecondaryCondition),
   );
   body.printer = composePeripheralPair(
     String(body.printerPrimary),
     Boolean(body.hasSecondaryPrinter),
     String(body.printerSecondary),
+    String(body.printerPrimaryCondition),
+    String(body.printerSecondaryCondition),
   );
 
   if (isLaptopDevice(String(body.deviceType)) || hasBuiltInScreen(String(body.deviceType))) {
@@ -544,7 +572,41 @@ const AUDIT_ONLY_KEYS = [
   "ramSlotsUsed",
 ] as const;
 
+function prepareComponentAssetPayload(
+  form: DeviceFormState,
+  itemType: string,
+): Record<string, string | boolean | number> {
+  const payload: Record<string, string | boolean | number> = {
+    computerName: String(form.computerName ?? "").trim(),
+    itemType,
+    brandModel: String(form.laptopBrandModel ?? "").trim(),
+    departmentId: String(form.departmentId ?? "").trim(),
+    serialNumber: String(form.serialNumber ?? "").trim(),
+    status: String(form.status ?? ""),
+    condition: String(form.condition ?? ""),
+    notes: String(form.notes ?? ""),
+  };
+
+  const assignedTo = String(form.employeeName ?? "").trim();
+  if (assignedTo) {
+    payload.assignedTo = assignedTo;
+    const jobTitle = String(form.jobTitle ?? "").trim();
+    if (jobTitle) payload.jobTitle = jobTitle;
+  }
+
+  Object.keys(payload).forEach((k) => {
+    if (payload[k] === "") delete payload[k];
+  });
+
+  return payload;
+}
+
 export function prepareAssetPayload(form: DeviceFormState): Record<string, string | boolean | number> {
+  const itemType = String(form.itemType || "");
+  if (isComponentItemType(itemType)) {
+    return prepareComponentAssetPayload(form, itemType);
+  }
+
   const assetCategory = String(form.assetCategory || "end_user") as "end_user" | "infrastructure";
   const composed = prepareComposedForm(form);
   UI_ONLY_KEYS.forEach((k) => delete composed[k]);
