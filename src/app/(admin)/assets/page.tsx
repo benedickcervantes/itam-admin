@@ -33,7 +33,7 @@ import { canWrite } from "@/lib/auth/permissions";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 import { labelEnum } from "@/lib/labels";
 import { useSessionUser } from "@/components/SessionContext";
-import { emptyForm, emptyFormForCategory, formStateFromAsset, isComponentItemType, prepareAssetPayload, ramSlotDefaults, showsInfraNetworkSpecs, showsInfraServerSpecs, validateAssetForm, type AssetCategory } from "@/lib/device-form";
+import { emptyForm, emptyFormForCategory, formStateFromAsset, isComponentItemType, prepareAssetPayload, ramSlotDefaults, showsInfraNetworkSpecs, showsInfraServerSpecs, showsInfraStorageSpecs, validateAssetForm, type AssetCategory } from "@/lib/device-form";
 import type { Asset, Department } from "@/lib/types";
 
 type ViewMode = "table" | "grid";
@@ -41,7 +41,21 @@ type DrawerMode = "create" | "view" | "edit";
 
 const VIEW_MODE_STORAGE_KEY = "assets-view";
 
-const ITEM_TYPES = ["LAPTOP", "DESKTOP", "ALL_IN_ONE", "KEYBOARD", "MOUSE", "MONITOR", "PRINTER", "UPS", "AVR", "OTHER"];
+// Filter options combine end-user device / component types with the
+// infrastructure device types (Server, Firewall, Access Point, etc.). Some values
+// live only in DeviceType (e.g. FIREWALL, EXTERNAL_HDD_SSD); the backend matches
+// either item_type or device_type so both categories are caught.
+const ITEM_TYPES = Array.from(
+  new Set([
+    ...REFERENCE_DATA.deviceTypes.filter((t) => t !== "OTHER"),
+    "KEYBOARD",
+    "MOUSE",
+    "PRINTER",
+    "UPS",
+    "AVR",
+    "OTHER",
+  ]),
+);
 
 function readStoredViewMode(): ViewMode {
   if (typeof window === "undefined") return "table";
@@ -335,7 +349,9 @@ export default function AssetsPage() {
     const defaults = ramSlotDefaults(deviceType);
     const assetCategory = String(form.assetCategory || "end_user") as AssetCategory;
     const clearServerSpecs =
-      assetCategory === "infrastructure" && !showsInfraServerSpecs(deviceType);
+      assetCategory === "infrastructure" &&
+      !showsInfraServerSpecs(deviceType) &&
+      !showsInfraStorageSpecs(deviceType);
     const clearMacOnServer =
       assetCategory === "infrastructure" && showsInfraServerSpecs(deviceType);
     const clearProcessorOnNetwork =
