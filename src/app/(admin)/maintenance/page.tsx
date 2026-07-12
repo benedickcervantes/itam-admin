@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/Badge";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Drawer } from "@/components/Drawer";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
@@ -30,6 +31,7 @@ import {
   fetchMaintenance,
   updateMaintenance,
 } from "@/lib/api/maintenance";
+import { verifyPassword } from "@/lib/api/auth";
 import { canWrite } from "@/lib/auth/permissions";
 import { exportMaintenanceExcel, exportMaintenancePdf } from "@/lib/export-maintenance";
 import { todayIso, validateMaintenanceForm } from "@/lib/maintenance-form";
@@ -92,6 +94,9 @@ export default function MaintenancePage() {
   const [viewMode, setViewMode] = useState<ViewMode>(readStoredViewMode);
   const [exporting, setExporting] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<MaintenanceRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
   const changeViewMode = (mode: ViewMode) => {
@@ -249,11 +254,23 @@ export default function MaintenancePage() {
     }
   };
 
-  const remove = async (row: MaintenanceRecord) => {
-    if (!confirm(`Delete maintenance record ${row.record_code}?`)) return;
-    await deleteMaintenance(row.id);
-    setSuccess(`Deleted ${row.record_code}.`);
-    await load();
+  const confirmDelete = async (password: string) => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await verifyPassword(password);
+      await deleteMaintenance(deleteTarget.id);
+      const code = deleteTarget.record_code;
+      setDeleteTarget(null);
+      setError("");
+      setSuccess(`Deleted ${code}.`);
+      await load();
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const renderRowActions = (row: MaintenanceRecord) => (
@@ -293,7 +310,8 @@ export default function MaintenancePage() {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              void remove(row);
+              setDeleteError("");
+              setDeleteTarget(row);
             }}
             className="rounded p-1 text-red-400 hover:bg-red-950/40 hover:text-red-300"
             title="Delete record"
@@ -584,6 +602,26 @@ export default function MaintenancePage() {
           />
         )}
       </Drawer>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete maintenance record?"
+        message={
+          deleteTarget
+            ? `Are you sure you want to delete maintenance record ${deleteTarget.record_code}? This action cannot be undone.`
+            : ""
+        }
+        requirePassword
+        error={deleteError}
+        loading={deleting}
+        onCancel={() => {
+          if (!deleting) {
+            setDeleteTarget(null);
+            setDeleteError("");
+          }
+        }}
+        onConfirm={(password) => void confirmDelete(password)}
+      />
     </>
   );
 }

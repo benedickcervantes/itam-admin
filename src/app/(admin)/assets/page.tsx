@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/Badge";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AssetDetailView } from "@/components/AssetDetailView";
 import { DeviceFormToolbar } from "@/components/DeviceFormToolbar";
 import { DeviceInventoryForm } from "@/components/DeviceInventoryForm";
@@ -25,6 +26,7 @@ import { Header } from "@/components/Header";
 import { Pagination } from "@/components/Pagination";
 import { CardGridSkeleton, TableSkeleton } from "@/components/TableSkeleton";
 import { createAsset, deleteAsset, fetchAllAssets, fetchAsset, fetchAssets, updateAsset } from "@/lib/api/assets";
+import { verifyPassword } from "@/lib/api/auth";
 import { exportAssetsExcel, exportAssetsPdf } from "@/lib/export-assets";
 import { fetchDepartments } from "@/lib/api/departments";
 import { canWrite } from "@/lib/auth/permissions";
@@ -71,6 +73,9 @@ export default function AssetsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>(readStoredViewMode);
   const [exporting, setExporting] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Asset | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
   const changeViewMode = (mode: ViewMode) => {
@@ -236,10 +241,23 @@ export default function AssetsPage() {
     }
   };
 
-  const remove = async (row: Asset) => {
-    if (!confirm(`Delete asset ${row.asset_code}?`)) return;
-    await deleteAsset(row.id);
-    await load();
+  const confirmDelete = async (password: string) => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await verifyPassword(password);
+      await deleteAsset(deleteTarget.id);
+      const code = deleteTarget.asset_code;
+      setDeleteTarget(null);
+      setError("");
+      setSuccess(`Asset ${code} deleted.`);
+      await load();
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const renderRowActions = (row: Asset) => (
@@ -279,7 +297,8 @@ export default function AssetsPage() {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              void remove(row);
+              setDeleteError("");
+              setDeleteTarget(row);
             }}
             className="rounded p-1 text-red-400 hover:bg-red-950/40 hover:text-red-300"
             title="Delete asset"
@@ -682,6 +701,26 @@ export default function AssetsPage() {
           />
         )}
       </Drawer>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete asset?"
+        message={
+          deleteTarget
+            ? `Are you sure you want to delete asset ${deleteTarget.asset_code}? This action cannot be undone.`
+            : ""
+        }
+        requirePassword
+        error={deleteError}
+        loading={deleting}
+        onCancel={() => {
+          if (!deleting) {
+            setDeleteTarget(null);
+            setDeleteError("");
+          }
+        }}
+        onConfirm={(password) => void confirmDelete(password)}
+      />
     </>
   );
 }
