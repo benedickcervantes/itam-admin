@@ -26,6 +26,17 @@ const STYLES: Record<string, string> = {
   ACTIVE: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
   INACTIVE: "bg-slate-600/30 text-slate-400 ring-slate-500/30",
   RETURNED: "bg-slate-500/15 text-slate-300 ring-slate-500/30",
+  NEW: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+  GOOD: "bg-teal-500/15 text-teal-300 ring-teal-500/30",
+  FAIR: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
+  POOR: "bg-orange-500/15 text-orange-300 ring-orange-500/30",
+  NON_FUNCTIONAL: "bg-red-500/15 text-red-300 ring-red-500/30",
+  IN_USE: "bg-sky-500/15 text-sky-300 ring-sky-500/30",
+  AVAILABLE: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+  UNDER_REPAIR: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
+  RESERVED: "bg-violet-500/15 text-violet-300 ring-violet-500/30",
+  RETIRED: "bg-slate-500/15 text-slate-300 ring-slate-500/30",
+  DISPOSED: "bg-red-500/15 text-red-300 ring-red-500/30",
 };
 
 export function Badge({

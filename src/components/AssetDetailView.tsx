@@ -3,13 +3,8 @@
 import { Monitor, Mouse, User } from "lucide-react";
 import { Badge } from "@/components/Badge";
 import { DetailNotes, DetailRow, DetailSection, fmtLabel } from "@/components/DetailViewParts";
-import { assetCategoryFromAsset, formatCondition, isLaptopDevice, isInfrastructureDevice, showsInfraNetworkSpecs, showsInfraServerSpecs } from "@/lib/device-form";
+import { assetCategoryFromAsset, formatCondition, isComponentItemType, isLaptopDevice, isInfrastructureDevice, showsInfraNetworkSpecs, showsInfraServerSpecs } from "@/lib/device-form";
 import type { Asset } from "@/lib/types";
-
-// Standalone component/peripheral rows only carry their own brand/model +
-// assignment. They must NOT inherit the parent device's specs (RAM, GPU,
-// network, keyboard, etc.) from the linked audit.
-const COMPONENT_ITEM_TYPES = ["KEYBOARD", "MOUSE", "MONITOR", "PRINTER", "UPS", "AVR"];
 
 function assetWithAuditFallback(asset: Asset): Asset {
   const audit = asset.audit_register;
@@ -31,7 +26,7 @@ function assetWithAuditFallback(asset: Asset): Asset {
 }
 
 export function AssetDetailView({ asset: rawAsset }: { asset: Asset }) {
-  const isComponent = COMPONENT_ITEM_TYPES.includes(rawAsset.item_type ?? "");
+  const isComponent = isComponentItemType(rawAsset.item_type ?? "");
   const asset = isComponent ? rawAsset : assetWithAuditFallback(rawAsset);
   const department = asset.department?.name ?? null;
   const assetCategory = assetCategoryFromAsset(asset);

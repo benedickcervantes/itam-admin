@@ -37,6 +37,23 @@ export const INFRASTRUCTURE_DEVICE_TYPES = [
 
 export type AssetCategory = "end_user" | "infrastructure";
 
+// Standalone peripheral / component assets (split out from an audit). These are
+// not full devices: they only carry their own brand/model, condition and
+// assignment, so they must be edited with the compact peripheral form rather
+// than the full device inventory form.
+export const COMPONENT_ITEM_TYPES = [
+  "KEYBOARD",
+  "MOUSE",
+  "MONITOR",
+  "PRINTER",
+  "UPS",
+  "AVR",
+] as const;
+
+export function isComponentItemType(itemType: string | null | undefined): boolean {
+  return !!itemType && (COMPONENT_ITEM_TYPES as readonly string[]).includes(itemType);
+}
+
 export function isInfrastructureDevice(deviceType: string, assetCategory?: AssetCategory) {
   if (assetCategory === "infrastructure") return true;
   if (assetCategory === "end_user") return false;
@@ -166,18 +183,47 @@ export function composeLaptopPower(charger: string, battery: string) {
   return `Outlets/ Charger / Battery - ${parts.join(" / ")}`;
 }
 
-export function composeDesktopPower(connectionType: string, details: string) {
+export function composeDesktopPower(connectionType: string, details: string, condition?: string) {
   const label = desktopConnectionLabel(connectionType);
   const detailText = details.trim();
   if (!label && !detailText) return "";
-  const setup = label && detailText ? `${label} — ${detailText}` : label || detailText;
+  let setup = label && detailText ? `${label} — ${detailText}` : label || detailText;
+  if (condition && condition !== "N_A") {
+    setup += ` — ${formatCondition(condition)}`;
+  }
   return `Outlets/ Charger / Battery - ${setup}`;
+}
+
+function parsePeripheralSegment(segment: string) {
+  const trimmed = segment.trim();
+  if (!trimmed) return { model: "", condition: "" };
+
+  const withoutLabel = trimmed.replace(
+    /^(?:Primary|Secondary|External(?:\s+Primary|\s+Secondary)?)\s*[—-]\s*/i,
+    "",
+  );
+  const pieces = withoutLabel.split(/\s*[—-]\s*/).map((p) => p.trim()).filter(Boolean);
+  if (!pieces.length) return { model: "", condition: "" };
+
+  const last = pieces[pieces.length - 1] ?? "";
+  const maybeCond = normalizeConditionLabel(last);
+  if (maybeCond) {
+    return { model: pieces.slice(0, -1).join(" — "), condition: maybeCond };
+  }
+  return { model: withoutLabel, condition: "" };
+}
+
+function appendPeripheralCondition(model: string, condition: string) {
+  const trimmed = model.trim();
+  if (!trimmed) return "";
+  if (condition && condition !== "N_A") return `${trimmed} — ${formatCondition(condition)}`;
+  return trimmed;
 }
 
 export function parsePower(value: string) {
   const trimmed = value.trim();
   if (!trimmed) {
-    return { charger: "", battery: "", desktopConnectionType: "", desktopDetails: "" };
+    return { charger: "", battery: "", desktopConnectionType: "", desktopDetails: "", desktopCondition: "" };
   }
 
   const prefix = "Outlets/ Charger / Battery - ";
@@ -191,27 +237,55 @@ export function parsePower(value: string) {
       battery: batteryM?.[1]?.trim() ?? "",
       desktopConnectionType: "",
       desktopDetails: "",
+      desktopCondition: "",
     };
   }
+
+  const splitDesktopBody = (rest: string) => {
+    const pieces = rest.split(/\s*[—-]\s*/).map((p) => p.trim()).filter(Boolean);
+    if (!pieces.length) return { details: "", condition: "" };
+    const last = pieces[pieces.length - 1] ?? "";
+    const maybeCond = normalizeConditionLabel(last);
+    if (maybeCond) {
+      return { details: pieces.slice(0, -1).join(" — "), condition: maybeCond };
+    }
+    return { details: rest.trim(), condition: "" };
+  };
 
   for (const option of DESKTOP_POWER_CONNECTIONS) {
     const re = new RegExp(`^${option.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s*[—-]\\s*(.+))?$`, "i");
     const m = body.match(re);
     if (m) {
+      const parsed = splitDesktopBody(m[1]?.trim() ?? "");
       return {
         charger: "",
         battery: "",
         desktopConnectionType: option.value,
-        desktopDetails: m[1]?.trim() ?? "",
+        desktopDetails: parsed.details,
+        desktopCondition: parsed.condition,
       };
     }
   }
 
   if (/ups/i.test(body)) {
-    return { charger: "", battery: "", desktopConnectionType: "UPS", desktopDetails: body.replace(/^ups\s*[—-]?\s*/i, "") };
+    const parsed = splitDesktopBody(body.replace(/^ups\s*[—-]?\s*/i, ""));
+    return {
+      charger: "",
+      battery: "",
+      desktopConnectionType: "UPS",
+      desktopDetails: parsed.details,
+      desktopCondition: parsed.condition,
+    };
   }
   if (/avr/i.test(body)) {
-    return { charger: "", battery: "", desktopConnectionType: "AVR", desktopDetails: body.replace(/^avr\s*[—-]?\s*/i, "") };
+    const parsed = splitDesktopBody(body.replace(/^avr\s*[—-]?\s*/i, ""));
+    return {
+      charger: "",
+      battery: "",
+      desktopConnectionType: "AVR",
+      desktopDetails: parsed.details,
+      desktopCondition: parsed.condition,
+    };
   }
   if (/direct\s*plug/i.test(body)) {
     return {
@@ -219,10 +293,11 @@ export function parsePower(value: string) {
       battery: "",
       desktopConnectionType: "DIRECT_PLUG_IN",
       desktopDetails: body.replace(/^direct\s*plug-?in\s*[—-]?\s*/i, ""),
+      desktopCondition: "",
     };
   }
 
-  return { charger: "", battery: "", desktopConnectionType: "", desktopDetails: body };
+  return { charger: "", battery: "", desktopConnectionType: "", desktopDetails: body, desktopCondition: "" };
 }
 
 export function ramSlotDefaults(deviceType: string) {
@@ -556,18 +631,31 @@ export function parseLaptopPointer(value: string) {
   return result;
 }
 
-export function composePeripheralPair(primary: string, hasSecondary: boolean, secondary: string) {
-  const p = primary.trim();
-  const s = secondary.trim();
+export function composePeripheralPair(
+  primary: string,
+  hasSecondary: boolean,
+  secondary: string,
+  primaryCondition = "",
+  secondaryCondition = "",
+) {
+  const p = appendPeripheralCondition(primary, primaryCondition);
+  const s = appendPeripheralCondition(secondary, secondaryCondition);
   if (!p && !(hasSecondary && s)) return "";
   if (!hasSecondary || !s) return p;
   if (!p) return `Secondary — ${s}`;
   return `Primary — ${p} | Secondary — ${s}`;
 }
 
-export function composeMonitorRecord(deviceType: string, primary: string, hasSecondary: boolean, secondary: string) {
-  const p = primary.trim();
-  const s = secondary.trim();
+export function composeMonitorRecord(
+  deviceType: string,
+  primary: string,
+  hasSecondary: boolean,
+  secondary: string,
+  primaryCondition = "",
+  secondaryCondition = "",
+) {
+  const p = appendPeripheralCondition(primary, primaryCondition);
+  const s = appendPeripheralCondition(secondary, secondaryCondition);
   if (!p && !(hasSecondary && s)) return "";
 
   if (hasBuiltInScreen(deviceType)) {
@@ -576,26 +664,45 @@ export function composeMonitorRecord(deviceType: string, primary: string, hasSec
     return `External Primary — ${p} | External Secondary — ${s}`;
   }
 
-  return composePeripheralPair(primary, hasSecondary, secondary);
+  return composePeripheralPair(primary, hasSecondary, secondary, primaryCondition, secondaryCondition);
 }
 
 export function parseMonitorRecord(value: string) {
   const trimmed = value.trim();
-  if (!trimmed) return { primary: "", hasSecondary: false, secondary: "" };
+  if (!trimmed) {
+    return {
+      primary: "",
+      primaryCondition: "",
+      hasSecondary: false,
+      secondary: "",
+      secondaryCondition: "",
+    };
+  }
 
   if (/External/i.test(trimmed)) {
     const primaryM = trimmed.match(/External Primary\s*[—-]\s*([^|]+)/i);
     const secondaryM = trimmed.match(/External Secondary\s*[—-]\s*(.+)$/i);
     if (primaryM || secondaryM) {
+      const primaryParsed = parsePeripheralSegment(primaryM?.[1] ?? "");
+      const secondaryParsed = parsePeripheralSegment(secondaryM?.[1] ?? "");
       return {
-        primary: primaryM?.[1]?.trim() ?? "",
-        hasSecondary: Boolean(secondaryM?.[1]?.trim()),
-        secondary: secondaryM?.[1]?.trim() ?? "",
+        primary: primaryParsed.model,
+        primaryCondition: primaryParsed.condition,
+        hasSecondary: Boolean(secondaryParsed.model),
+        secondary: secondaryParsed.model,
+        secondaryCondition: secondaryParsed.condition,
       };
     }
     const singleM = trimmed.match(/^External\s*[—-]\s*(.+)$/i);
     if (singleM) {
-      return { primary: singleM[1].trim(), hasSecondary: false, secondary: "" };
+      const parsed = parsePeripheralSegment(singleM[1]);
+      return {
+        primary: parsed.model,
+        primaryCondition: parsed.condition,
+        hasSecondary: false,
+        secondary: "",
+        secondaryCondition: "",
+      };
     }
   }
 
@@ -604,22 +711,49 @@ export function parseMonitorRecord(value: string) {
 
 export function parsePeripheralPair(value: string) {
   const trimmed = value.trim();
-  if (!trimmed) return { primary: "", hasSecondary: false, secondary: "" };
+  if (!trimmed) {
+    return {
+      primary: "",
+      primaryCondition: "",
+      hasSecondary: false,
+      secondary: "",
+      secondaryCondition: "",
+    };
+  }
 
   if (/Primary\s*[—-]/i.test(trimmed) || /Secondary\s*[—-]/i.test(trimmed)) {
     const primaryM = trimmed.match(/Primary\s*[—-]\s*([^|]+)/i);
     const secondaryM = trimmed.match(/Secondary\s*[—-]\s*(.+)$/i);
+    const primaryParsed = parsePeripheralSegment(primaryM?.[1] ?? "");
+    const secondaryParsed = parsePeripheralSegment(secondaryM?.[1] ?? "");
     return {
-      primary: primaryM?.[1]?.trim() ?? "",
-      hasSecondary: Boolean(secondaryM?.[1]?.trim()),
-      secondary: secondaryM?.[1]?.trim() ?? "",
+      primary: primaryParsed.model,
+      primaryCondition: primaryParsed.condition,
+      hasSecondary: Boolean(secondaryParsed.model),
+      secondary: secondaryParsed.model,
+      secondaryCondition: secondaryParsed.condition,
     };
   }
 
   const parts = trimmed.split("|").map((p) => p.trim()).filter(Boolean);
   if (parts.length >= 2) {
-    return { primary: parts[0], hasSecondary: true, secondary: parts.slice(1).join(" | ") };
+    const primaryParsed = parsePeripheralSegment(parts[0]);
+    const secondaryParsed = parsePeripheralSegment(parts.slice(1).join(" | "));
+    return {
+      primary: primaryParsed.model,
+      primaryCondition: primaryParsed.condition,
+      hasSecondary: Boolean(secondaryParsed.model),
+      secondary: secondaryParsed.model,
+      secondaryCondition: secondaryParsed.condition,
+    };
   }
 
-  return { primary: trimmed, hasSecondary: false, secondary: "" };
+  const parsed = parsePeripheralSegment(trimmed);
+  return {
+    primary: parsed.model,
+    primaryCondition: parsed.condition,
+    hasSecondary: false,
+    secondary: "",
+    secondaryCondition: "",
+  };
 }

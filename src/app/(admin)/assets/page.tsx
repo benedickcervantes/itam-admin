@@ -18,6 +18,7 @@ import { Badge } from "@/components/Badge";
 import { AssetDetailView } from "@/components/AssetDetailView";
 import { DeviceFormToolbar } from "@/components/DeviceFormToolbar";
 import { DeviceInventoryForm } from "@/components/DeviceInventoryForm";
+import { PeripheralAssetForm } from "@/components/PeripheralAssetForm";
 import { Drawer, inputClass, selectClass } from "@/components/Drawer";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
@@ -30,7 +31,7 @@ import { canWrite } from "@/lib/auth/permissions";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 import { labelEnum } from "@/lib/labels";
 import { useSessionUser } from "@/components/SessionContext";
-import { emptyForm, emptyFormForCategory, formStateFromAsset, prepareAssetPayload, ramSlotDefaults, showsInfraNetworkSpecs, showsInfraServerSpecs, validateAssetForm, type AssetCategory } from "@/lib/device-form";
+import { emptyForm, emptyFormForCategory, formStateFromAsset, isComponentItemType, prepareAssetPayload, ramSlotDefaults, showsInfraNetworkSpecs, showsInfraServerSpecs, validateAssetForm, type AssetCategory } from "@/lib/device-form";
 import type { Asset, Department } from "@/lib/types";
 
 type ViewMode = "table" | "grid";
@@ -598,7 +599,7 @@ export default function AssetsPage() {
         onClose={closeDrawer}
         wide
         toolbar={
-          drawerMode !== "view" ? (
+          drawerMode !== "view" && !isComponentItemType(String(form.itemType)) ? (
             <DeviceFormToolbar
               mode="asset"
               deviceType={String(form.deviceType)}
@@ -661,6 +662,14 @@ export default function AssetsPage() {
           <p className="py-12 text-center text-sm text-slate-400">Loading asset details...</p>
         ) : drawerMode === "view" && editing ? (
           <AssetDetailView asset={editing} />
+        ) : isComponentItemType(String(form.itemType)) ? (
+          <PeripheralAssetForm
+            form={form}
+            set={set}
+            write={write}
+            departments={departments}
+            itemType={String(form.itemType)}
+          />
         ) : (
           <DeviceInventoryForm
             mode="asset"
