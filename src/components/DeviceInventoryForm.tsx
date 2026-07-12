@@ -813,25 +813,50 @@ export function DeviceInventoryForm({
         )}
 
         {(!infra || infraServer) && (
-        <div className="grid gap-3 md:grid-cols-2">
-          <Field label="Graphics Card / GPU">
+        <div className="space-y-3">
+          <div className="grid gap-3 md:grid-cols-2">
+            <Field label={form.hasSecondaryGpu ? "Primary Graphics Card / GPU" : "Graphics Card / GPU"}>
+              <input
+                className={inputClass}
+                value={String(form.graphicsGpu)}
+                onChange={(e) => set("graphicsGpu", e.target.value)}
+                placeholder="e.g. NVIDIA RTX 3060, Intel UHD Graphics 620"
+                readOnly={!write}
+              />
+            </Field>
+            <Field label="Network (Wi-Fi/Ethernet)">
+              <input
+                className={inputClass}
+                value={String(form.network)}
+                onChange={(e) => set("network", e.target.value)}
+                placeholder="e.g. Intel Wi-Fi 6 AX201, Realtek PCIe GbE"
+                readOnly={!write}
+              />
+            </Field>
+          </div>
+
+          <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
-              className={inputClass}
-              value={String(form.graphicsGpu)}
-              onChange={(e) => set("graphicsGpu", e.target.value)}
-              placeholder="e.g. NVIDIA RTX 3060, Intel UHD Graphics 620"
-              readOnly={!write}
+              type="checkbox"
+              checked={Boolean(form.hasSecondaryGpu)}
+              onChange={(e) => set("hasSecondaryGpu", e.target.checked)}
+              disabled={!write}
+              className="rounded border-slate-600"
             />
-          </Field>
-          <Field label="Network (Wi-Fi/Ethernet)">
-            <input
-              className={inputClass}
-              value={String(form.network)}
-              onChange={(e) => set("network", e.target.value)}
-              placeholder="e.g. Intel Wi-Fi 6 AX201, Realtek PCIe GbE"
-              readOnly={!write}
-            />
-          </Field>
+            Add second graphics card
+          </label>
+
+          {form.hasSecondaryGpu && (
+            <Field label="Secondary Graphics Card / GPU">
+              <input
+                className={inputClass}
+                value={String(form.graphicsGpuSecondary)}
+                onChange={(e) => set("graphicsGpuSecondary", e.target.value)}
+                placeholder="e.g. NVIDIA RTX 4090, AMD Radeon RX 7900"
+                readOnly={!write}
+              />
+            </Field>
+          )}
         </div>
         )}
 
