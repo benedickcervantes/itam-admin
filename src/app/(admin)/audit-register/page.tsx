@@ -343,7 +343,7 @@ export default function AuditRegisterPage() {
           <FilterSearch
             value={searchInput}
             onChange={setSearchInput}
-            placeholder="Search employee, computer, audit ID..."
+            placeholder="Search audits..."
             className="min-w-0 flex-1"
           />
           <FilterSelect label="Items needed" value={itemNeeded} onChange={setItemNeeded} className="w-full sm:w-auto">
