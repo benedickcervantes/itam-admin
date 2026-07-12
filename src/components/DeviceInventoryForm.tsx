@@ -140,7 +140,13 @@ export function DeviceInventoryForm({
       return composeLaptopPower(String(form.powerChargerStatus), String(form.powerBatteryStatus)) || "—";
     }
     if (isDesktopDevice(deviceType)) {
-      return composeDesktopPower(String(form.powerDesktopConnectionType), String(form.powerDesktopDetails)) || "—";
+      return (
+        composeDesktopPower(
+          String(form.powerDesktopConnectionType),
+          String(form.powerDesktopDetails),
+          String(form.powerDesktopCondition),
+        ) || "—"
+      );
     }
     return "—";
   }, [
@@ -149,6 +155,7 @@ export function DeviceInventoryForm({
     form.powerBatteryStatus,
     form.powerDesktopConnectionType,
     form.powerDesktopDetails,
+    form.powerDesktopCondition,
   ]);
 
   const keyboardPreview = useMemo(() => {
@@ -206,8 +213,17 @@ export function DeviceInventoryForm({
         String(form.monitorPrimary),
         Boolean(form.hasSecondaryMonitor),
         String(form.monitorSecondary),
+        String(form.monitorPrimaryCondition),
+        String(form.monitorSecondaryCondition),
       ) || "—",
-    [form.deviceType, form.monitorPrimary, form.hasSecondaryMonitor, form.monitorSecondary],
+    [
+      form.deviceType,
+      form.monitorPrimary,
+      form.monitorPrimaryCondition,
+      form.hasSecondaryMonitor,
+      form.monitorSecondary,
+      form.monitorSecondaryCondition,
+    ],
   );
 
   const printerPreview = useMemo(
@@ -216,8 +232,16 @@ export function DeviceInventoryForm({
         String(form.printerPrimary),
         Boolean(form.hasSecondaryPrinter),
         String(form.printerSecondary),
+        String(form.printerPrimaryCondition),
+        String(form.printerSecondaryCondition),
       ) || "—",
-    [form.printerPrimary, form.hasSecondaryPrinter, form.printerSecondary],
+    [
+      form.printerPrimary,
+      form.printerPrimaryCondition,
+      form.hasSecondaryPrinter,
+      form.printerSecondary,
+      form.printerSecondaryCondition,
+    ],
   );
 
   const screenPreview = useMemo(() => {
@@ -858,16 +882,28 @@ export function DeviceInventoryForm({
                   disabled={!write}
                 />
               </Field>
-              <Field label="Brand / Model / Notes">
-                <input
-                  className={inputClass}
-                  value={String(form.powerDesktopDetails)}
-                  onChange={(e) => set("powerDesktopDetails", e.target.value)}
-                  placeholder="e.g. Secure 220V Generic AVR, APC 650VA UPS"
-                  readOnly={!write}
-                />
-              </Field>
-              <p className="text-xs text-slate-500">Example: AVR — Secure 220V Generic AVR</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Brand / Model / Notes">
+                  <input
+                    className={inputClass}
+                    value={String(form.powerDesktopDetails)}
+                    onChange={(e) => set("powerDesktopDetails", e.target.value)}
+                    placeholder="e.g. Secure 220V Generic AVR, APC 650VA UPS"
+                    readOnly={!write}
+                  />
+                </Field>
+                {(form.powerDesktopConnectionType === "AVR" || form.powerDesktopConnectionType === "UPS") && (
+                  <Field label="AVR / UPS Condition">
+                    <Select
+                      value={String(form.powerDesktopCondition)}
+                      onChange={(v) => set("powerDesktopCondition", v)}
+                      options={inputConditionOptions.filter((o) => o.value !== "N_A")}
+                      disabled={!write}
+                    />
+                  </Field>
+                )}
+              </div>
+              <p className="text-xs text-slate-500">Example: AVR — Secure 220V Generic AVR — GOOD</p>
             </>
           ) : (
             <p className="text-xs text-slate-400">Select Device Type to configure power and charging settings.</p>
@@ -903,6 +939,20 @@ export function DeviceInventoryForm({
               readOnly={!write}
             />
           </Field>
+          <Field
+            label={
+              hasBuiltInScreen(String(form.deviceType))
+                ? "External Monitor — Condition"
+                : "Primary Monitor — Condition"
+            }
+          >
+            <Select
+              value={String(form.monitorPrimaryCondition)}
+              onChange={(v) => set("monitorPrimaryCondition", v)}
+              options={inputConditionOptions.filter((o) => o.value !== "N_A")}
+              disabled={!write}
+            />
+          </Field>
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
               type="checkbox"
@@ -916,21 +966,37 @@ export function DeviceInventoryForm({
               : "Second monitor connected (dual display setup)"}
           </label>
           {form.hasSecondaryMonitor && (
-            <Field
-              label={
-                hasBuiltInScreen(String(form.deviceType))
-                  ? "Second External Monitor — Brand / Model / Size"
-                  : "Secondary Monitor — Brand / Model / Size"
-              }
-            >
-              <input
-                className={inputClass}
-                value={String(form.monitorSecondary)}
-                onChange={(e) => set("monitorSecondary", e.target.value)}
-                placeholder="e.g. LG 24MK430 24-inch"
-                readOnly={!write}
-              />
-            </Field>
+            <>
+              <Field
+                label={
+                  hasBuiltInScreen(String(form.deviceType))
+                    ? "Second External Monitor — Brand / Model / Size"
+                    : "Secondary Monitor — Brand / Model / Size"
+                }
+              >
+                <input
+                  className={inputClass}
+                  value={String(form.monitorSecondary)}
+                  onChange={(e) => set("monitorSecondary", e.target.value)}
+                  placeholder="e.g. LG 24MK430 24-inch"
+                  readOnly={!write}
+                />
+              </Field>
+              <Field
+                label={
+                  hasBuiltInScreen(String(form.deviceType))
+                    ? "Second External Monitor — Condition"
+                    : "Secondary Monitor — Condition"
+                }
+              >
+                <Select
+                  value={String(form.monitorSecondaryCondition)}
+                  onChange={(v) => set("monitorSecondaryCondition", v)}
+                  options={inputConditionOptions.filter((o) => o.value !== "N_A")}
+                  disabled={!write}
+                />
+              </Field>
+            </>
           )}
           <RecordedPreview label="Recorded monitor(s)" value={monitorPreview} />
         </Subsection>
@@ -1098,15 +1164,25 @@ export function DeviceInventoryForm({
 
         <div className="space-y-4">
           <Subsection title="Printer">
-            <Field label="Primary Printer — Brand / Model">
-              <input
-                className={inputClass}
-                value={String(form.printerPrimary)}
-                onChange={(e) => set("printerPrimary", e.target.value)}
-                placeholder="e.g. HP LaserJet Pro M404dn"
-                readOnly={!write}
-              />
-            </Field>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Primary Printer — Brand / Model">
+                <input
+                  className={inputClass}
+                  value={String(form.printerPrimary)}
+                  onChange={(e) => set("printerPrimary", e.target.value)}
+                  placeholder="e.g. HP LaserJet Pro M404dn"
+                  readOnly={!write}
+                />
+              </Field>
+              <Field label="Primary Printer — Condition">
+                <Select
+                  value={String(form.printerPrimaryCondition)}
+                  onChange={(v) => set("printerPrimaryCondition", v)}
+                  options={inputConditionOptions.filter((o) => o.value !== "N_A")}
+                  disabled={!write}
+                />
+              </Field>
+            </div>
             <label className="flex items-center gap-2 text-sm text-slate-300">
               <input
                 type="checkbox"
@@ -1118,15 +1194,25 @@ export function DeviceInventoryForm({
               Second printer connected
             </label>
             {form.hasSecondaryPrinter && (
-              <Field label="Secondary Printer — Brand / Model">
-                <input
-                  className={inputClass}
-                  value={String(form.printerSecondary)}
-                  onChange={(e) => set("printerSecondary", e.target.value)}
-                  placeholder="e.g. Canon PIXMA TS3450"
-                  readOnly={!write}
-                />
-              </Field>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Secondary Printer — Brand / Model">
+                  <input
+                    className={inputClass}
+                    value={String(form.printerSecondary)}
+                    onChange={(e) => set("printerSecondary", e.target.value)}
+                    placeholder="e.g. Canon PIXMA TS3450"
+                    readOnly={!write}
+                  />
+                </Field>
+                <Field label="Secondary Printer — Condition">
+                  <Select
+                    value={String(form.printerSecondaryCondition)}
+                    onChange={(v) => set("printerSecondaryCondition", v)}
+                    options={inputConditionOptions.filter((o) => o.value !== "N_A")}
+                    disabled={!write}
+                  />
+                </Field>
+              </div>
             )}
             <RecordedPreview label="Recorded printer(s)" value={printerPreview} />
           </Subsection>

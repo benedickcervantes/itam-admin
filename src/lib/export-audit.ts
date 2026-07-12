@@ -89,6 +89,14 @@ const COLUMN_SECTIONS: ColumnSection[] = [
         value: (r) => (isLaptop(r) ? "" : desktopConnectionLabel(powerParts(r).desktopConnectionType)),
       },
       { header: "Brand", width: 22, value: (r) => (isLaptop(r) ? "" : powerParts(r).desktopDetails) },
+      {
+        header: "AVR / UPS Condition",
+        width: 18,
+        value: (r) =>
+          isLaptop(r) || !powerParts(r).desktopCondition
+            ? ""
+            : labelEnumOrBlank(powerParts(r).desktopCondition),
+      },
     ],
   },
   {
