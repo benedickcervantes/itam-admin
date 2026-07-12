@@ -667,6 +667,35 @@ export function composePeripheralPair(
   return `Primary — ${p} | Secondary — ${s}`;
 }
 
+export function composeGpuPair(primary: string, hasSecondary: boolean, secondary: string) {
+  const p = primary.trim();
+  const s = secondary.trim();
+  if (!p && !(hasSecondary && s)) return "";
+  if (!hasSecondary || !s) return p;
+  if (!p) return `Secondary — ${s}`;
+  return `Primary — ${p} | Secondary — ${s}`;
+}
+
+export function parseGpuPair(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return { primary: "", hasSecondary: false, secondary: "" };
+
+  if (/Primary\s*[—-]/i.test(trimmed) || /Secondary\s*[—-]/i.test(trimmed)) {
+    const primaryM = trimmed.match(/Primary\s*[—-]\s*([^|]+)/i);
+    const secondaryM = trimmed.match(/Secondary\s*[—-]\s*(.+)$/i);
+    const primary = primaryM?.[1]?.trim() ?? "";
+    const secondary = secondaryM?.[1]?.trim() ?? "";
+    return { primary, hasSecondary: Boolean(secondary), secondary };
+  }
+
+  const parts = trimmed.split("|").map((p) => p.trim()).filter(Boolean);
+  if (parts.length >= 2) {
+    return { primary: parts[0], hasSecondary: true, secondary: parts.slice(1).join(" | ") };
+  }
+
+  return { primary: trimmed, hasSecondary: false, secondary: "" };
+}
+
 export function composeMonitorRecord(
   deviceType: string,
   primary: string,

@@ -145,5 +145,7 @@ export const UI_ONLY_KEYS = [
   "hasSecondaryPrinter",
   "printerSecondary",
   "printerSecondaryCondition",
+  "hasSecondaryGpu",
+  "graphicsGpuSecondary",
   "screenNotes",
 ] as const;
