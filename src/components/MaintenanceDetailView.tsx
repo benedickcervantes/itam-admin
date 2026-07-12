@@ -29,6 +29,7 @@ export function MaintenanceDetailView({ record }: { record: MaintenanceRecord })
         <DetailSection title="Device & Employee" icon={User}>
           <DetailRow label="Computer" value={record.computer_name} />
           <DetailRow label="Employee" value={record.employee} />
+          <DetailRow label="Department" value={record.audit_register?.department?.name} />
           <DetailRow label="Performed By" value={record.performed_by} />
           <DetailRow label="Status" value={labelEnum(record.status)} />
         </DetailSection>

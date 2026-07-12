@@ -131,6 +131,9 @@ export type MaintenanceRecord = {
   id: string;
   record_code: string;
   audit_id?: string | null;
+  audit_register?: {
+    department?: { name: string } | null;
+  } | null;
   computer_name?: string | null;
   employee?: string | null;
   issue: string;
@@ -146,7 +149,12 @@ export type DisposalRecord = {
   id: string;
   record_code: string;
   asset_id: string;
-  asset?: { asset_code: string; computer_name: string };
+  asset?: {
+    asset_code: string;
+    computer_name: string;
+    department?: { name: string } | null;
+  };
+  computer_name?: string | null;
   disposal_date: string;
   disposal_reason: string;
   disposal_method?: string | null;
@@ -164,6 +172,7 @@ export type AdminUser = {
   department_id?: string | null;
   department?: { name: string } | null;
   is_active: boolean;
+  created_at?: string;
 };
 
 function qs(params: Record<string, string | number | undefined>) {

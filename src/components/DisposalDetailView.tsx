@@ -24,6 +24,7 @@ export function DisposalDetailView({ record }: { record: DisposalRecord }) {
       <div className="grid gap-4 lg:grid-cols-2">
         <DetailSection title="Disposal" icon={Trash2}>
           <DetailRow label="Asset" value={assetLabel} />
+          <DetailRow label="Department" value={record.asset?.department?.name} />
           <DetailRow label="Disposal Date" value={record.disposal_date.slice(0, 10)} />
           <DetailRow label="Reason" value={record.disposal_reason} />
           <DetailRow label="Method" value={labelEnum(record.disposal_method)} />
