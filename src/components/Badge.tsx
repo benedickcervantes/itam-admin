@@ -20,6 +20,12 @@ const STYLES: Record<string, string> = {
   REPLACE_UNIT: "bg-orange-500/15 text-orange-300 ring-orange-500/30",
   SOFTWARE_REFRESH: "bg-sky-500/15 text-sky-300 ring-sky-500/30",
   IMMEDIATE_REPAIR: "bg-red-500/15 text-red-300 ring-red-500/30",
+  SUPER_ADMIN: "bg-violet-500/15 text-violet-300 ring-violet-500/30",
+  IT_ADMIN: "bg-sky-500/15 text-sky-300 ring-sky-500/30",
+  VIEWER: "bg-slate-500/15 text-slate-300 ring-slate-500/30",
+  ACTIVE: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+  INACTIVE: "bg-slate-600/30 text-slate-400 ring-slate-500/30",
+  RETURNED: "bg-slate-500/15 text-slate-300 ring-slate-500/30",
 };
 
 export function Badge({

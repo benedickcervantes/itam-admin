@@ -1,17 +1,38 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Eye, LayoutGrid, List, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ChevronDown,
+  Download,
+  Eye,
+  FileSpreadsheet,
+  FileText,
+  LayoutGrid,
+  List,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { Badge } from "@/components/Badge";
-import { Drawer, Field, inputClass, selectClass } from "@/components/Drawer";
+import { Drawer } from "@/components/Drawer";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { Pagination } from "@/components/Pagination";
 import { CardGridSkeleton, TableSkeleton } from "@/components/TableSkeleton";
 import { MaintenanceDetailView } from "@/components/MaintenanceDetailView";
+import { MaintenanceForm } from "@/components/MaintenanceForm";
 import { useSessionUser } from "@/components/SessionContext";
-import { createMaintenance, deleteMaintenance, fetchMaintenance, updateMaintenance } from "@/lib/api/maintenance";
+import {
+  createMaintenance,
+  deleteMaintenance,
+  fetchAllMaintenance,
+  fetchMaintenance,
+  updateMaintenance,
+} from "@/lib/api/maintenance";
 import { canWrite } from "@/lib/auth/permissions";
+import { exportMaintenanceExcel, exportMaintenancePdf } from "@/lib/export-maintenance";
+import { todayIso, validateMaintenanceForm } from "@/lib/maintenance-form";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 import { labelEnum } from "@/lib/labels";
 import type { MaintenanceRecord } from "@/lib/types";
@@ -27,8 +48,13 @@ function readStoredViewMode(): ViewMode {
   return saved === "grid" ? "grid" : "table";
 }
 
-function emptyForm(): Record<string, string> {
-  return { issue: "", status: "OPEN" };
+function emptyForm(performedBy = ""): Record<string, string> {
+  return {
+    issue: "",
+    status: "OPEN",
+    dateOpened: todayIso(),
+    performedBy,
+  };
 }
 
 function formFromRecord(row: MaintenanceRecord): Record<string, string> {
@@ -60,12 +86,64 @@ export default function MaintenancePage() {
   const [editing, setEditing] = useState<MaintenanceRecord | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>(readStoredViewMode);
+  const [exporting, setExporting] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   const changeViewMode = (mode: ViewMode) => {
     setViewMode(mode);
     localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+  };
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [exportMenuOpen]);
+
+  const buildFilterSummary = () => {
+    const parts: string[] = [];
+    if (search) parts.push(`Search: "${search}"`);
+    if (status) parts.push(`Status: ${labelEnum(status)}`);
+    return parts.length ? parts.join(" · ") : "None (all records)";
+  };
+
+  const runExport = async (format: "excel" | "pdf") => {
+    if (exporting) return;
+    setExportMenuOpen(false);
+    setExporting(true);
+    setError("");
+    setSuccess("");
+    try {
+      const rows = await fetchAllMaintenance({
+        search: search || undefined,
+        status: status || undefined,
+      });
+      if (rows.length === 0) {
+        setError("No maintenance records match the current filters to export.");
+        return;
+      }
+      if (format === "excel") {
+        await exportMaintenanceExcel(rows, buildFilterSummary());
+      } else {
+        exportMaintenancePdf(rows, buildFilterSummary());
+      }
+      const label = format === "excel" ? "Excel" : "PDF";
+      setSuccess(`Exported ${rows.length} maintenance ${rows.length === 1 ? "record" : "records"} to ${label}.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
   };
 
   const load = useCallback(async () => {
@@ -99,12 +177,19 @@ export default function MaintenancePage() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!success) return;
+    const timer = window.setTimeout(() => setSuccess(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [success]);
+
   const openCreate = () => {
     setEditing(null);
-    setForm(emptyForm());
+    setForm(emptyForm(user.fullName));
     setDrawerMode("create");
     setSaving(false);
     setError("");
+    setFieldErrors({});
     setDrawerOpen(true);
   };
 
@@ -113,6 +198,7 @@ export default function MaintenancePage() {
     setSaving(false);
     setDrawerMode("create");
     setError("");
+    setFieldErrors({});
   };
 
   const openView = (row: MaintenanceRecord) => {
@@ -121,6 +207,7 @@ export default function MaintenancePage() {
     setDrawerMode("view");
     setSaving(false);
     setError("");
+    setFieldErrors({});
     setDrawerOpen(true);
   };
 
@@ -130,11 +217,20 @@ export default function MaintenancePage() {
     setDrawerMode("edit");
     setSaving(false);
     setError("");
+    setFieldErrors({});
     setDrawerOpen(true);
   };
 
   const save = async () => {
-    if (saving) return;
+    if (!write || saving) return;
+    const mode = editing ? "edit" : "create";
+    const errors = validateMaintenanceForm(form, mode);
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setError("Please fix the highlighted fields.");
+      return;
+    }
+
     setSaving(true);
     setError("");
     const body = { ...form };
@@ -144,6 +240,7 @@ export default function MaintenancePage() {
       else await createMaintenance(body);
       setDrawerOpen(false);
       setDrawerMode("create");
+      setSuccess(editing ? `Updated ${editing.record_code}.` : "Maintenance record created.");
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
@@ -155,6 +252,7 @@ export default function MaintenancePage() {
   const remove = async (row: MaintenanceRecord) => {
     if (!confirm(`Delete maintenance record ${row.record_code}?`)) return;
     await deleteMaintenance(row.id);
+    setSuccess(`Deleted ${row.record_code}.`);
     await load();
   };
 
@@ -210,7 +308,7 @@ export default function MaintenancePage() {
 
   return (
     <>
-      <Header title="Maintenance Log" subtitle="Repairs and actions (Open → In Progress → Completed)" />
+      <Header title="Maintenance" subtitle="Repairs and service actions linked to audits" />
       <div className="page-content flex-1 overflow-y-auto">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           <FilterSearch
@@ -253,6 +351,43 @@ export default function MaintenancePage() {
               <span className="hidden sm:inline">Grid</span>
             </button>
           </div>
+          <div className="relative w-full sm:w-auto" ref={exportMenuRef}>
+            <button
+              type="button"
+              onClick={() => setExportMenuOpen((o) => !o)}
+              disabled={exporting}
+              aria-haspopup="menu"
+              aria-expanded={exportMenuOpen}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            >
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {exporting ? "Exporting..." : "Export"}
+              {!exporting && <ChevronDown className="h-4 w-4" />}
+            </button>
+            {exportMenuOpen && !exporting && (
+              <div
+                role="menu"
+                className="absolute right-0 z-20 mt-1 w-full min-w-[11rem] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-lg sm:w-auto"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void runExport("excel")}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                >
+                  <FileSpreadsheet className="h-4 w-4 text-emerald-400" /> Export as Excel
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void runExport("pdf")}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                >
+                  <FileText className="h-4 w-4 text-red-400" /> Export as PDF
+                </button>
+              </div>
+            )}
+          </div>
           {write && (
             <button
               type="button"
@@ -265,27 +400,40 @@ export default function MaintenancePage() {
         </div>
 
         {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
+        {success && <p className="mb-3 text-sm text-emerald-400">{success}</p>}
 
         {viewMode === "table" ? (
           <div className="card overflow-hidden">
             <div className="table-scroll">
-              <table className="data-table">
+              <table className="data-table data-table--fixed" style={{ minWidth: "62rem" }}>
+                <colgroup>
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "24%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "6%" }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Record ID</th>
                     <th>Computer</th>
-                    <th>Employee</th>
-                    <th>Issue</th>
+                    <th className="cell-wrap">Employee</th>
+                    <th className="cell-wrap">Department</th>
+                    <th className="cell-wrap">Issue</th>
                     <th>Status</th>
-                    <th className="w-0">{write ? "Actions" : "View"}</th>
+                    <th>Opened</th>
+                    <th>{write ? "Actions" : "View"}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
-                    <TableSkeleton columns={6} />
+                    <TableSkeleton columns={8} />
                   ) : items.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="text-slate-400">
+                      <td colSpan={8} className="py-8 text-center text-slate-400">
                         No maintenance records found.
                       </td>
                     </tr>
@@ -294,11 +442,13 @@ export default function MaintenancePage() {
                       <tr key={row.id} className="cursor-pointer" onClick={() => openView(row)}>
                         <td className="font-mono text-[#2E7D9A]">{row.record_code}</td>
                         <td className="font-medium text-white">{row.computer_name ?? "—"}</td>
-                        <td className="text-slate-300">{row.employee ?? "—"}</td>
-                        <td className="max-w-xs truncate text-slate-300">{row.issue}</td>
+                        <td className="cell-wrap text-slate-300">{row.employee ?? "—"}</td>
+                        <td className="cell-wrap text-slate-400">{row.audit_register?.department?.name ?? "—"}</td>
+                        <td className="cell-wrap text-slate-300">{row.issue}</td>
                         <td>
                           <Badge value={row.status} />
                         </td>
+                        <td className="text-slate-400">{row.date_opened?.slice(0, 10) ?? "—"}</td>
                         <td onClick={(e) => e.stopPropagation()} className="w-0">
                           {renderRowActions(row)}
                         </td>
@@ -332,25 +482,21 @@ export default function MaintenancePage() {
                       <div onClick={(e) => e.stopPropagation()}>{renderRowActions(row)}</div>
                     </div>
                     <p className="line-clamp-2 text-sm text-slate-300">{row.issue}</p>
+                    <dl className="mt-3 space-y-2 text-sm">
+                      <div className="flex items-center justify-between gap-2">
+                        <dt className="text-slate-500">Department</dt>
+                        <dd className="truncate text-slate-300">{row.audit_register?.department?.name ?? "—"}</dd>
+                      </div>
+                      {row.date_opened && (
+                        <div className="flex items-center justify-between gap-2">
+                          <dt className="text-slate-500">Opened</dt>
+                          <dd className="text-slate-300">{row.date_opened.slice(0, 10)}</dd>
+                        </div>
+                      )}
+                    </dl>
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       <Badge value={row.status} />
                     </div>
-                    {(row.date_opened || row.performed_by) && (
-                      <dl className="mt-3 space-y-1 text-sm">
-                        {row.date_opened && (
-                          <div className="flex items-center justify-between gap-2">
-                            <dt className="text-slate-500">Opened</dt>
-                            <dd className="text-slate-300">{row.date_opened.slice(0, 10)}</dd>
-                          </div>
-                        )}
-                        {row.performed_by && (
-                          <div className="flex items-center justify-between gap-2">
-                            <dt className="text-slate-500">Performed By</dt>
-                            <dd className="truncate text-slate-300">{row.performed_by}</dd>
-                          </div>
-                        )}
-                      </dl>
-                    )}
                   </article>
                 ))}
               </div>
@@ -420,7 +566,7 @@ export default function MaintenancePage() {
                 className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center gap-1.5 rounded-lg border border-transparent bg-[#2E7D9A] px-3 text-sm font-medium leading-none text-white hover:bg-[#256b85] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving && <Loader2 className="h-4 w-4 shrink-0 animate-spin" />}
-                {saving ? "Saving..." : "Save Record"}
+                {saving ? "Saving..." : drawerMode === "create" ? "Create Record" : "Save Changes"}
               </button>
             </div>
           ) : undefined
@@ -429,91 +575,13 @@ export default function MaintenancePage() {
         {drawerMode === "view" && editing ? (
           <MaintenanceDetailView record={editing} />
         ) : (
-          <div className="space-y-3">
-            <Field label="Computer Name">
-              <input
-                className={inputClass}
-                value={form.computerName ?? ""}
-                onChange={(e) => setForm({ ...form, computerName: e.target.value })}
-                readOnly={!write}
-              />
-            </Field>
-            <Field label="Employee">
-              <input
-                className={inputClass}
-                value={form.employee ?? ""}
-                onChange={(e) => setForm({ ...form, employee: e.target.value })}
-                readOnly={!write}
-              />
-            </Field>
-            <Field label="Issue" required>
-              <textarea
-                className={inputClass}
-                rows={3}
-                value={form.issue ?? ""}
-                onChange={(e) => setForm({ ...form, issue: e.target.value })}
-                readOnly={!write}
-              />
-            </Field>
-            <Field label="Action Taken">
-              <textarea
-                className={inputClass}
-                rows={2}
-                value={form.actionTaken ?? ""}
-                onChange={(e) => setForm({ ...form, actionTaken: e.target.value })}
-                readOnly={!write}
-              />
-            </Field>
-            <Field label="Status">
-              <select
-                className={selectClass}
-                value={form.status ?? "OPEN"}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
-                disabled={!write}
-              >
-                {REFERENCE_DATA.maintenanceStatuses.map((s) => (
-                  <option key={s} value={s}>
-                    {labelEnum(s)}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Date Opened">
-              <input
-                type="date"
-                className={inputClass}
-                value={form.dateOpened ?? ""}
-                onChange={(e) => setForm({ ...form, dateOpened: e.target.value })}
-                readOnly={!write}
-              />
-            </Field>
-            <Field label="Date Closed">
-              <input
-                type="date"
-                className={inputClass}
-                value={form.dateClosed ?? ""}
-                onChange={(e) => setForm({ ...form, dateClosed: e.target.value })}
-                readOnly={!write}
-              />
-            </Field>
-            <Field label="Performed By">
-              <input
-                className={inputClass}
-                value={form.performedBy ?? ""}
-                onChange={(e) => setForm({ ...form, performedBy: e.target.value })}
-                readOnly={!write}
-              />
-            </Field>
-            <Field label="Notes">
-              <textarea
-                className={inputClass}
-                rows={2}
-                value={form.notes ?? ""}
-                onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                readOnly={!write}
-              />
-            </Field>
-          </div>
+          <MaintenanceForm
+            mode={drawerMode === "create" ? "create" : "edit"}
+            form={form}
+            onChange={setForm}
+            fieldErrors={fieldErrors}
+            readOnly={!write}
+          />
         )}
       </Drawer>
     </>
