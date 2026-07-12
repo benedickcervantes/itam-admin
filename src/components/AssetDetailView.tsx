@@ -3,7 +3,7 @@
 import { Monitor, Mouse, User } from "lucide-react";
 import { Badge } from "@/components/Badge";
 import { DetailNotes, DetailRow, DetailSection, fmtLabel } from "@/components/DetailViewParts";
-import { assetCategoryFromAsset, formatCondition, isComponentItemType, isLaptopDevice, isInfrastructureDevice, showsInfraNetworkSpecs, showsInfraServerSpecs } from "@/lib/device-form";
+import { assetCategoryFromAsset, formatCondition, isComponentItemType, isLaptopDevice, isInfrastructureDevice, showsInfraNetworkSpecs, showsInfraServerSpecs, showsInfraStorageSpecs, showsInfraMonitorSpecs } from "@/lib/device-form";
 import type { Asset } from "@/lib/types";
 
 function assetWithAuditFallback(asset: Asset): Asset {
@@ -33,7 +33,9 @@ export function AssetDetailView({ asset: rawAsset }: { asset: Asset }) {
   const infra = isInfrastructureDevice(asset.device_type ?? "", assetCategory);
   const infraServer = infra && showsInfraServerSpecs(asset.device_type ?? "");
   const infraNetwork = infra && showsInfraNetworkSpecs(asset.device_type ?? "");
-  const showsComputerHardware = !infra || infraServer;
+  const infraStorage = infra && showsInfraStorageSpecs(asset.device_type ?? "");
+  const infraMonitor = infra && showsInfraMonitorSpecs(asset.device_type ?? "");
+  const showsComputerHardware = !infra || infraServer || infraStorage;
   const isLaptop = isLaptopDevice(asset.device_type ?? "");
   const displayGpu = asset.gpu?.trim() || asset.audit_register?.graphics_gpu?.trim() || null;
   const displayNetwork = asset.network?.trim() || asset.audit_register?.network?.trim() || null;
@@ -104,7 +106,7 @@ export function AssetDetailView({ asset: rawAsset }: { asset: Asset }) {
           {asset.item_type && <DetailRow label="Type" value={fmtLabel(asset.item_type)} />}
           {asset.device_type && <DetailRow label="Device Type" value={fmtLabel(asset.device_type)} />}
           <DetailRow label="Brand / Model" value={asset.brand_model} />
-          {screenDisplay && <DetailRow label="Built-in Display" value={screenDisplay} />}
+          {screenDisplay && <DetailRow label={infraMonitor ? "Display" : "Built-in Display"} value={screenDisplay} />}
           {infra && hasInfraFields && (
             <>
               <DetailRow label="Location" value={asset.location} />
