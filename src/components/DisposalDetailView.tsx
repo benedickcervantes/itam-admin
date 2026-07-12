@@ -33,7 +33,7 @@ export function DisposalDetailView({ record }: { record: DisposalRecord }) {
         <DetailSection title="Documentation" icon={FileText}>
           <DetailRow label="Certificate / Doc No." value={record.certificate_doc_no} />
           <DetailRow label="Approved By" value={record.approved_by} />
-          <DetailRow label="Witness" value={record.witness} />
+          <DetailRow label="Witness By" value={record.witness} />
         </DetailSection>
       </div>
 

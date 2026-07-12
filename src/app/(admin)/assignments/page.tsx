@@ -17,6 +17,7 @@ import {
 import { AssignmentDetailView } from "@/components/AssignmentDetailView";
 import { AssignmentForm } from "@/components/AssignmentForm";
 import { Badge } from "@/components/Badge";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Drawer } from "@/components/Drawer";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
@@ -31,6 +32,7 @@ import {
   fetchAssignments,
   updateAssignment,
 } from "@/lib/api/assignments";
+import { verifyPassword } from "@/lib/api/auth";
 import { fetchDepartments } from "@/lib/api/departments";
 import { canWrite } from "@/lib/auth/permissions";
 import { exportAssignmentsExcel, exportAssignmentsPdf } from "@/lib/export-assignments";
@@ -99,6 +101,9 @@ export default function AssignmentsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>(readStoredViewMode);
   const [exporting, setExporting] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Assignment | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
   const changeViewMode = (mode: ViewMode) => {
@@ -267,11 +272,23 @@ export default function AssignmentsPage() {
     }
   };
 
-  const remove = async (row: Assignment) => {
-    if (!confirm(`Delete assignment record ${row.record_code}?`)) return;
-    await deleteAssignment(row.id);
-    setSuccess(`Deleted ${row.record_code}.`);
-    await load();
+  const confirmDelete = async (password: string) => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await verifyPassword(password);
+      await deleteAssignment(deleteTarget.id);
+      const code = deleteTarget.record_code;
+      setDeleteTarget(null);
+      setError("");
+      setSuccess(`Deleted ${code}.`);
+      await load();
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const renderRowActions = (row: Assignment) => (
@@ -311,7 +328,8 @@ export default function AssignmentsPage() {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              void remove(row);
+              setDeleteError("");
+              setDeleteTarget(row);
             }}
             className="rounded p-1 text-red-400 hover:bg-red-950/40 hover:text-red-300"
             title="Delete record"
@@ -616,6 +634,26 @@ export default function AssignmentsPage() {
           />
         )}
       </Drawer>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete assignment record?"
+        message={
+          deleteTarget
+            ? `Are you sure you want to delete assignment record ${deleteTarget.record_code}? This action cannot be undone.`
+            : ""
+        }
+        requirePassword
+        error={deleteError}
+        loading={deleting}
+        onCancel={() => {
+          if (!deleting) {
+            setDeleteTarget(null);
+            setDeleteError("");
+          }
+        }}
+        onConfirm={(password) => void confirmDelete(password)}
+      />
     </>
   );
 }

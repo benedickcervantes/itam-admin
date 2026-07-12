@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/Badge";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AuditDetailView } from "@/components/AuditDetailView";
 import { DeviceFormToolbar } from "@/components/DeviceFormToolbar";
 import { DeviceInventoryForm } from "@/components/DeviceInventoryForm";
@@ -32,6 +33,7 @@ import {
   updateAuditRegister,
   type AuditRegister,
 } from "@/lib/api/auditRegisters";
+import { verifyPassword } from "@/lib/api/auth";
 import { exportAuditsExcel, exportAuditsPdf } from "@/lib/export-audit";
 import { fetchDepartments } from "@/lib/api/departments";
 import { canWrite } from "@/lib/auth/permissions";
@@ -85,6 +87,9 @@ export default function AuditRegisterPage() {
   const [viewMode, setViewMode] = useState<ViewMode>(readStoredViewMode);
   const [exporting, setExporting] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AuditRegister | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
   const changeViewMode = (mode: ViewMode) => {
@@ -267,10 +272,23 @@ export default function AuditRegisterPage() {
     }
   };
 
-  const remove = async (row: AuditRegister) => {
-    if (!confirm(`Delete audit ${row.audit_code}?`)) return;
-    await deleteAuditRegister(row.id);
-    await load();
+  const confirmDelete = async (password: string) => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await verifyPassword(password);
+      await deleteAuditRegister(deleteTarget.id);
+      const code = deleteTarget.audit_code;
+      setDeleteTarget(null);
+      setError("");
+      setSuccess(`Audit record ${code} deleted.`);
+      await load();
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const renderRowActions = (row: AuditRegister) => (
@@ -310,7 +328,8 @@ export default function AuditRegisterPage() {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              void remove(row);
+              setDeleteError("");
+              setDeleteTarget(row);
             }}
             className="rounded p-1 text-red-400 hover:bg-red-950/40 hover:text-red-300"
             title="Delete record"
@@ -663,6 +682,26 @@ export default function AuditRegisterPage() {
           />
         )}
       </Drawer>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete audit record?"
+        message={
+          deleteTarget
+            ? `Are you sure you want to delete audit ${deleteTarget.audit_code} for ${deleteTarget.employee_name}? This action cannot be undone.`
+            : ""
+        }
+        requirePassword
+        error={deleteError}
+        loading={deleting}
+        onCancel={() => {
+          if (!deleting) {
+            setDeleteTarget(null);
+            setDeleteError("");
+          }
+        }}
+        onConfirm={(password) => void confirmDelete(password)}
+      />
     </>
   );
 }
