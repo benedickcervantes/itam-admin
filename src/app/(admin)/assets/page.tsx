@@ -366,7 +366,7 @@ export default function AssetsPage() {
           <FilterSearch
             value={searchInput}
             onChange={setSearchInput}
-            placeholder="Search asset ID, computer, assigned to..."
+            placeholder="Search assets..."
             className="min-w-0 flex-1"
           />
           <FilterSelect label="Department" value={departmentId} onChange={setDepartmentId} className="w-full sm:w-auto">
@@ -488,7 +488,7 @@ export default function AssetsPage() {
                   <tr>
                     <th>Asset ID</th>
                     <th>Type</th>
-                    <th className="cell-wrap">Computer</th>
+                    <th className="cell-wrap">Brand/Model</th>
                     <th className="cell-wrap">Assigned To</th>
                     <th className="cell-wrap">Department</th>
                     <th>Status</th>
@@ -512,7 +512,7 @@ export default function AssetsPage() {
                         <td>
                           <Badge value={row.item_type ?? row.device_type} />
                         </td>
-                        <td className="cell-wrap font-medium text-white">{row.computer_name}</td>
+                        <td className="cell-wrap font-medium text-white">{row.brand_model ?? "—"}</td>
                         <td className="cell-wrap text-slate-300">{row.assigned_to ?? "—"}</td>
                         <td className="cell-wrap">{row.department?.name ?? "—"}</td>
                         <td>
