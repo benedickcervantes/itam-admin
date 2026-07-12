@@ -17,6 +17,10 @@ export function fetchAuditRegisters(query: AuditQuery = {}) {
   return apiJson<Paginated<AuditRegister>>(`/api/v1/audit-registers${buildQs(query)}`, { auth: true });
 }
 
+export function fetchEmployeeNames() {
+  return apiJson<string[]>("/api/v1/audit-registers/employees", { auth: true });
+}
+
 /**
  * Fetch every audit record matching the given filters by paging through the
  * API (used for exports). Ignores the `page`/`limit` in `query` and walks all

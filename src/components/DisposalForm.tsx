@@ -61,6 +61,13 @@ function AssetPreview({ asset }: { asset: Asset }) {
   );
 }
 
+function employeeOptions(names: string[], current?: string) {
+  const unique = new Set(names);
+  const value = current?.trim();
+  if (value) unique.add(value);
+  return [...unique].sort((a, b) => a.localeCompare(b));
+}
+
 function MethodCard({
   method,
   selected,
@@ -95,6 +102,7 @@ export function DisposalForm({
   form,
   onChange,
   assets,
+  employees = [],
   fieldErrors = {},
   readOnly = false,
   assetLocked = false,
@@ -103,6 +111,7 @@ export function DisposalForm({
   form: Record<string, string>;
   onChange: (form: Record<string, string>) => void;
   assets: Asset[];
+  employees?: string[];
   fieldErrors?: Record<string, string>;
   readOnly?: boolean;
   assetLocked?: boolean;
@@ -110,6 +119,8 @@ export function DisposalForm({
   const set = (patch: Record<string, string>) => onChange({ ...form, ...patch });
   const selectedAsset = assets.find((a) => a.id === form.assetId);
   const reasonLen = form.disposalReason?.length ?? 0;
+  const approvedByOptions = employeeOptions(employees, form.approvedBy);
+  const witnessOptions = employeeOptions(employees, form.witness);
 
   return (
     <div className="space-y-4">
@@ -217,23 +228,35 @@ export function DisposalForm({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Approved By">
-            <input
-              className={inputClass}
+            <select
+              className={selectClass}
               value={form.approvedBy ?? ""}
               onChange={(e) => set({ approvedBy: e.target.value })}
-              placeholder="Manager or approver name"
-              readOnly={readOnly}
-            />
+              disabled={readOnly}
+            >
+              <option value="">— Select employee —</option>
+              {approvedByOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
           </Field>
 
-          <Field label="Witness">
-            <input
-              className={inputClass}
+          <Field label="Witness By">
+            <select
+              className={selectClass}
               value={form.witness ?? ""}
               onChange={(e) => set({ witness: e.target.value })}
-              placeholder="Witness name (if required)"
-              readOnly={readOnly}
-            />
+              disabled={readOnly}
+            >
+              <option value="">— Select employee —</option>
+              {witnessOptions.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
           </Field>
         </div>
 

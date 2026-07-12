@@ -15,6 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Badge } from "@/components/Badge";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DisposalDetailView } from "@/components/DisposalDetailView";
 import { DisposalForm } from "@/components/DisposalForm";
 import { Drawer } from "@/components/Drawer";
@@ -24,6 +25,7 @@ import { Pagination } from "@/components/Pagination";
 import { CardGridSkeleton, TableSkeleton } from "@/components/TableSkeleton";
 import { useSessionUser } from "@/components/SessionContext";
 import { fetchAssets } from "@/lib/api/assets";
+import { fetchEmployeeNames } from "@/lib/api/auditRegisters";
 import {
   createDisposal,
   deleteDisposal,
@@ -31,6 +33,7 @@ import {
   fetchDisposals,
   updateDisposal,
 } from "@/lib/api/disposals";
+import { verifyPassword } from "@/lib/api/auth";
 import { canWrite } from "@/lib/auth/permissions";
 import { exportDisposalsExcel, exportDisposalsPdf } from "@/lib/export-disposals";
 import { todayIso, validateDisposalForm } from "@/lib/disposal-form";
@@ -71,6 +74,7 @@ export default function DisposalsPage() {
   const write = canWrite(user);
   const [items, setItems] = useState<DisposalRecord[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [employees, setEmployees] = useState<string[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [methodFilter, setMethodFilter] = useState("");
@@ -88,6 +92,9 @@ export default function DisposalsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>(readStoredViewMode);
   const [exporting, setExporting] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<DisposalRecord | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
   const changeViewMode = (mode: ViewMode) => {
@@ -183,7 +190,18 @@ export default function DisposalsPage() {
     fetchAssets({ limit: 200 }).then((r) => setAssets(r.items)).catch(() => {});
   }, []);
 
+  const loadEmployees = useCallback(() => {
+    fetchEmployeeNames()
+      .then(setEmployees)
+      .catch(() => setEmployees([]));
+  }, []);
+
+  useEffect(() => {
+    loadEmployees();
+  }, [loadEmployees]);
+
   const openCreate = () => {
+    loadEmployees();
     setEditing(null);
     setForm(emptyForm());
     setDrawerMode("create");
@@ -212,6 +230,7 @@ export default function DisposalsPage() {
   };
 
   const openEditForm = (row: DisposalRecord) => {
+    loadEmployees();
     setEditing(row);
     setForm(formFromRecord(row));
     setDrawerMode("edit");
@@ -249,11 +268,23 @@ export default function DisposalsPage() {
     }
   };
 
-  const remove = async (row: DisposalRecord) => {
-    if (!confirm(`Delete disposal record ${row.record_code}?`)) return;
-    await deleteDisposal(row.id);
-    setSuccess(`Deleted ${row.record_code}.`);
-    await load();
+  const confirmDelete = async (password: string) => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await verifyPassword(password);
+      await deleteDisposal(deleteTarget.id);
+      const code = deleteTarget.record_code;
+      setDeleteTarget(null);
+      setError("");
+      setSuccess(`Deleted ${code}.`);
+      await load();
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const renderRowActions = (row: DisposalRecord) => (
@@ -293,7 +324,8 @@ export default function DisposalsPage() {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              void remove(row);
+              setDeleteError("");
+              setDeleteTarget(row);
             }}
             className="rounded p-1 text-red-400 hover:bg-red-950/40 hover:text-red-300"
             title="Delete record"
@@ -586,12 +618,33 @@ export default function DisposalsPage() {
             form={form}
             onChange={setForm}
             assets={assets}
+            employees={employees}
             fieldErrors={fieldErrors}
             readOnly={!write}
             assetLocked={!!editing}
           />
         )}
       </Drawer>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete disposal record?"
+        message={
+          deleteTarget
+            ? `Are you sure you want to delete disposal record ${deleteTarget.record_code}? This action cannot be undone.`
+            : ""
+        }
+        requirePassword
+        error={deleteError}
+        loading={deleting}
+        onCancel={() => {
+          if (!deleting) {
+            setDeleteTarget(null);
+            setDeleteError("");
+          }
+        }}
+        onConfirm={(password) => void confirmDelete(password)}
+      />
     </>
   );
 }
