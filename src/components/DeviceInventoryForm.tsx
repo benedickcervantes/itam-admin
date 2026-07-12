@@ -38,6 +38,8 @@ import {
   showsInfraOs,
   showsInfraNetworkSpecs,
   showsInfraServerSpecs,
+  showsInfraStorageSpecs,
+  showsInfraMonitorSpecs,
   showsPortCount,
   showsRackSlot,
   type AssetCategory,
@@ -245,20 +247,26 @@ export function DeviceInventoryForm({
   );
 
   const screenPreview = useMemo(() => {
-    const deviceType = String(form.deviceType);
-    if (!hasBuiltInScreen(deviceType)) return "—";
+    const dt = String(form.deviceType);
+    const category = String(form.assetCategory || "end_user");
+    const showDisplay =
+      hasBuiltInScreen(dt) ||
+      (category === "infrastructure" && showsInfraMonitorSpecs(dt));
+    if (!showDisplay) return "—";
     const parts = [
       form.screenCondition ? formatCondition(String(form.screenCondition)) : "",
       String(form.screenNotes).trim(),
     ].filter(Boolean);
     return parts.join(" — ") || "—";
-  }, [form.deviceType, form.screenCondition, form.screenNotes]);
+  }, [form.deviceType, form.assetCategory, form.screenCondition, form.screenNotes]);
 
   const assetCategory = String(form.assetCategory || "end_user") as AssetCategory;
   const deviceType = String(form.deviceType);
   const infra = mode === "asset" && assetCategory === "infrastructure";
   const infraServer = infra && showsInfraServerSpecs(deviceType);
   const infraNetwork = infra && showsInfraNetworkSpecs(deviceType);
+  const infraStorage = infra && showsInfraStorageSpecs(deviceType);
+  const infraMonitor = infra && showsInfraMonitorSpecs(deviceType);
 
   const departmentOptions = useMemo(
     () => [{ value: "", label: "Select department..." }, ...departments.map((d) => ({ value: d.id, label: d.name }))],
@@ -639,6 +647,31 @@ export function DeviceInventoryForm({
           )}
         </div>
 
+        {infraMonitor && (
+        <Subsection title="Display">
+          <Field label="Display Condition">
+            <Select
+              value={String(form.screenCondition)}
+              onChange={(v) => set("screenCondition", v)}
+              options={screenConditionSelectOptions}
+              placeholder="Select condition..."
+              disabled={!write}
+            />
+          </Field>
+          <Field label="Issue Description">
+            <textarea
+              className={inputClass}
+              rows={2}
+              value={String(form.screenNotes)}
+              onChange={(e) => set("screenNotes", e.target.value)}
+              placeholder="e.g. dead pixels, flickering, cracked panel, dim backlight"
+              readOnly={!write}
+            />
+          </Field>
+          <RecordedPreview label="Recorded display" value={screenPreview} />
+        </Subsection>
+        )}
+
         {(!infra || infraServer) && (
         <Subsection title="Memory (RAM)">
           <div className="grid gap-3 sm:grid-cols-3">
@@ -695,7 +728,7 @@ export function DeviceInventoryForm({
         </Subsection>
         )}
 
-        {(!infra || infraServer) && (
+        {(!infra || infraServer || infraStorage) && (
         <Subsection title="Storage">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Primary — Type">
@@ -772,6 +805,9 @@ export function DeviceInventoryForm({
           )}
           {form.hasSecondaryStorage && (
             <RecordedPreview label="Recorded secondary storage" value={secondaryStoragePreview} />
+          )}
+          {infraStorage && (
+            <p className="text-xs text-slate-500">Record the external drive capacity, type, and model.</p>
           )}
         </Subsection>
         )}

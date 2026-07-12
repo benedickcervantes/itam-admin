@@ -15,6 +15,9 @@ import {
   hasBuiltInScreen,
   isComponentItemType,
   showsInfraServerSpecs,
+  showsInfraStorageSpecs,
+  showsInfraMonitorSpecs,
+  showsInfraNetworkSpecs,
   isLaptopDevice,
   parseLaptopKeyboard,
   parseLaptopPointer,
@@ -476,7 +479,11 @@ export function prepareComposedForm(form: DeviceFormState): DeviceFormState {
     String(body.printerSecondaryCondition),
   );
 
-  if (isLaptopDevice(String(body.deviceType)) || hasBuiltInScreen(String(body.deviceType))) {
+  if (
+    isLaptopDevice(String(body.deviceType)) ||
+    hasBuiltInScreen(String(body.deviceType)) ||
+    showsInfraMonitorSpecs(String(body.deviceType))
+  ) {
     body.screen = String(body.screenNotes);
     body.screenCondition = String(body.screenCondition);
   } else {
@@ -645,9 +652,21 @@ export function prepareAssetPayload(form: DeviceFormState): Record<string, strin
     if (!showsInfraServerSpecs(String(composed.deviceType))) {
       delete payload.processor;
       delete payload.ram;
-      delete payload.primaryStorage;
-      delete payload.secondaryStorage;
-      if (composed.macAddress) payload.macAddress = composed.macAddress;
+      if (!showsInfraStorageSpecs(String(composed.deviceType))) {
+        delete payload.primaryStorage;
+        delete payload.secondaryStorage;
+      }
+      delete payload.gpu;
+      delete payload.network;
+      delete payload.os;
+      delete payload.osLicenseStatus;
+      if (showsInfraNetworkSpecs(String(composed.deviceType)) && composed.macAddress) {
+        payload.macAddress = composed.macAddress;
+      }
+      if (showsInfraMonitorSpecs(String(composed.deviceType))) {
+        if (composed.screen) payload.screen = composed.screen;
+        if (composed.screenCondition) payload.screenCondition = composed.screenCondition;
+      }
     }
   } else {
     payload.printer = composed.printer;
