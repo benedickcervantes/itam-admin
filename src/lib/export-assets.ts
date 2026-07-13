@@ -5,11 +5,50 @@ import type { Asset } from "./types";
 // Asset Dashboard export (Excel + PDF). Independent from the IT Audit export.
 // ---------------------------------------------------------------------------
 
+export type AssetExportColumnKey =
+  | "assetId"
+  | "itemType"
+  | "deviceType"
+  | "computer"
+  | "brandModel"
+  | "serialNo"
+  | "assignedTo"
+  | "jobTitle"
+  | "department"
+  | "status"
+  | "condition"
+  | "processor"
+  | "ram"
+  | "primaryStorage"
+  | "secondaryStorage"
+  | "graphicsCard"
+  | "network"
+  | "operatingSystem"
+  | "osLicense"
+  | "macAddress"
+  | "monitor"
+  | "keyboard"
+  | "mouse"
+  | "printer"
+  | "location"
+  | "managementIp"
+  | "rackSlot"
+  | "portCount"
+  | "linkedAudit"
+  | "lastAuditDate"
+  | "notes";
+
 type Column = {
+  key: AssetExportColumnKey;
   header: string;
   required?: boolean;
   width?: number;
   value: (row: Asset) => string;
+};
+
+export type AssetExportColumnSection = {
+  title: string;
+  columns: Array<{ key: AssetExportColumnKey; header: string; required?: boolean }>;
 };
 
 type ColumnSection = {
@@ -35,70 +74,85 @@ const COLUMN_SECTIONS: ColumnSection[] = [
   {
     title: "IDENTIFICATION",
     columns: [
-      { header: "Asset ID", required: true, width: 14, value: (r) => r.asset_code },
-      { header: "Item Type", width: 14, value: (r) => labelEnumOrBlank(r.item_type ?? r.device_type) },
-      { header: "Device Type", width: 14, value: (r) => labelEnumOrBlank(r.device_type) },
-      { header: "Computer / Hostname", required: true, width: 24, value: (r) => r.computer_name ?? "" },
-      { header: "Brand / Model", width: 22, value: (r) => r.brand_model ?? "" },
-      { header: "Serial No.", width: 20, value: (r) => r.serial_number ?? "" },
+      { key: "assetId", header: "Asset ID", required: true, width: 14, value: (r) => r.asset_code },
+      { key: "itemType", header: "Item Type", width: 14, value: (r) => labelEnumOrBlank(r.item_type ?? r.device_type) },
+      { key: "deviceType", header: "Device Type", width: 14, value: (r) => labelEnumOrBlank(r.device_type) },
+      { key: "computer", header: "Computer / Hostname", required: true, width: 24, value: (r) => r.computer_name ?? "" },
+      { key: "brandModel", header: "Brand / Model", width: 22, value: (r) => r.brand_model ?? "" },
+      { key: "serialNo", header: "Serial No.", width: 20, value: (r) => r.serial_number ?? "" },
     ],
   },
   {
     title: "ASSIGNMENT",
     columns: [
-      { header: "Assigned To", width: 22, value: (r) => r.assigned_to ?? "" },
-      { header: "Job Title", width: 22, value: (r) => r.job_title ?? "" },
-      { header: "Department", width: 18, value: (r) => r.department?.name ?? "" },
-      { header: "Status", width: 14, value: (r) => labelEnumOrBlank(r.status) },
-      { header: "Condition", width: 14, value: (r) => labelEnumOrBlank(r.condition) },
+      { key: "assignedTo", header: "Assigned To", width: 22, value: (r) => r.assigned_to ?? "" },
+      { key: "jobTitle", header: "Job Title", width: 22, value: (r) => r.job_title ?? "" },
+      { key: "department", header: "Department", width: 18, value: (r) => r.department?.name ?? "" },
+      { key: "status", header: "Status", width: 14, value: (r) => labelEnumOrBlank(r.status) },
+      { key: "condition", header: "Condition", width: 14, value: (r) => labelEnumOrBlank(r.condition) },
     ],
   },
   {
     title: "SPECIFICATIONS",
     columns: [
-      { header: "Processor", width: 26, value: (r) => r.processor ?? "" },
-      { header: "RAM", width: 18, value: (r) => r.ram ?? "" },
-      { header: "Primary Storage", width: 28, value: (r) => r.primary_storage ?? "" },
-      { header: "Secondary Storage", width: 22, value: (r) => r.secondary_storage ?? "" },
-      { header: "Graphics Card", width: 24, value: (r) => r.gpu ?? "" },
-      { header: "Network", width: 24, value: (r) => r.network ?? "" },
-      { header: "Operating System", width: 18, value: (r) => r.os ?? "" },
-      { header: "OS License", width: 14, value: (r) => labelEnumOrBlank(r.os_license_status) },
-      { header: "MAC Address", width: 18, value: (r) => r.mac_address ?? "" },
+      { key: "processor", header: "Processor", width: 26, value: (r) => r.processor ?? "" },
+      { key: "ram", header: "RAM", width: 18, value: (r) => r.ram ?? "" },
+      { key: "primaryStorage", header: "Primary Storage", width: 28, value: (r) => r.primary_storage ?? "" },
+      { key: "secondaryStorage", header: "Secondary Storage", width: 22, value: (r) => r.secondary_storage ?? "" },
+      { key: "graphicsCard", header: "Graphics Card", width: 24, value: (r) => r.gpu ?? "" },
+      { key: "network", header: "Network", width: 24, value: (r) => r.network ?? "" },
+      { key: "operatingSystem", header: "Operating System", width: 18, value: (r) => r.os ?? "" },
+      { key: "osLicense", header: "OS License", width: 14, value: (r) => labelEnumOrBlank(r.os_license_status) },
+      { key: "macAddress", header: "MAC Address", width: 18, value: (r) => r.mac_address ?? "" },
     ],
   },
   {
     title: "PERIPHERALS",
     columns: [
-      { header: "Monitor", width: 26, value: (r) => r.monitor ?? "" },
-      { header: "Keyboard", width: 18, value: (r) => r.keyboard ?? "" },
-      { header: "Mouse", width: 16, value: (r) => r.mouse ?? "" },
-      { header: "Printer", width: 24, value: (r) => r.printer ?? "" },
+      { key: "monitor", header: "Monitor", width: 26, value: (r) => r.monitor ?? "" },
+      { key: "keyboard", header: "Keyboard", width: 18, value: (r) => r.keyboard ?? "" },
+      { key: "mouse", header: "Mouse", width: 16, value: (r) => r.mouse ?? "" },
+      { key: "printer", header: "Printer", width: 24, value: (r) => r.printer ?? "" },
     ],
   },
   {
     title: "INFRASTRUCTURE",
     columns: [
-      { header: "Location", width: 20, value: (r) => r.location ?? "" },
-      { header: "Management IP", width: 16, value: (r) => r.management_ip ?? "" },
-      { header: "Rack / Slot", width: 14, value: (r) => r.rack_slot ?? "" },
-      { header: "Port Count", width: 10, value: (r) => (r.port_count != null ? String(r.port_count) : "") },
+      { key: "location", header: "Location", width: 20, value: (r) => r.location ?? "" },
+      { key: "managementIp", header: "Management IP", width: 16, value: (r) => r.management_ip ?? "" },
+      { key: "rackSlot", header: "Rack / Slot", width: 14, value: (r) => r.rack_slot ?? "" },
+      { key: "portCount", header: "Port Count", width: 10, value: (r) => (r.port_count != null ? String(r.port_count) : "") },
     ],
   },
   {
     title: "AUDIT LINK",
     columns: [
-      { header: "Linked Audit", width: 14, value: (r) => r.audit_register?.audit_code ?? "" },
-      { header: "Last Audit Date", width: 14, value: (r) => fmtDate(r.last_audit_date) },
+      { key: "linkedAudit", header: "Linked Audit", width: 14, value: (r) => r.audit_register?.audit_code ?? "" },
+      { key: "lastAuditDate", header: "Last Audit Date", width: 14, value: (r) => fmtDate(r.last_audit_date) },
     ],
   },
   {
     title: "NOTES",
-    columns: [{ header: "Notes", width: 34, value: (r) => r.notes ?? "" }],
+    columns: [{ key: "notes", header: "Notes", width: 34, value: (r) => r.notes ?? "" }],
   },
 ];
 
-const COLUMNS: Column[] = COLUMN_SECTIONS.flatMap((s) => s.columns);
+export const ASSET_EXPORT_COLUMN_SECTIONS: AssetExportColumnSection[] = COLUMN_SECTIONS.map((section) => ({
+  title: section.title,
+  columns: section.columns.map(({ key, header, required }) => ({ key, header, required })),
+}));
+
+export const ALL_ASSET_EXPORT_COLUMN_KEYS: AssetExportColumnKey[] = COLUMN_SECTIONS.flatMap((section) =>
+  section.columns.map((column) => column.key),
+);
+
+function resolveExportSections(selectedColumnKeys?: AssetExportColumnKey[]): ColumnSection[] {
+  const selected = new Set(selectedColumnKeys ?? ALL_ASSET_EXPORT_COLUMN_KEYS);
+  return COLUMN_SECTIONS.map((section) => ({
+    ...section,
+    columns: section.columns.filter((column) => selected.has(column.key)),
+  })).filter((section) => section.columns.length > 0);
+}
 
 function timestamp(): string {
   const now = new Date();
@@ -118,23 +172,33 @@ function escapeHtml(value: string): string {
 
 // --- PDF (styled print window) ---------------------------------------------
 
-export function exportAssetsPdf(rows: Asset[], filterSummary?: string): void {
+export function exportAssetsPdf(
+  rows: Asset[],
+  filterSummary?: string,
+  selectedColumnKeys?: AssetExportColumnKey[],
+): void {
+  const sections = resolveExportSections(selectedColumnKeys);
+  const columns = sections.flatMap((section) => section.columns);
   const generatedAt = new Date().toLocaleString();
-  const totalCols = COLUMNS.length;
+  const totalCols = columns.length;
 
-  const sectionCells = COLUMN_SECTIONS.map(
-    (section, i) =>
-      `<th colspan="${section.columns.length}" class="section ${i % 2 === 0 ? "sec-a" : "sec-b"}">${escapeHtml(
-        section.title,
-      )}</th>`,
-  ).join("");
+  const sectionCells = sections
+    .map(
+      (section, i) =>
+        `<th colspan="${section.columns.length}" class="section ${i % 2 === 0 ? "sec-a" : "sec-b"}">${escapeHtml(
+          section.title,
+        )}</th>`,
+    )
+    .join("");
 
-  const headerCells = COLUMNS.map(
-    (c) => `<th class="${c.required ? "req" : "opt"}">${escapeHtml(c.header)}${c.required ? " *" : ""}</th>`,
-  ).join("");
+  const headerCells = columns
+    .map(
+      (c) => `<th class="${c.required ? "req" : "opt"}">${escapeHtml(c.header)}${c.required ? " *" : ""}</th>`,
+    )
+    .join("");
 
   const bodyRows = rows
-    .map((row) => `<tr>${COLUMNS.map((c) => `<td>${escapeHtml(c.value(row))}</td>`).join("")}</tr>`)
+    .map((row) => `<tr>${columns.map((c) => `<td>${escapeHtml(c.value(row))}</td>`).join("")}</tr>`)
     .join("");
 
   const html = `<!DOCTYPE html>
@@ -215,7 +279,14 @@ const COLOR = {
   subtitle: "FF64748B",
 } as const;
 
-export async function exportAssetsExcel(rows: Asset[], filterSummary?: string): Promise<void> {
+export async function exportAssetsExcel(
+  rows: Asset[],
+  filterSummary?: string,
+  selectedColumnKeys?: AssetExportColumnKey[],
+): Promise<void> {
+  const sections = resolveExportSections(selectedColumnKeys);
+  const columns = sections.flatMap((section) => section.columns);
+
   const ExcelJS = (await import("exceljs")).default;
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "ITAM Admin";
@@ -225,8 +296,8 @@ export async function exportAssetsExcel(rows: Asset[], filterSummary?: string): 
     pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
   });
 
-  const colCount = COLUMNS.length;
-  COLUMNS.forEach((c, i) => {
+  const colCount = columns.length;
+  columns.forEach((c, i) => {
     ws.getColumn(i + 1).width = c.width ?? 16;
   });
 
@@ -258,7 +329,7 @@ export async function exportAssetsExcel(rows: Asset[], filterSummary?: string): 
 
   // Row 3: section group headers
   let start = 1;
-  COLUMN_SECTIONS.forEach((section, idx) => {
+  sections.forEach((section, idx) => {
     const end = start + section.columns.length - 1;
     ws.mergeCells(3, start, 3, end);
     const cell = ws.getCell(3, start);
@@ -279,7 +350,7 @@ export async function exportAssetsExcel(rows: Asset[], filterSummary?: string): 
 
   // Row 4: column headers
   const headerRow = ws.getRow(4);
-  COLUMNS.forEach((col, i) => {
+  columns.forEach((col, i) => {
     const cell = headerRow.getCell(i + 1);
     cell.value = col.required ? `${col.header} *` : col.header;
     cell.font = { name: "Segoe UI", size: 9, bold: true, color: { argb: COLOR.white } };
@@ -296,7 +367,7 @@ export async function exportAssetsExcel(rows: Asset[], filterSummary?: string): 
   // Data rows
   rows.forEach((row, rowIdx) => {
     const excelRow = ws.getRow(5 + rowIdx);
-    COLUMNS.forEach((col, i) => {
+    columns.forEach((col, i) => {
       const cell = excelRow.getCell(i + 1);
       cell.value = col.value(row);
       cell.font = { name: "Segoe UI", size: 9, color: { argb: "FF1E293B" } };
