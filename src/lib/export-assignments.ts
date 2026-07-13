@@ -1,24 +1,84 @@
 import type { Assignment } from "./types";
 
-const COLUMNS: { header: string; width: number; value: (row: Assignment) => string }[] = [
-  { header: "Record ID", width: 14, value: (r) => r.record_code },
-  { header: "Asset ID", width: 14, value: (r) => r.asset?.asset_code ?? "" },
-  { header: "Computer", width: 22, value: (r) => r.asset?.computer_name ?? "" },
-  { header: "Assigned To", width: 22, value: (r) => r.assigned_to },
-  { header: "Department", width: 18, value: (r) => r.department?.name ?? "" },
-  { header: "Assigned Date", width: 14, value: (r) => r.assigned_date.slice(0, 10) },
-  { header: "Returned Date", width: 14, value: (r) => r.returned_date?.slice(0, 10) ?? "" },
-  { header: "Assigned By", width: 18, value: (r) => r.assigned_by ?? "" },
-  { header: "Notes", width: 28, value: (r) => r.notes ?? "" },
+export type AssignmentExportColumnKey =
+  | "recordId"
+  | "assetId"
+  | "computer"
+  | "assignedTo"
+  | "department"
+  | "assignedDate"
+  | "returnedDate"
+  | "assignedBy"
+  | "notes";
+
+type Column = {
+  key: AssignmentExportColumnKey;
+  header: string;
+  width: number;
+  value: (row: Assignment) => string;
+};
+
+export type AssignmentExportColumnSection = {
+  title: string;
+  columns: Array<{ key: AssignmentExportColumnKey; header: string }>;
+};
+
+type ColumnSection = {
+  title: string;
+  columns: Column[];
+};
+
+const COLUMN_SECTIONS: ColumnSection[] = [
+  {
+    title: "ASSET",
+    columns: [
+      { key: "recordId", header: "Record ID", width: 14, value: (r) => r.record_code },
+      { key: "assetId", header: "Asset ID", width: 14, value: (r) => r.asset?.asset_code ?? "" },
+      { key: "computer", header: "Computer", width: 22, value: (r) => r.asset?.computer_name ?? "" },
+    ],
+  },
+  {
+    title: "ASSIGNMENT",
+    columns: [
+      { key: "assignedTo", header: "Assigned To", width: 22, value: (r) => r.assigned_to },
+      { key: "department", header: "Department", width: 18, value: (r) => r.department?.name ?? "" },
+      { key: "assignedDate", header: "Assigned Date", width: 14, value: (r) => r.assigned_date.slice(0, 10) },
+      { key: "returnedDate", header: "Returned Date", width: 14, value: (r) => r.returned_date?.slice(0, 10) ?? "" },
+      { key: "assignedBy", header: "Assigned By", width: 18, value: (r) => r.assigned_by ?? "" },
+    ],
+  },
+  {
+    title: "NOTES",
+    columns: [{ key: "notes", header: "Notes", width: 28, value: (r) => r.notes ?? "" }],
+  },
 ];
 
-function rowsToMatrix(rows: Assignment[]) {
-  return rows.map((row) => COLUMNS.map((col) => col.value(row)));
+export const ASSIGNMENT_EXPORT_COLUMN_SECTIONS: AssignmentExportColumnSection[] = COLUMN_SECTIONS.map((section) => ({
+  title: section.title,
+  columns: section.columns.map(({ key, header }) => ({ key, header })),
+}));
+
+export const ALL_ASSIGNMENT_EXPORT_COLUMN_KEYS: AssignmentExportColumnKey[] = COLUMN_SECTIONS.flatMap((section) =>
+  section.columns.map((column) => column.key),
+);
+
+function resolveExportColumns(selectedColumnKeys?: AssignmentExportColumnKey[]): Column[] {
+  const selected = new Set(selectedColumnKeys ?? ALL_ASSIGNMENT_EXPORT_COLUMN_KEYS);
+  return COLUMN_SECTIONS.flatMap((section) => section.columns.filter((column) => selected.has(column.key)));
 }
 
-export function exportAssignmentsPdf(rows: Assignment[], filterSummary?: string) {
-  const headers = COLUMNS.map((c) => c.header);
-  const body = rowsToMatrix(rows);
+function rowsToMatrix(rows: Assignment[], columns: Column[]) {
+  return rows.map((row) => columns.map((col) => col.value(row)));
+}
+
+export function exportAssignmentsPdf(
+  rows: Assignment[],
+  filterSummary?: string,
+  selectedColumnKeys?: AssignmentExportColumnKey[],
+) {
+  const columns = resolveExportColumns(selectedColumnKeys);
+  const headers = columns.map((c) => c.header);
+  const body = rowsToMatrix(rows, columns);
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Assignments Export</title>
 <style>
 body{font-family:Segoe UI,Arial,sans-serif;margin:24px;color:#111}
@@ -42,23 +102,28 @@ tr:nth-child(even) td{background:#f8fafc}
   w.print();
 }
 
-export async function exportAssignmentsExcel(rows: Assignment[], filterSummary?: string) {
+export async function exportAssignmentsExcel(
+  rows: Assignment[],
+  filterSummary?: string,
+  selectedColumnKeys?: AssignmentExportColumnKey[],
+) {
+  const columns = resolveExportColumns(selectedColumnKeys);
   const ExcelJS = (await import("exceljs")).default;
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "ITAM Admin";
   workbook.created = new Date();
   const ws = workbook.addWorksheet("Assignments");
 
-  COLUMNS.forEach((c, i) => {
+  columns.forEach((c, i) => {
     ws.getColumn(i + 1).width = c.width;
   });
 
-  ws.addRow(COLUMNS.map((c) => c.header));
+  ws.addRow(columns.map((c) => c.header));
   const headerRow = ws.getRow(1);
   headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
   headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF2E7D9A" } };
 
-  rows.forEach((row) => ws.addRow(COLUMNS.map((c) => c.value(row))));
+  rows.forEach((row) => ws.addRow(columns.map((c) => c.value(row))));
 
   if (filterSummary) {
     const info = workbook.addWorksheet("Info");

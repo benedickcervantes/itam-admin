@@ -35,7 +35,13 @@ import {
 } from "@/lib/api/disposals";
 import { verifyPassword } from "@/lib/api/auth";
 import { canWrite } from "@/lib/auth/permissions";
-import { exportDisposalsExcel, exportDisposalsPdf } from "@/lib/export-disposals";
+import { DisposalExportColumnDialog } from "@/components/DisposalExportColumnDialog";
+import {
+  ALL_DISPOSAL_EXPORT_COLUMN_KEYS,
+  exportDisposalsExcel,
+  exportDisposalsPdf,
+  type DisposalExportColumnKey,
+} from "@/lib/export-disposals";
 import { todayIso, validateDisposalForm } from "@/lib/disposal-form";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 import { labelEnum } from "@/lib/labels";
@@ -92,6 +98,7 @@ export default function DisposalsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>(readStoredViewMode);
   const [exporting, setExporting] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DisposalRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
@@ -120,8 +127,24 @@ export default function DisposalsPage() {
     return parts.length ? parts.join(" · ") : "None (all records)";
   };
 
-  const runExport = async (format: "excel" | "pdf") => {
+  const buildExportFilterSummary = (columns: DisposalExportColumnKey[]) => {
+    const parts = [buildFilterSummary()];
+    if (columns.length < ALL_DISPOSAL_EXPORT_COLUMN_KEYS.length) {
+      parts.push(`Columns: ${columns.length} of ${ALL_DISPOSAL_EXPORT_COLUMN_KEYS.length}`);
+    }
+    return parts.join(" · ");
+  };
+
+  const runExport = async (
+    format: "excel" | "pdf",
+    columns: DisposalExportColumnKey[] = ALL_DISPOSAL_EXPORT_COLUMN_KEYS,
+  ) => {
     if (exporting) return;
+    if (columns.length === 0) {
+      setError("Select at least one column to export.");
+      setExportDialogOpen(true);
+      return;
+    }
     setExportMenuOpen(false);
     setExporting(true);
     setError("");
@@ -135,13 +158,17 @@ export default function DisposalsPage() {
         setError("No disposal records match the current filters to export.");
         return;
       }
+      const filterSummary = buildExportFilterSummary(columns);
       if (format === "excel") {
-        await exportDisposalsExcel(rows, buildFilterSummary());
+        await exportDisposalsExcel(rows, filterSummary, columns);
       } else {
-        exportDisposalsPdf(rows, buildFilterSummary());
+        exportDisposalsPdf(rows, filterSummary, columns);
       }
       const label = format === "excel" ? "Excel" : "PDF";
-      setSuccess(`Exported ${rows.length} disposal ${rows.length === 1 ? "record" : "records"} to ${label}.`);
+      setSuccess(
+        `Exported ${rows.length} disposal ${rows.length === 1 ? "record" : "records"} to ${label} (${columns.length} column${columns.length === 1 ? "" : "s"}).`,
+      );
+      setExportDialogOpen(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Export failed");
     } finally {
@@ -399,8 +426,24 @@ export default function DisposalsPage() {
             {exportMenuOpen && !exporting && (
               <div
                 role="menu"
-                className="absolute right-0 z-20 mt-1 w-full min-w-[11rem] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-lg sm:w-auto"
+                className="absolute right-0 z-20 mt-1 w-full min-w-[14rem] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-lg sm:w-auto"
               >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setExportMenuOpen(false);
+                    setExportDialogOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                >
+                  <Download className="h-4 w-4 text-[#2E7D9A]" />
+                  Customize columns...
+                  <span className="ml-auto text-xs text-slate-500">
+                    {ALL_DISPOSAL_EXPORT_COLUMN_KEYS.length} columns
+                  </span>
+                </button>
+                <div className="border-t border-slate-800" />
                 <button
                   type="button"
                   role="menuitem"
@@ -625,6 +668,16 @@ export default function DisposalsPage() {
           />
         )}
       </Drawer>
+
+      <DisposalExportColumnDialog
+        open={exportDialogOpen}
+        filterSummary={buildFilterSummary()}
+        exporting={exporting}
+        onClose={() => {
+          if (!exporting) setExportDialogOpen(false);
+        }}
+        onExport={(format, columns) => void runExport(format, columns)}
+      />
 
       <ConfirmDialog
         open={deleteTarget !== null}
