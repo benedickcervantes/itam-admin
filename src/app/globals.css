@@ -343,6 +343,62 @@ table.data-table th.cell-clip {
   animation: login-overlay-check 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
+/* Auth radar / inventory scan overlay */
+@keyframes radar-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes radar-blip-in {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes radar-blip-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(79, 176, 206, 0.55);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(79, 176, 206, 0);
+  }
+}
+
+.radar-sweep {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(79, 176, 206, 0.35) 50deg,
+    transparent 70deg
+  );
+  animation: radar-sweep 2.2s linear infinite;
+  opacity: 0.85;
+  mask-image: radial-gradient(circle, transparent 12%, black 13%);
+  -webkit-mask-image: radial-gradient(circle, transparent 12%, black 13%);
+}
+
+.radar-blip {
+  animation: radar-blip-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.radar-blip-pulse {
+  animation: radar-blip-pulse 1.2s ease-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-flow-up,
   .hero-flow-down,
@@ -351,7 +407,10 @@ table.data-table th.cell-clip {
   .hero-hub-glow,
   .animate-pulse-subtle,
   .login-overlay-ring,
-  .login-overlay-glow {
+  .login-overlay-glow,
+  .radar-sweep,
+  .radar-blip,
+  .radar-blip-pulse {
     animation: none;
   }
 }
