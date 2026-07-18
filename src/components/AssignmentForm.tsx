@@ -1,10 +1,10 @@
 "use client";
 
-import { Calendar, FileText, History, Monitor, RotateCcw, User } from "lucide-react";
+import { Calendar, FileText, Monitor, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/Badge";
 import { Field, inputClass, selectClass } from "@/components/Drawer";
-import { todayIso, type AssignmentFormMode } from "@/lib/assignment-form";
+import type { AssignmentFormMode } from "@/lib/assignment-form";
 import type { Asset, Department } from "@/lib/types";
 
 function FormSection({
@@ -92,14 +92,6 @@ export function AssignmentForm({
     set(patch);
   };
 
-  const markReturnedToday = () => {
-    set({ returnedDate: todayIso() });
-  };
-
-  const clearReturned = () => {
-    set({ returnedDate: "" });
-  };
-
   return (
     <div className="space-y-4">
       <FormSection
@@ -161,67 +153,25 @@ export function AssignmentForm({
       <FormSection
         id="assignment-timeline"
         title="Timeline"
-        description="Set when the device was handed over. Add a return date when the asset is collected back."
+        description="When this user was assigned the device."
         icon={Calendar}
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Assigned Date" required>
-            <input
-              type="date"
-              className={`${inputClass} ${fieldErrors.assignedDate ? "border-red-500/60" : ""}`}
-              value={form.assignedDate ?? ""}
-              onChange={(e) => set({ assignedDate: e.target.value })}
-              readOnly={readOnly}
-            />
-            <FieldError message={fieldErrors.assignedDate} />
-          </Field>
-
-          <Field label="Returned Date">
-            <input
-              type="date"
-              className={`${inputClass} ${fieldErrors.returnedDate ? "border-red-500/60" : ""}`}
-              value={form.returnedDate ?? ""}
-              onChange={(e) => set({ returnedDate: e.target.value })}
-              readOnly={readOnly}
-            />
-            <FieldError message={fieldErrors.returnedDate} />
-          </Field>
-        </div>
-
-        {!readOnly && (
-          <div className="flex flex-wrap gap-2">
-            {!form.returnedDate ? (
-              <button
-                type="button"
-                onClick={markReturnedToday}
-                className="inline-flex items-center gap-1.5 rounded-md border border-slate-600 px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-emerald-500/40 hover:text-emerald-300"
-              >
-                <RotateCcw className="h-3.5 w-3.5" /> Mark returned today
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={clearReturned}
-                className="inline-flex items-center gap-1.5 rounded-md border border-slate-600 px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:border-amber-500/40 hover:text-amber-300"
-              >
-                Clear return date
-              </button>
-            )}
-          </div>
-        )}
-
-        {form.returnedDate && (
-          <div className="flex items-center gap-2 rounded-lg border border-slate-600/40 bg-slate-950/30 px-3 py-2 text-xs text-slate-400">
-            <History className="h-3.5 w-3.5 shrink-0" />
-            Status will show as <Badge value="RETURNED" /> when a return date is set.
-          </div>
-        )}
+        <Field label="Assigned Date" required>
+          <input
+            type="date"
+            className={`${inputClass} ${fieldErrors.assignedDate ? "border-red-500/60" : ""}`}
+            value={form.assignedDate ?? ""}
+            onChange={(e) => set({ assignedDate: e.target.value })}
+            readOnly={readOnly}
+          />
+          <FieldError message={fieldErrors.assignedDate} />
+        </Field>
       </FormSection>
 
       <FormSection
         id="assignment-details"
         title="Record Details"
-        description="Who processed the assignment and any extra notes."
+        description="Who processed the handover and any extra notes."
         icon={User}
       >
         <Field label="Assigned By">
@@ -246,11 +196,12 @@ export function AssignmentForm({
         </Field>
       </FormSection>
 
-      {mode === "create" && (
-        <div className="flex items-start gap-2.5 rounded-lg border border-sky-500/20 bg-sky-500/5 px-3 py-2.5 text-xs text-sky-200/90">
-          <FileText className="mt-0.5 h-4 w-4 shrink-0 text-sky-300" />
+      {mode === "edit" && (
+        <div className="flex items-start gap-2.5 rounded-lg border border-slate-600/40 bg-slate-900/40 px-3 py-2.5 text-xs text-slate-400">
+          <FileText className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
           <p>
-            A new assignment record will be created. The asset inventory is not automatically updated — update the asset record separately if needed.
+            Prefer <span className="text-slate-300">Transfer to new user</span> for resignations.
+            Edit here only to correct an existing history record.
           </p>
         </div>
       )}
