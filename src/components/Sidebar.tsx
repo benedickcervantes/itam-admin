@@ -27,7 +27,7 @@ const NAV: NavEntry[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/audit-register", label: "IT Audit Register", icon: ClipboardList },
   { href: "/assets", label: "Assets", icon: HardDrive },
-  { href: "/assignments", label: "Assignments", icon: History },
+  { href: "/device-history", label: "Device History", icon: History },
   { href: "/maintenance", label: "Maintenance", icon: Wrench },
   { href: "/disposals", label: "Disposals", icon: Trash2 },
 ];

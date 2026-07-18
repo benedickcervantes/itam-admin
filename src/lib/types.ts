@@ -113,12 +113,13 @@ export type Asset = {
   } | null;
 };
 
-export type Assignment = {
+export type DeviceHistory = {
   id: string;
   record_code: string;
   asset_id: string;
   asset?: { asset_code: string; computer_name: string };
   assigned_to: string;
+  last_user?: string | null;
   department_id?: string | null;
   department?: { name: string } | null;
   assigned_date: string;
@@ -126,6 +127,9 @@ export type Assignment = {
   assigned_by?: string | null;
   notes?: string | null;
 };
+
+/** @deprecated Use DeviceHistory */
+export type Assignment = DeviceHistory;
 
 export type MaintenanceRecord = {
   id: string;

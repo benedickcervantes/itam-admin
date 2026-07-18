@@ -1,5 +1,8 @@
 const LABELS: Record<string, string> = {
   ACTIVE: "Active",
+  CURRENTLY_ASSIGNED: "Currently assigned",
+  REPLACED: "Replaced",
+  RETURNED: "Returned",
   RESIGNED: "Resigned",
   NEW_HIRE: "New Hire",
   ON_LEAVE: "On Leave",

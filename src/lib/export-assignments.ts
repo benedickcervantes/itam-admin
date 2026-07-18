@@ -5,6 +5,7 @@ export type AssignmentExportColumnKey =
   | "assetId"
   | "computer"
   | "assignedTo"
+  | "lastUser"
   | "department"
   | "assignedDate"
   | "returnedDate"
@@ -41,6 +42,7 @@ const COLUMN_SECTIONS: ColumnSection[] = [
     title: "ASSIGNMENT",
     columns: [
       { key: "assignedTo", header: "Assigned To", width: 22, value: (r) => r.assigned_to },
+      { key: "lastUser", header: "Last User", width: 22, value: (r) => r.last_user ?? "" },
       { key: "department", header: "Department", width: 18, value: (r) => r.department?.name ?? "" },
       { key: "assignedDate", header: "Assigned Date", width: 14, value: (r) => r.assigned_date.slice(0, 10) },
       { key: "returnedDate", header: "Returned Date", width: 14, value: (r) => r.returned_date?.slice(0, 10) ?? "" },
@@ -79,7 +81,7 @@ export function exportAssignmentsPdf(
   const columns = resolveExportColumns(selectedColumnKeys);
   const headers = columns.map((c) => c.header);
   const body = rowsToMatrix(rows, columns);
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Assignments Export</title>
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Device History Export</title>
 <style>
 body{font-family:Segoe UI,Arial,sans-serif;margin:24px;color:#111}
 h1{font-size:18px;margin:0 0 4px}
@@ -89,7 +91,7 @@ th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top}
 th{background:#1e3a5f;color:#fff}
 tr:nth-child(even) td{background:#f8fafc}
 </style></head><body>
-<h1>Assignment History Export</h1>
+<h1>Device History Export</h1>
 <div class="meta">${filterSummary ? `Filters: ${filterSummary}` : "All records"} · ${rows.length} row(s)</div>
 <table><thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
 <tbody>${body.map((r) => `<tr>${r.map((c) => `<td>${String(c).replace(/</g, "&lt;")}</td>`).join("")}</tr>`).join("")}</tbody>
@@ -112,7 +114,7 @@ export async function exportAssignmentsExcel(
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "ITAM Admin";
   workbook.created = new Date();
-  const ws = workbook.addWorksheet("Assignments");
+  const ws = workbook.addWorksheet("Device History");
 
   columns.forEach((c, i) => {
     ws.getColumn(i + 1).width = c.width;
@@ -138,7 +140,7 @@ export async function exportAssignmentsExcel(
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `assignments-export-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  a.download = `device-history-export-${new Date().toISOString().slice(0, 10)}.xlsx`;
   a.click();
   URL.revokeObjectURL(url);
 }
