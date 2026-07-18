@@ -25,13 +25,83 @@ export function getStoredAccessToken(): string | null {
   return getAccessToken();
 }
 
-export function normalizeErrorMessage(payload: unknown, fallback: string): string {
+const STATUS_MESSAGES: Record<number, string> = {
+  400: "Please check your input and try again.",
+  401: "Your session has expired. Please sign in again.",
+  403: "You don’t have permission to perform this action.",
+  404: "The requested item could not be found.",
+  408: "The request timed out. Please try again.",
+  409: "This action conflicts with existing data. Please refresh and try again.",
+  422: "Please check your input and try again.",
+  429: "You’re making requests too quickly. Please wait a moment and try again.",
+  500: "Something went wrong on our end. Please try again later.",
+  502: "The server is temporarily unavailable. Please try again later.",
+  503: "The service is temporarily unavailable. Please try again later.",
+  504: "The server took too long to respond. Please try again.",
+};
+
+/** NestJS / framework messages that should not be shown raw to end users. */
+const TECHNICAL_MESSAGE_PATTERNS: Array<{ test: RegExp; status?: number; message: string }> = [
+  {
+    test: /throttler|too many requests|rate.?limit/i,
+    status: 429,
+    message: STATUS_MESSAGES[429],
+  },
+  {
+    test: /unauthorized|jwt expired|invalid token|authentication required/i,
+    status: 401,
+    message: STATUS_MESSAGES[401],
+  },
+  {
+    test: /forbidden|access denied/i,
+    status: 403,
+    message: STATUS_MESSAGES[403],
+  },
+  {
+    test: /internal server error|econnrefused|networkerror|failed to fetch/i,
+    message: STATUS_MESSAGES[500],
+  },
+];
+
+function stripExceptionPrefix(message: string): string {
+  return message.replace(/^[A-Za-z]+Exception:\s*/i, "").trim();
+}
+
+function isTechnicalMessage(message: string): boolean {
+  return (
+    /^[A-Za-z]+Exception\b/i.test(message) ||
+    TECHNICAL_MESSAGE_PATTERNS.some(({ test }) => test.test(message))
+  );
+}
+
+function friendlyMessageFor(raw: string, status?: number): string {
+  const cleaned = stripExceptionPrefix(raw);
+  for (const rule of TECHNICAL_MESSAGE_PATTERNS) {
+    if (rule.test.test(raw) || rule.test.test(cleaned)) {
+      return rule.message;
+    }
+  }
+  if (status && STATUS_MESSAGES[status] && isTechnicalMessage(raw)) {
+    return STATUS_MESSAGES[status];
+  }
+  if (cleaned) return cleaned;
+  if (status && STATUS_MESSAGES[status]) return STATUS_MESSAGES[status];
+  return "Something went wrong. Please try again.";
+}
+
+export function normalizeErrorMessage(
+  payload: unknown,
+  fallback: string,
+  status?: number,
+): string {
+  let raw = "";
   if (payload && typeof payload === "object") {
     const message = (payload as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) return message.trim();
-    if (Array.isArray(message) && typeof message[0] === "string") return message[0];
+    if (typeof message === "string" && message.trim()) raw = message.trim();
+    else if (Array.isArray(message) && typeof message[0] === "string") raw = message[0];
   }
-  return fallback;
+  if (!raw) raw = fallback;
+  return friendlyMessageFor(raw, status);
 }
 
 type ApiFetchOptions = RequestInit & {
@@ -59,13 +129,23 @@ export async function apiFetch(path: string, options: ApiFetchOptions = {}) {
 }
 
 export async function apiJson<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
-  const res = await apiFetch(path, options);
+  let res: Response;
+  try {
+    res = await apiFetch(path, options);
+  } catch (err) {
+    if (err instanceof Error && /authentication required/i.test(err.message)) {
+      throw new Error(STATUS_MESSAGES[401]);
+    }
+    throw new Error("Unable to reach the server. Check your connection and try again.");
+  }
   const payload = await res.json().catch(() => ({}));
   if (!res.ok) {
     if (res.status === 401 && options.auth && typeof window !== "undefined") {
       clearSession();
     }
-    throw new Error(normalizeErrorMessage(payload, `Request failed (${res.status})`));
+    throw new Error(
+      normalizeErrorMessage(payload, STATUS_MESSAGES[res.status] ?? `Request failed (${res.status})`, res.status),
+    );
   }
   return payload as T;
 }
