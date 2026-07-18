@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AlertCircle,
   ArrowRight,
@@ -10,12 +10,12 @@ import {
   Loader2,
   Lock,
   Mail,
-  Monitor,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Grainient from "@/components/Grainient";
 import LoginHeroVisual from "@/components/LoginHeroVisual";
 import LoginSuccessOverlay from "@/components/LoginSuccessOverlay";
+import SessionLoadingOverlay from "@/components/SessionLoadingOverlay";
 import TextType from "@/components/TextType";
 import { fetchProfile, login } from "@/lib/api/auth";
 import {
@@ -28,6 +28,8 @@ import {
   clearSession,
   getAccessToken,
   getRememberMePreference,
+  getStoredUser,
+  markSkipSessionOverlay,
   persistSession,
 } from "@/lib/auth/session";
 
@@ -84,6 +86,9 @@ export default function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [support, setSupport] = useState<PortalConfig | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [restoringSession, setRestoringSession] = useState(false);
+  const [sessionRestoreReady, setSessionRestoreReady] = useState(false);
+  const [sessionOverlayDone, setSessionOverlayDone] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
   const [successName, setSuccessName] = useState<string | null>(null);
   const router = useRouter();
@@ -98,13 +103,31 @@ export default function LoginPage() {
       setCheckingSession(false);
       return;
     }
+    setRestoringSession(true);
+    const stored = getStoredUser();
+    if (stored?.fullName) setSuccessName(stored.fullName);
     fetchProfile()
-      .then(() => router.replace("/dashboard"))
+      .then((profile) => {
+        persistSession(token, profile);
+        setSuccessName(profile.fullName ?? null);
+        setSessionRestoreReady(true);
+      })
       .catch(() => {
         clearSession();
+        setRestoringSession(false);
         setCheckingSession(false);
       });
-  }, [router]);
+  }, []);
+
+  useEffect(() => {
+    if (!sessionRestoreReady || !sessionOverlayDone) return;
+    markSkipSessionOverlay();
+    router.replace("/dashboard");
+  }, [sessionRestoreReady, sessionOverlayDone, router]);
+
+  const handleSessionOverlayComplete = useCallback(() => {
+    setSessionOverlayDone(true);
+  }, []);
 
   useEffect(() => {
     void fetchPortalConfig()
@@ -127,6 +150,7 @@ export default function LoginPage() {
       persistSession(result.accessToken, result.user, rememberMe);
       router.prefetch("/dashboard");
       setSuccessName(result.user.fullName ?? null);
+      markSkipSessionOverlay();
       setLoginSuccess(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.");
@@ -143,14 +167,13 @@ export default function LoginPage() {
 
   if (checkingSession) {
     return (
-      <div className="flex h-dvh flex-col items-center justify-center gap-4 bg-[#0F172A] text-slate-300">
-        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#2E7D9A] to-[#1E3A5F] text-white shadow-lg shadow-[#2E7D9A]/20 ring-1 ring-white/10">
-          <Monitor className="h-7 w-7" />
-        </span>
-        <div className="flex items-center gap-2 text-sm text-slate-400">
-          <Loader2 className="h-4 w-4 animate-spin text-[#2E7D9A]" />
-          Loading session…
-        </div>
+      <div className="relative min-h-dvh w-full bg-[#0F172A]">
+        {restoringSession && (
+          <SessionLoadingOverlay
+            userName={successName}
+            onComplete={handleSessionOverlayComplete}
+          />
+        )}
       </div>
     );
   }

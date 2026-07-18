@@ -10,6 +10,20 @@ export type ItamUser = {
 const TOKEN_KEY = "itam_access_token";
 const USER_KEY = "itam_user";
 const REMEMBER_KEY = "itam_remember_me";
+/** Skip the session-restore overlay once (e.g. after login / restore animation). */
+const SKIP_SESSION_OVERLAY_KEY = "itam_skip_session_overlay";
+
+export function markSkipSessionOverlay() {
+  if (typeof window === "undefined") return;
+  sessionStorage.setItem(SKIP_SESSION_OVERLAY_KEY, "1");
+}
+
+export function consumeSkipSessionOverlay(): boolean {
+  if (typeof window === "undefined") return false;
+  const skip = sessionStorage.getItem(SKIP_SESSION_OVERLAY_KEY) === "1";
+  if (skip) sessionStorage.removeItem(SKIP_SESSION_OVERLAY_KEY);
+  return skip;
+}
 
 function readRememberPreference(): boolean {
   if (typeof window === "undefined") return true;
