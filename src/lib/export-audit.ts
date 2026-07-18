@@ -112,7 +112,7 @@ const COLUMN_SECTIONS: ColumnSection[] = [
     columns: [
       { key: "monitor", header: "Monitor", width: 28, value: (r) => r.monitor ?? "" },
       { key: "keyboard", header: "Keyboard", width: 22, value: (r) => joinWithCondition(r.keyboard, r.keyboard_condition) },
-      { key: "mouse", header: "Mouse", width: 20, value: (r) => joinWithCondition(r.mouse, r.mouse_type) },
+      { key: "mouse", header: "Mouse", width: 20, value: (r) => joinWithCondition(r.mouse, r.mouse_condition) },
       { key: "printer", header: "Printer", width: 26, value: (r) => r.printer ?? "" },
     ],
   },

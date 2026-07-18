@@ -39,7 +39,7 @@ import { canWrite } from "@/lib/auth/permissions";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 import { labelEnum } from "@/lib/labels";
 import { useSessionUser } from "@/components/SessionContext";
-import { emptyForm, emptyFormForCategory, formStateFromAsset, isComponentItemType, prepareAssetPayload, ramSlotDefaults, showsInfraNetworkSpecs, showsInfraServerSpecs, showsInfraStorageSpecs, validateAssetForm, type AssetCategory } from "@/lib/device-form";
+import { emptyForm, emptyFormForCategory, formStateFromAsset, isComponentItemType, isSparePeripheralCategory, prepareAssetPayload, ramSlotDefaults, showsInfraNetworkSpecs, showsInfraServerSpecs, showsInfraStorageSpecs, validateAssetForm, type AssetCategory } from "@/lib/device-form";
 import type { Asset, Department } from "@/lib/types";
 
 type ViewMode = "table" | "grid";
@@ -355,7 +355,9 @@ export default function AssetsPage() {
   const set = (key: string, value: string | boolean) =>
     setForm((f) => {
       const next = { ...f, [key]: value };
-      if (String(f.assetCategory || "end_user") !== "end_user") return next;
+      const category = String(f.assetCategory || "end_user");
+      // Assignee ↔ status sync for end-user devices and shared printers
+      if (category === "infrastructure") return next;
 
       if (key === "employeeName") {
         const assignedTo = String(value).trim();
@@ -662,14 +664,18 @@ export default function AssetsPage() {
         open={drawerOpen}
         title={
           !editing
-            ? "New Asset"
+            ? isSparePeripheralCategory(String(form.assetCategory))
+              ? `New Spare ${labelEnum(String(form.itemType || "PRINTER"))}`
+              : "New Asset"
             : drawerMode === "edit"
               ? `Edit ${editing.asset_code}`
               : `View ${editing.asset_code}`
         }
         subtitle={
           !editing
-            ? "Register a device in the assets inventory"
+            ? isSparePeripheralCategory(String(form.assetCategory))
+              ? "No assignee — spare / reserved stock for any department"
+              : "Register a device in the assets inventory"
             : drawerMode === "edit"
               ? "Update hardware inventory details"
               : "Hardware inventory summary"
@@ -677,7 +683,9 @@ export default function AssetsPage() {
         onClose={closeDrawer}
         wide
         toolbar={
-          drawerMode !== "view" && !isComponentItemType(String(form.itemType)) ? (
+          drawerMode !== "view" &&
+          !isComponentItemType(String(form.itemType)) &&
+          !isSparePeripheralCategory(String(form.assetCategory)) ? (
             <DeviceFormToolbar
               mode="asset"
               deviceType={String(form.deviceType)}
@@ -730,7 +738,11 @@ export default function AssetsPage() {
                 className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center gap-1.5 rounded-lg border border-transparent bg-[#2E7D9A] px-3 text-sm font-medium leading-none text-white hover:bg-[#256b85] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving && <Loader2 className="h-4 w-4 shrink-0 animate-spin" />}
-                {saving ? "Saving..." : "Save Asset"}
+                {saving
+                  ? "Saving..."
+                  : isSparePeripheralCategory(String(form.assetCategory)) && !editing
+                    ? "Save Peripheral"
+                    : "Save Asset"}
               </button>
             </div>
           ) : undefined
@@ -740,13 +752,16 @@ export default function AssetsPage() {
           <p className="py-12 text-center text-sm text-slate-400">Loading asset details...</p>
         ) : drawerMode === "view" && editing ? (
           <AssetDetailView asset={editing} />
-        ) : isComponentItemType(String(form.itemType)) ? (
+        ) : isComponentItemType(String(form.itemType)) ||
+          isSparePeripheralCategory(String(form.assetCategory)) ? (
           <PeripheralAssetForm
             form={form}
             set={set}
             write={write}
             departments={departments}
-            itemType={String(form.itemType)}
+            itemType={String(form.itemType || "PRINTER")}
+            createMode={!editing && drawerMode === "create"}
+            onAssetCategoryChange={onAssetCategoryChange}
           />
         ) : (
           <DeviceInventoryForm

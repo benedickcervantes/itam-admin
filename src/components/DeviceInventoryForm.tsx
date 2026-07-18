@@ -33,6 +33,7 @@ import {
   getOsEditionLabel,
   getOsEditionOptions,
   getOsEditionPlaceholder,
+  mouseConditions,
   peripheralConditions,
   screenConditions,
   showsInfraOs,
@@ -193,7 +194,7 @@ export function DeviceInventoryForm({
           String(form.trackpadNotes),
           Boolean(form.hasExternalMouse),
           String(form.mouseExternalModel),
-          String(form.mouseType),
+          String(form.mouseExternalCondition),
         ) || "—"
       );
     }
@@ -204,7 +205,7 @@ export function DeviceInventoryForm({
     form.trackpadNotes,
     form.hasExternalMouse,
     form.mouseExternalModel,
-    form.mouseType,
+    form.mouseExternalCondition,
     form.desktopMouseModel,
   ]);
 
@@ -317,8 +318,8 @@ export function DeviceInventoryForm({
     () => optionsFromStrings([...REFERENCE_DATA.recommendedActions], { emptyLabel: "—" }),
     [],
   );
-  const mouseTypeOptions = useMemo(
-    () => optionsFromStrings([...REFERENCE_DATA.mouseTypes], { emptyLabel: "—" }),
+  const mouseConditionOptions = useMemo(
+    () => optionsFromStrings(mouseConditions(), { emptyLabel: "—", labelFn: formatCondition }),
     [],
   );
   const screenConditionSelectOptions = useMemo(
@@ -375,6 +376,7 @@ export function DeviceInventoryForm({
               options={[
                 { value: "end_user", label: "End User Device" },
                 { value: "infrastructure", label: "Infrastructure" },
+                { value: "spare_peripheral", label: "Spare / Shared Peripheral" },
               ]}
               disabled={!write}
             />
@@ -1168,11 +1170,11 @@ export function DeviceInventoryForm({
                       readOnly={!write}
                     />
                   </Field>
-                  <Field label="External Mouse — Type">
+                  <Field label="External Mouse — Condition">
                     <Select
-                      value={String(form.mouseType)}
-                      onChange={(v) => set("mouseType", v)}
-                      options={mouseTypeOptions}
+                      value={String(form.mouseExternalCondition)}
+                      onChange={(v) => set("mouseExternalCondition", v)}
+                      options={mouseConditionOptions}
                       disabled={!write}
                     />
                   </Field>
@@ -1216,7 +1218,7 @@ export function DeviceInventoryForm({
               <Select
                 value={String(form.mouseCondition)}
                 onChange={(v) => set("mouseCondition", v)}
-                options={inputConditionOptions.filter((o) => o.value !== "N_A")}
+                options={mouseConditionOptions}
                 disabled={!write}
               />
             </Field>
