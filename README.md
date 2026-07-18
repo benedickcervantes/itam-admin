@@ -31,7 +31,7 @@ Open http://localhost:3000 and sign in with the seeded admin account (see backen
 | `/dashboard` | KPIs and summary tables (Excel Dashboard parity) |
 | `/audit-register` | IT Audit Register (37 fields, peripherals) |
 | `/assets` | Asset inventory |
-| `/assignments` | Assignment history |
+| `/device-history` | Monitor handovers (resign / user change) |
 | `/maintenance` | Maintenance log |
 | `/disposals` | Disposal log |
 | `/reference-data` | Lookup values (IT only) |

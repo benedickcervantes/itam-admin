@@ -24,6 +24,8 @@ const STYLES: Record<string, string> = {
   IT_ADMIN: "bg-sky-500/15 text-sky-300 ring-sky-500/30",
   VIEWER: "bg-slate-500/15 text-slate-300 ring-slate-500/30",
   ACTIVE: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+  CURRENTLY_ASSIGNED: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+  REPLACED: "bg-slate-500/15 text-slate-300 ring-slate-500/30",
   INACTIVE: "bg-slate-600/30 text-slate-400 ring-slate-500/30",
   RETURNED: "bg-slate-500/15 text-slate-300 ring-slate-500/30",
   NEW: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",

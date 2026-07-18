@@ -454,7 +454,7 @@ export function DeviceInventoryForm({
               {!String(form.employeeName).trim() && (
                 <p className="md:col-span-2 text-xs text-slate-500">
                   No assignee yet — keep status as <span className="text-slate-300">Available</span> or{" "}
-                  <span className="text-slate-300">Reserved</span>. Assign later via Edit or Assignments.
+                  <span className="text-slate-300">Reserved</span>. Assign later via Edit.
                 </p>
               )}
             </>
