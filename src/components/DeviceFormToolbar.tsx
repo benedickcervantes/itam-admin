@@ -13,7 +13,7 @@ export function DeviceFormToolbar({ mode, deviceType, assetCategory }: DeviceFor
     <nav className="flex gap-2 overflow-x-auto rounded-xl border border-slate-700/60 bg-slate-900/90 p-1.5">
       {getFormSections(mode, {
         deviceType,
-        assetCategory: assetCategory as "end_user" | "infrastructure" | undefined,
+        assetCategory: assetCategory as "end_user" | "infrastructure" | "spare_peripheral" | undefined,
       }).map(({ id, label, icon: Icon }) => (
         <button
           key={id}

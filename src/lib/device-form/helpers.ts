@@ -6,6 +6,7 @@ import {
   WINDOWS_OS_OPTIONS,
   MACOS_VERSIONS,
   LINUX_DISTROS,
+  MOUSE_CONDITIONS,
   PERIPHERAL_CONDITIONS,
   SCREEN_CONDITIONS,
 } from "./constants";
@@ -39,7 +40,28 @@ export const INFRASTRUCTURE_DEVICE_TYPES = [
   "OTHER",
 ] as const;
 
-export type AssetCategory = "end_user" | "infrastructure";
+export type AssetCategory = "end_user" | "infrastructure" | "spare_peripheral";
+
+export function isSparePeripheralCategory(category: string | null | undefined): boolean {
+  return category === "spare_peripheral";
+}
+
+/** @deprecated Use isSparePeripheralCategory */
+export const isSharedPrinterCategory = isSparePeripheralCategory;
+
+/** Item types that can be created as standalone spare / shared stock (no user). */
+export const SPARE_PERIPHERAL_ITEM_TYPES = [
+  "PRINTER",
+  "KEYBOARD",
+  "MOUSE",
+  "MONITOR",
+] as const;
+
+export type SparePeripheralItemType = (typeof SPARE_PERIPHERAL_ITEM_TYPES)[number];
+
+export function isSparePeripheralItemType(itemType: string | null | undefined): boolean {
+  return !!itemType && (SPARE_PERIPHERAL_ITEM_TYPES as readonly string[]).includes(itemType);
+}
 
 // Standalone peripheral / component assets (split out from an audit). These are
 // not full devices: they only carry their own brand/model, condition and
@@ -60,7 +82,7 @@ export function isComponentItemType(itemType: string | null | undefined): boolea
 
 export function isInfrastructureDevice(deviceType: string, assetCategory?: AssetCategory) {
   if (assetCategory === "infrastructure") return true;
-  if (assetCategory === "end_user") return false;
+  if (assetCategory === "end_user" || assetCategory === "spare_peripheral") return false;
   return (
     deviceType === "SERVER" ||
     deviceType === "POE_SWITCH" ||
@@ -161,6 +183,9 @@ export function deviceTypesForCategory(category: AssetCategory): readonly string
 }
 
 export function emptyFormForCategory(category: AssetCategory): Partial<DeviceFormState> {
+  if (category === "spare_peripheral") {
+    return emptyFormForPeripheral("PRINTER");
+  }
   if (category === "infrastructure") {
     return {
       assetCategory: category,
@@ -185,7 +210,28 @@ export function emptyFormForCategory(category: AssetCategory): Partial<DeviceFor
   return {
     assetCategory: category,
     deviceType: "",
+    itemType: "",
     status: "AVAILABLE",
+  };
+}
+
+/** Standalone spare / shared peripheral (no assignee — Available or Reserved stock). */
+export function emptyFormForPeripheral(
+  itemType: SparePeripheralItemType = "PRINTER",
+): Partial<DeviceFormState> {
+  return {
+    assetCategory: "spare_peripheral",
+    itemType,
+    deviceType: "",
+    status: "AVAILABLE",
+    employeeName: "",
+    jobTitle: "",
+    departmentId: "",
+    computerName: "",
+    laptopBrandModel: "",
+    serialNumber: "",
+    condition: "",
+    notes: "",
   };
 }
 
@@ -414,12 +460,22 @@ export function formatCondition(value: string) {
 export function normalizeConditionLabel(label: string) {
   const normalized = label.trim().toUpperCase().replace(/\s+/g, "_").replace(/\//g, "_");
   if (normalized === "N/A" || normalized === "NA") return "N_A";
-  return PERIPHERAL_CONDITIONS.find((c) => c === normalized) ?? "";
+  return (
+    PERIPHERAL_CONDITIONS.find((c) => c === normalized) ??
+    MOUSE_CONDITIONS.find((c) => c === normalized) ??
+    ""
+  );
 }
 
 export function peripheralConditions() {
   return REFERENCE_DATA.keyboardConditions.filter((c) => c !== "BUILT_IN_LAPTOP");
 }
+
+export function mouseConditions() {
+  return [...MOUSE_CONDITIONS];
+}
+
+const LEGACY_MOUSE_TYPES = new Set(["COMPANY_PROVIDED", "PERSONAL_BYOD", "NONE"]);
 
 export function screenConditions() {
   return REFERENCE_DATA.screenConditions.length > 0
@@ -539,7 +595,7 @@ export function composeLaptopPointer(
   trackpadNotes: string,
   hasExternal: boolean,
   model: string,
-  mouseType: string,
+  mouseCondition: string,
 ) {
   const parts: string[] = [];
   if (trackpad && trackpad !== "N_A") {
@@ -552,7 +608,7 @@ export function composeLaptopPointer(
   if (hasExternal) {
     const ext: string[] = ["External USB"];
     if (model.trim()) ext.push(model.trim());
-    if (mouseType) ext.push(formatCondition(mouseType));
+    if (mouseCondition && mouseCondition !== "N_A") ext.push(formatCondition(mouseCondition));
     parts.push(ext.join(" — "));
   }
   return parts.join(" | ");
@@ -615,7 +671,7 @@ export function parseLaptopPointer(value: string) {
     trackpadNotes: "",
     hasExternal: false,
     externalModel: "",
-    mouseType: "",
+    externalCond: "",
   };
   const trimmed = value.trim();
   if (!trimmed) return result;
@@ -635,12 +691,19 @@ export function parseLaptopPointer(value: string) {
         result.hasExternal = true;
         const rest = segment.replace(/^External USB\s*(?:[—-]\s*)?/i, "");
         const pieces = rest.split(/\s*[—-]\s*/);
-        const last = pieces[pieces.length - 1] ?? "";
-        if (["COMPANY_PROVIDED", "PERSONAL_BYOD", "NONE"].includes(last)) {
-          result.mouseType = last;
+        const last = (pieces[pieces.length - 1] ?? "").trim().toUpperCase().replace(/\s+/g, "_");
+        // Legacy ownership labels (Company Provided / BYOD) are stripped from the
+        // model; the field is now a condition like External Keyboard.
+        if (LEGACY_MOUSE_TYPES.has(last)) {
           result.externalModel = pieces.slice(0, -1).join(" — ");
         } else {
-          result.externalModel = rest;
+          const maybeCond = normalizeConditionLabel(last);
+          if (maybeCond) {
+            result.externalCond = maybeCond;
+            result.externalModel = pieces.slice(0, -1).join(" — ");
+          } else {
+            result.externalModel = rest;
+          }
         }
       }
     });

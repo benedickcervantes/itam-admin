@@ -3,7 +3,7 @@ import { isInfrastructureDevice, type AssetCategory } from "./helpers";
 
 export const RAM_SIZES = ["4GB", "8GB", "12GB", "16GB", "32GB", "64GB"];
 export const RAM_TYPES = ["DDR3", "DDR4", "DDR5"];
-export const RAM_SPEEDS = ["1066MHz", "1333MHz", "1600MHz", "1866MHz", "2133MHz", "2400MHz", "2666MHz", "3200MHz", "4800MHz", "5600MHz"];
+export const RAM_SPEEDS = ["1066MHz", "1333MHz", "1600MHz", "1866MHz", "2133MHz", "2400MHz", "2666MHz", "3200MHz", "4800MHz", "5600MHz", "6400MHz"];
 export const STORAGE_TYPES = ["HDD", "SATA SSD", "NVMe SSD"];
 export const STORAGE_SIZES = ["128GB", "256GB", "512GB", "1TB", "2TB", "4TB"];
 export const CHARGER_STATUSES = ["Good", "Failed", "Requires Replacement", "Missing", "Degraded"];
@@ -57,6 +57,8 @@ export const DESKTOP_POWER_CONNECTIONS = [
   { value: "DIRECT_PLUG_IN", label: "Direct Plug-in", hint: "Extension cord / wall outlet" },
 ] as const;
 export const PERIPHERAL_CONDITIONS = ["GOOD", "FAIR", "FADING_KEYS", "FAULTY", "NEEDS_REPLACEMENT", "N_A"] as const;
+/** Mouse / trackpad conditions — no keyboard-only values like FADING_KEYS. */
+export const MOUSE_CONDITIONS = ["NEW", "GOOD", "FAIR", "FAULTY", "NEEDS_REPLACEMENT"] as const;
 
 export const FORM_SECTIONS = [
   { id: "audit-section-employee", label: "Employee", icon: User },
@@ -134,6 +136,7 @@ export const UI_ONLY_KEYS = [
   "trackpadNotes",
   "hasExternalMouse",
   "mouseExternalModel",
+  "mouseExternalCondition",
   "desktopMouseModel",
   "monitorPrimary",
   "monitorPrimaryCondition",

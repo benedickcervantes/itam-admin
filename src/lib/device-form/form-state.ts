@@ -165,6 +165,7 @@ export function emptyForm(): DeviceFormState {
     trackpadNotes: "",
     hasExternalMouse: false,
     mouseExternalModel: "",
+    mouseExternalCondition: "",
     mouse: "",
     mouseType: "",
     desktopMouseModel: "",
@@ -280,8 +281,11 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
     trackpadNotes: pointerParsed?.trackpadNotes ?? "",
     hasExternalMouse: pointerParsed?.hasExternal ?? false,
     mouseExternalModel: pointerParsed?.externalModel ?? "",
+    mouseExternalCondition:
+      pointerParsed?.externalCond ||
+      (isLaptopDevice(deviceType) ? (row.mouse_condition ?? "") : ""),
     mouse: row.mouse ?? "",
-    mouseType: isLaptopDevice(deviceType) ? (pointerParsed?.mouseType ?? "") : (row.mouse_type ?? ""),
+    mouseType: "",
     desktopMouseModel: isLaptopDevice(deviceType) ? "" : (row.mouse ?? ""),
     powerChargerStatus: powerParsed.charger,
     powerBatteryStatus: powerParsed.battery,
@@ -399,8 +403,11 @@ export function formStateFromAsset(row: Asset): DeviceFormState {
     trackpadNotes: pointerParsed?.trackpadNotes ?? "",
     hasExternalMouse: pointerParsed?.hasExternal ?? false,
     mouseExternalModel: pointerParsed?.externalModel ?? "",
+    mouseExternalCondition:
+      pointerParsed?.externalCond ||
+      (isLaptopDevice(deviceType) ? (hardware.mouse_condition ?? "") : ""),
     mouse: hardware.mouse ?? "",
-    mouseType: isLaptopDevice(deviceType) ? (pointerParsed?.mouseType ?? "") : (hardware.mouse_type ?? ""),
+    mouseType: "",
     desktopMouseModel: isLaptopDevice(deviceType) ? "" : (hardware.mouse ?? ""),
     powerChargerStatus: powerParsed.charger,
     powerBatteryStatus: powerParsed.battery,
@@ -468,10 +475,14 @@ export function prepareComposedForm(form: DeviceFormState): DeviceFormState {
       String(body.trackpadNotes),
       Boolean(body.hasExternalMouse),
       String(body.mouseExternalModel),
-      String(body.mouseType),
+      String(body.mouseExternalCondition),
     );
-    if (!body.hasExternalMouse) body.mouseType = "";
-    body.mouseCondition = "";
+    body.mouseCondition = resolveLaptopKeyboardCondition(
+      String(body.trackpadCondition),
+      Boolean(body.hasExternalMouse),
+      String(body.mouseExternalCondition),
+    );
+    body.mouseType = "";
   } else {
     body.keyboard = String(body.desktopKeyboardModel);
     body.mouse = String(body.desktopMouseModel);
@@ -521,8 +532,14 @@ const ASSET_ONLY_KEYS = [
 ] as const;
 
 export function validateAssetForm(form: DeviceFormState): string | null {
+  const itemType = String(form.itemType ?? "");
+  const isPeripheral = isComponentItemType(itemType);
+
   if (!String(form.computerName ?? "").trim()) {
-    return "Computer name is required.";
+    return isPeripheral ? "Asset name / tag is required." : "Computer name is required.";
+  }
+  if (isPeripheral && !String(form.laptopBrandModel ?? "").trim()) {
+    return "Brand / Model is required.";
   }
   const assignedTo = String(form.employeeName ?? "").trim();
   const status = String(form.status ?? "");
@@ -604,7 +621,7 @@ function prepareComponentAssetPayload(
     brandModel: String(form.laptopBrandModel ?? "").trim(),
     departmentId: String(form.departmentId ?? "").trim(),
     serialNumber: String(form.serialNumber ?? "").trim(),
-    status: String(form.status ?? ""),
+    status: String(form.status ?? "AVAILABLE") || "AVAILABLE",
     condition: String(form.condition ?? ""),
     notes: String(form.notes ?? ""),
   };
