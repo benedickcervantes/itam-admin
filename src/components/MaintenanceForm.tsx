@@ -3,7 +3,7 @@
 import { Calendar, ClipboardList, User, Wrench } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/Badge";
-import { Field, inputClass } from "@/components/Drawer";
+import { Field, inputClass, selectClass } from "@/components/Drawer";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 import {
   MAINTENANCE_STATUS_META,
@@ -11,6 +11,7 @@ import {
   type MaintenanceFormMode,
   type MaintenanceStatus,
 } from "@/lib/maintenance-form";
+import type { Asset } from "@/lib/types";
 
 function FormSection({
   id,
@@ -78,22 +79,48 @@ function StatusCard({
   );
 }
 
+function AssetPreview({ asset }: { asset: Asset }) {
+  return (
+    <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 px-3 py-2.5 sm:col-span-2">
+      <p className="font-mono text-xs font-medium text-[#2E7D9A]">{asset.asset_code}</p>
+      <p className="mt-0.5 text-sm font-medium text-white">{asset.computer_name}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {asset.status && <Badge value={asset.status} compact />}
+        {asset.department?.name && (
+          <span className="text-xs text-slate-400">{asset.department.name}</span>
+        )}
+        {asset.assigned_to && (
+          <span className="text-xs text-slate-500">Assigned: {asset.assigned_to}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function MaintenanceForm({
   mode,
   form,
   onChange,
+  assets = [],
   fieldErrors = {},
   readOnly = false,
 }: {
   mode: MaintenanceFormMode;
   form: Record<string, string>;
   onChange: (form: Record<string, string>) => void;
+  assets?: Asset[];
   fieldErrors?: Record<string, string>;
   readOnly?: boolean;
 }) {
   const set = (patch: Record<string, string>) => onChange({ ...form, ...patch });
   const issueLen = form.issue?.length ?? 0;
   const status = (form.status ?? "OPEN") as MaintenanceStatus;
+  const selectedAsset = assets.find((a) => a.computer_name === form.computerName);
+  const orphanComputerName =
+    form.computerName?.trim() &&
+    !assets.some((a) => a.computer_name === form.computerName)
+      ? form.computerName
+      : null;
 
   const handleStatusChange = (next: MaintenanceStatus) => {
     const patch: Record<string, string> = { status: next };
@@ -102,24 +129,43 @@ export function MaintenanceForm({
     set(patch);
   };
 
+  const handleComputerChange = (computerName: string) => {
+    const asset = assets.find((a) => a.computer_name === computerName);
+    const patch: Record<string, string> = { computerName };
+    if (mode === "create" && asset?.assigned_to && !form.employee?.trim()) {
+      patch.employee = asset.assigned_to;
+    }
+    set(patch);
+  };
+
   return (
     <div className="space-y-4">
       <FormSection
         id="maintenance-device"
         title="Device & Requester"
-        description="Identify the computer and who reported the issue."
+        description="Select a computer from Assets and who reported the issue."
         icon={User}
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Computer Name">
-            <input
-              className={inputClass}
+            <select
+              className={selectClass}
               value={form.computerName ?? ""}
-              onChange={(e) => set({ computerName: e.target.value })}
-              placeholder="e.g. IT-LAP-042"
-              readOnly={readOnly}
+              onChange={(e) => handleComputerChange(e.target.value)}
+              disabled={readOnly}
               autoFocus={mode === "create" && !readOnly}
-            />
+            >
+              <option value="">— Select from Assets —</option>
+              {orphanComputerName && (
+                <option value={orphanComputerName}>{orphanComputerName} (not in Assets)</option>
+              )}
+              {assets.map((a) => (
+                <option key={a.id} value={a.computer_name}>
+                  {a.asset_code} — {a.computer_name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-500">Pulled from Asset Dashboard inventory.</p>
           </Field>
 
           <Field label="Employee">
@@ -131,6 +177,8 @@ export function MaintenanceForm({
               readOnly={readOnly}
             />
           </Field>
+
+          {selectedAsset && <AssetPreview asset={selectedAsset} />}
         </div>
       </FormSection>
 
