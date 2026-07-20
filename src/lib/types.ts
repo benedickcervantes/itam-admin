@@ -179,6 +179,22 @@ export type AdminUser = {
   created_at?: string;
 };
 
+export type Supplier = {
+  id: string;
+  supplier_code: string;
+  name: string;
+  contact_person?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  website?: string | null;
+  categories?: string[] | null;
+  status?: string;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
 function qs(params: Record<string, string | number | undefined>) {
   const sp = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {

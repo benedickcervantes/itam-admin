@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LogOut,
   Monitor,
+  ShoppingCart,
   Trash2,
   Users,
   Wrench,
@@ -29,6 +30,7 @@ const NAV: NavEntry[] = [
   { href: "/assets", label: "Assets", icon: HardDrive },
   { href: "/device-history", label: "Device History", icon: History },
   { href: "/maintenance", label: "Maintenance", icon: Wrench },
+  { href: "/procurement", label: "Procurement", icon: ShoppingCart },
   { href: "/disposals", label: "Disposals", icon: Trash2 },
 ];
 
