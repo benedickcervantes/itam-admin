@@ -8,6 +8,7 @@ export function AssignmentDetailView({ record }: { record: Assignment }) {
   const assetLabel = record.asset
     ? `${record.asset.asset_code} — ${record.asset.computer_name}`
     : null;
+  const brandModel = record.asset?.brand_model?.trim() || null;
 
   return (
     <div className="space-y-4">
@@ -15,6 +16,7 @@ export function AssignmentDetailView({ record }: { record: Assignment }) {
         <p className="font-mono text-sm font-medium text-[#2E7D9A]">{record.record_code}</p>
         <p className="mt-1 text-lg font-semibold text-white">{record.assigned_to}</p>
         <p className="mt-1 text-sm text-slate-400">{assetLabel ?? "Assigned asset"}</p>
+        {brandModel ? <p className="mt-0.5 truncate text-sm text-slate-500">{brandModel}</p> : null}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -22,6 +24,7 @@ export function AssignmentDetailView({ record }: { record: Assignment }) {
           <DetailRow label="Assigned To" value={record.assigned_to} />
           <DetailRow label="Last User" value={record.last_user} />
           <DetailRow label="Asset" value={assetLabel} />
+          <DetailRow label="Brand / Model" value={brandModel} />
           <DetailRow label="Department" value={record.department?.name} />
           <DetailRow label="Assigned By" value={record.assigned_by} />
         </DetailSection>

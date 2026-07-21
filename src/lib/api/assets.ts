@@ -41,3 +41,25 @@ export function updateAsset(id: string, body: Record<string, unknown>) {
 export function deleteAsset(id: string) {
   return apiJson<{ success: boolean }>(`/api/v1/assets/${id}`, { method: "DELETE", auth: true });
 }
+
+/**
+ * Move a peripheral (printer, monitor, keyboard, mouse, UPS, AVR) to another
+ * audit / user — or unlink as spare — without changing asset_code.
+ */
+export function movePeripheral(
+  id: string,
+  body: {
+    targetAuditId?: string;
+    unlink?: boolean;
+    assignedTo?: string;
+    computerName?: string;
+    departmentId?: string;
+    notes?: string;
+  },
+) {
+  return apiJson<Asset>(`/api/v1/assets/${id}/move`, {
+    method: "POST",
+    auth: true,
+    body: JSON.stringify(body),
+  });
+}
