@@ -16,41 +16,43 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/Badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { DisposalDetailView } from "@/components/DisposalDetailView";
-import { DisposalForm } from "@/components/DisposalForm";
 import { Drawer } from "@/components/Drawer";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { Pagination } from "@/components/Pagination";
 import { CardGridSkeleton, TableSkeleton } from "@/components/TableSkeleton";
+import { SupplierDetailView } from "@/components/SupplierDetailView";
+import { SupplierExportColumnDialog } from "@/components/SupplierExportColumnDialog";
+import { SupplierForm } from "@/components/SupplierForm";
 import { useSessionUser } from "@/components/SessionContext";
-import { fetchAssets } from "@/lib/api/assets";
-import { fetchEmployeeNames } from "@/lib/api/auditRegisters";
-import {
-  createDisposal,
-  deleteDisposal,
-  fetchAllDisposals,
-  fetchDisposals,
-  updateDisposal,
-} from "@/lib/api/disposals";
 import { verifyPassword } from "@/lib/api/auth";
-import { canWrite } from "@/lib/auth/permissions";
-import { DisposalExportColumnDialog } from "@/components/DisposalExportColumnDialog";
 import {
-  ALL_DISPOSAL_EXPORT_COLUMN_KEYS,
-  exportDisposalsExcel,
-  exportDisposalsPdf,
-  type DisposalExportColumnKey,
-} from "@/lib/export-disposals";
-import { todayIso, validateDisposalForm } from "@/lib/disposal-form";
-import { REFERENCE_DATA } from "@/lib/reference-data";
+  createSupplier,
+  deleteSupplier,
+  fetchAllSuppliers,
+  fetchSuppliers,
+  updateSupplier,
+} from "@/lib/api/suppliers";
+import { canWrite } from "@/lib/auth/permissions";
+import {
+  ALL_SUPPLIER_EXPORT_COLUMN_KEYS,
+  exportSuppliersExcel,
+  exportSuppliersPdf,
+  type SupplierExportColumnKey,
+} from "@/lib/export-suppliers";
 import { labelEnum } from "@/lib/labels";
-import type { Asset, DisposalRecord } from "@/lib/types";
+import { REFERENCE_DATA } from "@/lib/reference-data";
+import {
+  buildSupplierBody,
+  parseCategoriesCsv,
+  validateSupplierForm,
+} from "@/lib/supplier-form";
+import type { Supplier } from "@/lib/types";
 
 type ViewMode = "table" | "grid";
 type DrawerMode = "create" | "view" | "edit";
 
-const VIEW_MODE_STORAGE_KEY = "disposals-view";
+const VIEW_MODE_STORAGE_KEY = "procurement-view";
 
 function readStoredViewMode(): ViewMode {
   if (typeof window === "undefined") return "table";
@@ -59,37 +61,47 @@ function readStoredViewMode(): ViewMode {
 }
 
 function emptyForm(): Record<string, string> {
-  return { assetId: "", disposalDate: todayIso(), disposalReason: "" };
+  return {
+    name: "",
+    contactPerson: "",
+    email: "",
+    phone: "",
+    address: "",
+    website: "",
+    categories: "",
+    status: "ACTIVE",
+    notes: "",
+  };
 }
 
-function formFromRecord(row: DisposalRecord): Record<string, string> {
+function formFromRecord(row: Supplier): Record<string, string> {
   return {
-    assetId: row.asset_id,
-    disposalDate: row.disposal_date.slice(0, 10),
-    disposalReason: row.disposal_reason,
-    disposalMethod: row.disposal_method ?? "",
-    certificateDocNo: row.certificate_doc_no ?? "",
-    approvedBy: row.approved_by ?? "",
-    witness: row.witness ?? "",
+    name: row.name ?? "",
+    contactPerson: row.contact_person ?? "",
+    email: row.email ?? "",
+    phone: row.phone ?? "",
+    address: row.address ?? "",
+    website: row.website ?? "",
+    categories: (row.categories ?? []).join(","),
+    status: row.status ?? "ACTIVE",
     notes: row.notes ?? "",
   };
 }
 
-export default function DisposalsPage() {
+export default function ProcurementPage() {
   const user = useSessionUser();
   const write = canWrite(user);
-  const [items, setItems] = useState<DisposalRecord[]>([]);
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [employees, setEmployees] = useState<string[]>([]);
+  const [items, setItems] = useState<Supplier[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [methodFilter, setMethodFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>("create");
-  const [editing, setEditing] = useState<DisposalRecord | null>(null);
+  const [editing, setEditing] = useState<Supplier | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -99,7 +111,7 @@ export default function DisposalsPage() {
   const [exporting, setExporting] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<DisposalRecord | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Supplier | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -123,21 +135,22 @@ export default function DisposalsPage() {
   const buildFilterSummary = () => {
     const parts: string[] = [];
     if (search) parts.push(`Search: "${search}"`);
-    if (methodFilter) parts.push(`Method: ${labelEnum(methodFilter)}`);
+    if (statusFilter) parts.push(`Status: ${labelEnum(statusFilter)}`);
+    if (categoryFilter) parts.push(`Category: ${labelEnum(categoryFilter)}`);
     return parts.length ? parts.join(" · ") : "None (all records)";
   };
 
-  const buildExportFilterSummary = (columns: DisposalExportColumnKey[]) => {
+  const buildExportFilterSummary = (columns: SupplierExportColumnKey[]) => {
     const parts = [buildFilterSummary()];
-    if (columns.length < ALL_DISPOSAL_EXPORT_COLUMN_KEYS.length) {
-      parts.push(`Columns: ${columns.length} of ${ALL_DISPOSAL_EXPORT_COLUMN_KEYS.length}`);
+    if (columns.length < ALL_SUPPLIER_EXPORT_COLUMN_KEYS.length) {
+      parts.push(`Columns: ${columns.length} of ${ALL_SUPPLIER_EXPORT_COLUMN_KEYS.length}`);
     }
     return parts.join(" · ");
   };
 
   const runExport = async (
     format: "excel" | "pdf",
-    columns: DisposalExportColumnKey[] = ALL_DISPOSAL_EXPORT_COLUMN_KEYS,
+    columns: SupplierExportColumnKey[] = ALL_SUPPLIER_EXPORT_COLUMN_KEYS,
   ) => {
     if (exporting) return;
     if (columns.length === 0) {
@@ -150,23 +163,24 @@ export default function DisposalsPage() {
     setError("");
     setSuccess("");
     try {
-      const rows = await fetchAllDisposals({
+      const rows = await fetchAllSuppliers({
         search: search || undefined,
-        disposalMethod: methodFilter || undefined,
+        status: statusFilter || undefined,
+        category: categoryFilter || undefined,
       });
       if (rows.length === 0) {
-        setError("No disposal records match the current filters to export.");
+        setError("No suppliers match the current filters to export.");
         return;
       }
       const filterSummary = buildExportFilterSummary(columns);
       if (format === "excel") {
-        await exportDisposalsExcel(rows, filterSummary, columns);
+        await exportSuppliersExcel(rows, filterSummary, columns);
       } else {
-        exportDisposalsPdf(rows, filterSummary, columns);
+        exportSuppliersPdf(rows, filterSummary, columns);
       }
       const label = format === "excel" ? "Excel" : "PDF";
       setSuccess(
-        `Exported ${rows.length} disposal ${rows.length === 1 ? "record" : "records"} to ${label} (${columns.length} column${columns.length === 1 ? "" : "s"}).`,
+        `Exported ${rows.length} supplier${rows.length === 1 ? "" : "s"} to ${label} (${columns.length} column${columns.length === 1 ? "" : "s"}).`,
       );
       setExportDialogOpen(false);
     } catch (e) {
@@ -179,10 +193,11 @@ export default function DisposalsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchDisposals({
+      const res = await fetchSuppliers({
         page,
         search: search || undefined,
-        disposalMethod: methodFilter || undefined,
+        status: statusFilter || undefined,
+        category: categoryFilter || undefined,
       });
       setItems(res.items);
       setTotalPages(res.totalPages);
@@ -192,7 +207,7 @@ export default function DisposalsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, methodFilter]);
+  }, [page, search, statusFilter, categoryFilter]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput), 300);
@@ -201,7 +216,7 @@ export default function DisposalsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, methodFilter]);
+  }, [search, statusFilter, categoryFilter]);
 
   useEffect(() => {
     void load();
@@ -213,22 +228,7 @@ export default function DisposalsPage() {
     return () => window.clearTimeout(timer);
   }, [success]);
 
-  useEffect(() => {
-    fetchAssets({ limit: 200 }).then((r) => setAssets(r.items)).catch(() => {});
-  }, []);
-
-  const loadEmployees = useCallback(() => {
-    fetchEmployeeNames()
-      .then(setEmployees)
-      .catch(() => setEmployees([]));
-  }, []);
-
-  useEffect(() => {
-    loadEmployees();
-  }, [loadEmployees]);
-
   const openCreate = () => {
-    loadEmployees();
     setEditing(null);
     setForm(emptyForm());
     setDrawerMode("create");
@@ -246,7 +246,7 @@ export default function DisposalsPage() {
     setFieldErrors({});
   };
 
-  const openView = (row: DisposalRecord) => {
+  const openView = (row: Supplier) => {
     setEditing(row);
     setForm(formFromRecord(row));
     setDrawerMode("view");
@@ -256,8 +256,7 @@ export default function DisposalsPage() {
     setDrawerOpen(true);
   };
 
-  const openEditForm = (row: DisposalRecord) => {
-    loadEmployees();
+  const openEditForm = (row: Supplier) => {
     setEditing(row);
     setForm(formFromRecord(row));
     setDrawerMode("edit");
@@ -269,8 +268,7 @@ export default function DisposalsPage() {
 
   const save = async () => {
     if (!write || saving) return;
-    const mode = editing ? "edit" : "create";
-    const errors = validateDisposalForm(form, mode);
+    const errors = validateSupplierForm(form);
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       setError("Please fix the highlighted fields.");
@@ -279,14 +277,13 @@ export default function DisposalsPage() {
 
     setSaving(true);
     setError("");
-    const body = { ...form };
-    Object.keys(body).forEach((k) => body[k] === "" && delete body[k]);
+    const body = buildSupplierBody(form);
     try {
-      if (editing) await updateDisposal(editing.id, body);
-      else await createDisposal(body);
+      if (editing) await updateSupplier(editing.id, body);
+      else await createSupplier(body);
       setDrawerOpen(false);
       setDrawerMode("create");
-      setSuccess(editing ? `Updated ${editing.record_code}.` : "Disposal record created.");
+      setSuccess(editing ? `Updated ${editing.supplier_code}.` : "Supplier created.");
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
@@ -301,8 +298,8 @@ export default function DisposalsPage() {
     setDeleteError("");
     try {
       await verifyPassword(password);
-      await deleteDisposal(deleteTarget.id);
-      const code = deleteTarget.record_code;
+      await deleteSupplier(deleteTarget.id);
+      const code = deleteTarget.supplier_code;
       setDeleteTarget(null);
       setError("");
       setSuccess(`Deleted ${code}.`);
@@ -314,7 +311,7 @@ export default function DisposalsPage() {
     }
   };
 
-  const renderRowActions = (row: DisposalRecord) => (
+  const renderRowActions = (row: Supplier) => (
     <div className="flex items-center gap-1">
       <button
         type="button"
@@ -327,8 +324,8 @@ export default function DisposalsPage() {
             ? "rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-[#2E7D9A]"
             : "inline-flex items-center gap-1.5 rounded-md border border-slate-700 px-2 py-1 text-xs font-medium text-slate-300 transition hover:border-[#2E7D9A]/50 hover:text-[#2E7D9A]"
         }
-        title="View record"
-        aria-label="View record"
+        title="View supplier"
+        aria-label="View supplier"
       >
         <Eye className="h-4 w-4" />
         {!write && <span>View</span>}
@@ -342,8 +339,8 @@ export default function DisposalsPage() {
               openEditForm(row);
             }}
             className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-[#2E7D9A]"
-            title="Edit record"
-            aria-label="Edit record"
+            title="Edit supplier"
+            aria-label="Edit supplier"
           >
             <Pencil className="h-4 w-4" />
           </button>
@@ -355,8 +352,8 @@ export default function DisposalsPage() {
               setDeleteTarget(row);
             }}
             className="rounded p-1 text-red-400 hover:bg-red-950/40 hover:text-red-300"
-            title="Delete record"
-            aria-label="Delete record"
+            title="Delete supplier"
+            aria-label="Delete supplier"
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -367,18 +364,34 @@ export default function DisposalsPage() {
 
   return (
     <>
-      <Header title="Disposals" subtitle="Retired and disposed assets with certificate tracking" />
+      <Header
+        title="Procurement"
+        subtitle="IT asset suppliers for servers, desktops, and related equipment"
+      />
       <div className="page-content flex-1 overflow-y-auto">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           <FilterSearch
             value={searchInput}
             onChange={setSearchInput}
-            placeholder="Search record ID, asset ID, computer, reason..."
+            placeholder="Search code, name, contact, email, phone..."
             className="min-w-0 flex-1"
           />
-          <FilterSelect label="Method" value={methodFilter} onChange={setMethodFilter} className="w-full sm:w-auto">
-            <option value="">All methods</option>
-            {REFERENCE_DATA.disposalMethods.map((s) => (
+          <FilterSelect label="Status" value={statusFilter} onChange={setStatusFilter} className="w-full sm:w-auto">
+            <option value="">All statuses</option>
+            {REFERENCE_DATA.supplierStatuses.map((s) => (
+              <option key={s} value={s}>
+                {labelEnum(s)}
+              </option>
+            ))}
+          </FilterSelect>
+          <FilterSelect
+            label="Category"
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+            className="w-full sm:w-auto"
+          >
+            <option value="">All categories</option>
+            {REFERENCE_DATA.supplierCategories.map((s) => (
               <option key={s} value={s}>
                 {labelEnum(s)}
               </option>
@@ -440,7 +453,7 @@ export default function DisposalsPage() {
                   <Download className="h-4 w-4 text-[#2E7D9A]" />
                   Customize columns...
                   <span className="ml-auto text-xs text-slate-500">
-                    {ALL_DISPOSAL_EXPORT_COLUMN_KEYS.length} columns
+                    {ALL_SUPPLIER_EXPORT_COLUMN_KEYS.length} columns
                   </span>
                 </button>
                 <div className="border-t border-slate-800" />
@@ -469,7 +482,7 @@ export default function DisposalsPage() {
               onClick={openCreate}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2 text-sm font-medium text-white sm:w-auto"
             >
-              <Plus className="h-4 w-4" /> New Disposal
+              <Plus className="h-4 w-4" /> New Supplier
             </button>
           )}
         </div>
@@ -483,23 +496,23 @@ export default function DisposalsPage() {
               <table className="data-table data-table--fixed" style={{ minWidth: "68rem" }}>
                 <colgroup>
                   <col style={{ width: "8%" }} />
-                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "16%" }} />
                   <col style={{ width: "14%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "22%" }} />
+                  <col style={{ width: "16%" }} />
                   <col style={{ width: "12%" }} />
+                  <col style={{ width: "16%" }} />
                   <col style={{ width: "10%" }} />
+                  <col style={{ width: "8%" }} />
                 </colgroup>
                 <thead>
                   <tr>
-                    <th>Record ID</th>
-                    <th>Asset ID</th>
-                    <th className="cell-wrap">Computer</th>
-                    <th className="cell-wrap">Department</th>
-                    <th>Date</th>
-                    <th className="cell-wrap">Reason</th>
-                    <th>Method</th>
+                    <th>Code</th>
+                    <th className="cell-wrap">Supplier</th>
+                    <th className="cell-wrap">Contact</th>
+                    <th className="cell-wrap">Email</th>
+                    <th>Phone</th>
+                    <th className="cell-wrap">Category</th>
+                    <th>Status</th>
                     <th>{write ? "Actions" : "View"}</th>
                   </tr>
                 </thead>
@@ -509,26 +522,39 @@ export default function DisposalsPage() {
                   ) : items.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="text-slate-400">
-                        No disposal records found.
+                        No suppliers found.
                       </td>
                     </tr>
                   ) : (
-                    items.map((row) => (
-                      <tr key={row.id} className="cursor-pointer" onClick={() => openView(row)}>
-                        <td className="font-mono text-[#2E7D9A]">{row.record_code}</td>
-                        <td className="font-mono text-slate-300">{row.asset?.asset_code ?? "—"}</td>
-                        <td className="cell-wrap font-medium text-white">
-                          {row.asset?.computer_name ?? row.computer_name ?? "—"}
-                        </td>
-                        <td className="cell-wrap">{row.asset?.department?.name ?? "—"}</td>
-                        <td className="text-slate-300">{row.disposal_date.slice(0, 10)}</td>
-                        <td className="cell-wrap text-slate-300">{row.disposal_reason}</td>
-                        <td>
-                          <Badge value={row.disposal_method} />
-                        </td>
-                        <td onClick={(e) => e.stopPropagation()}>{renderRowActions(row)}</td>
-                      </tr>
-                    ))
+                    items.map((row) => {
+                      const primaryCategory = row.categories?.[0] ?? null;
+                      const extraCategories = Math.max(0, (row.categories?.length ?? 0) - 1);
+                      return (
+                        <tr key={row.id} className="cursor-pointer" onClick={() => openView(row)}>
+                          <td className="font-mono text-[#2E7D9A]">{row.supplier_code}</td>
+                          <td className="cell-wrap font-medium text-white">{row.name}</td>
+                          <td className="cell-wrap text-slate-300">{row.contact_person ?? "—"}</td>
+                          <td className="cell-wrap text-slate-300">{row.email ?? "—"}</td>
+                          <td className="text-slate-300">{row.phone ?? "—"}</td>
+                          <td>
+                            {primaryCategory ? (
+                              <span className="inline-flex items-center gap-1.5">
+                                <Badge value={primaryCategory} />
+                                {extraCategories > 0 && (
+                                  <span className="text-xs text-slate-500">+{extraCategories}</span>
+                                )}
+                              </span>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                          <td>
+                            <Badge value={row.status} />
+                          </td>
+                          <td onClick={(e) => e.stopPropagation()}>{renderRowActions(row)}</td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -539,7 +565,7 @@ export default function DisposalsPage() {
             {loading ? (
               <CardGridSkeleton />
             ) : items.length === 0 ? (
-              <p className="py-8 text-center text-sm text-slate-400">No disposal records found.</p>
+              <p className="py-8 text-center text-sm text-slate-400">No suppliers found.</p>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {items.map((row) => (
@@ -550,33 +576,31 @@ export default function DisposalsPage() {
                   >
                     <div className="mb-3 flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="font-mono text-sm font-medium text-[#2E7D9A]">{row.record_code}</p>
-                        <p className="mt-1 truncate text-base font-medium text-white">
-                          {row.asset?.computer_name ?? row.asset?.asset_code ?? "—"}
+                        <p className="font-mono text-sm font-medium text-[#2E7D9A]">{row.supplier_code}</p>
+                        <p className="mt-1 truncate text-base font-medium text-white">{row.name}</p>
+                        <p className="mt-0.5 truncate text-sm text-slate-400">
+                          {row.contact_person || row.email || "No contact listed"}
                         </p>
-                        <p className="font-mono text-xs text-slate-500">{row.asset?.asset_code}</p>
                       </div>
                       <div onClick={(e) => e.stopPropagation()}>{renderRowActions(row)}</div>
                     </div>
-                    <p className="line-clamp-2 text-sm text-slate-300">{row.disposal_reason}</p>
-                    <dl className="mt-3 space-y-2 text-sm">
+                    <dl className="space-y-2 text-sm">
                       <div className="flex items-center justify-between gap-2">
-                        <dt className="text-slate-500">Department</dt>
-                        <dd className="truncate text-slate-300">{row.asset?.department?.name ?? "—"}</dd>
+                        <dt className="text-slate-500">Phone</dt>
+                        <dd className="truncate text-slate-300">{row.phone ?? "—"}</dd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <dt className="text-slate-500">Disposal Date</dt>
-                        <dd className="text-slate-300">{row.disposal_date.slice(0, 10)}</dd>
+                        <dt className="text-slate-500">Email</dt>
+                        <dd className="truncate text-slate-300">{row.email ?? "—"}</dd>
                       </div>
-                      {row.certificate_doc_no && (
-                        <div className="flex items-center justify-between gap-2">
-                          <dt className="text-slate-500">Certificate</dt>
-                          <dd className="truncate font-mono text-slate-300">{row.certificate_doc_no}</dd>
-                        </div>
-                      )}
                     </dl>
                     <div className="mt-3 flex flex-wrap gap-1.5">
-                      {row.disposal_method && <Badge value={row.disposal_method} />}
+                      {row.status && <Badge value={row.status} />}
+                      {parseCategoriesCsv((row.categories ?? []).join(","))
+                        .slice(0, 3)
+                        .map((c) => (
+                          <Badge key={c} value={c} compact />
+                        ))}
                     </div>
                   </article>
                 ))}
@@ -592,17 +616,17 @@ export default function DisposalsPage() {
         open={drawerOpen}
         title={
           !editing
-            ? "New Disposal"
+            ? "New Supplier"
             : drawerMode === "edit"
-              ? `Edit ${editing.record_code}`
-              : `View ${editing.record_code}`
+              ? `Edit ${editing.supplier_code}`
+              : `View ${editing.supplier_code}`
         }
         subtitle={
           !editing
-            ? "Record a retired or disposed asset"
+            ? "Add an IT asset supplier for procurement"
             : drawerMode === "edit"
-              ? "Update disposal record details"
-              : "Disposal record summary"
+              ? "Update supplier details"
+              : "Supplier summary"
         }
         onClose={closeDrawer}
         banner={
@@ -647,29 +671,20 @@ export default function DisposalsPage() {
                 className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center gap-1.5 rounded-lg border border-transparent bg-[#2E7D9A] px-3 text-sm font-medium leading-none text-white hover:bg-[#256b85] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving && <Loader2 className="h-4 w-4 shrink-0 animate-spin" />}
-                {saving ? "Saving..." : drawerMode === "create" ? "Create Disposal" : "Save Changes"}
+                {saving ? "Saving..." : drawerMode === "create" ? "Create Supplier" : "Save Changes"}
               </button>
             </div>
           ) : undefined
         }
       >
         {drawerMode === "view" && editing ? (
-          <DisposalDetailView record={editing} />
+          <SupplierDetailView record={editing} />
         ) : (
-          <DisposalForm
-            mode={drawerMode === "create" ? "create" : "edit"}
-            form={form}
-            onChange={setForm}
-            assets={assets}
-            employees={employees}
-            fieldErrors={fieldErrors}
-            readOnly={!write}
-            assetLocked={!!editing}
-          />
+          <SupplierForm form={form} onChange={setForm} fieldErrors={fieldErrors} readOnly={!write} />
         )}
       </Drawer>
 
-      <DisposalExportColumnDialog
+      <SupplierExportColumnDialog
         open={exportDialogOpen}
         filterSummary={buildFilterSummary()}
         exporting={exporting}
@@ -681,10 +696,10 @@ export default function DisposalsPage() {
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="Delete disposal record?"
+        title="Delete supplier?"
         message={
           deleteTarget
-            ? `Are you sure you want to delete disposal record ${deleteTarget.record_code}? This action cannot be undone.`
+            ? `Are you sure you want to delete supplier ${deleteTarget.supplier_code} (${deleteTarget.name})? This action cannot be undone.`
             : ""
         }
         requirePassword

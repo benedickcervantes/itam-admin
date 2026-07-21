@@ -10,6 +10,8 @@ import {
   LayoutDashboard,
   LogOut,
   Monitor,
+  ScrollText,
+  ShoppingCart,
   Trash2,
   Users,
   Wrench,
@@ -17,7 +19,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { clearSession, getStoredUser } from "@/lib/auth/session";
-import { canViewUsers } from "@/lib/auth/permissions";
+import { canViewActivityLogs, canViewUsers } from "@/lib/auth/permissions";
 import { useMobileNav } from "@/components/MobileNavContext";
 import SignOutOverlay from "@/components/SignOutOverlay";
 
@@ -29,6 +31,7 @@ const NAV: NavEntry[] = [
   { href: "/assets", label: "Assets", icon: HardDrive },
   { href: "/device-history", label: "Device History", icon: History },
   { href: "/maintenance", label: "Maintenance", icon: Wrench },
+  { href: "/procurement", label: "Procurement", icon: ShoppingCart },
   { href: "/disposals", label: "Disposals", icon: Trash2 },
 ];
 
@@ -144,18 +147,29 @@ export function Sidebar() {
               onClick={closeMobile}
             />
           ))}
-          {canViewUsers(user) && (
+          {(canViewUsers(user) || canViewActivityLogs(user)) && (
             <>
               <p className="px-3 pb-1.5 pt-4 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
                 Administration
               </p>
-              <NavItem
-                href="/users"
-                label="Users"
-                icon={Users}
-                active={isActive("/users")}
-                onClick={closeMobile}
-              />
+              {canViewUsers(user) && (
+                <NavItem
+                  href="/users"
+                  label="Users"
+                  icon={Users}
+                  active={isActive("/users")}
+                  onClick={closeMobile}
+                />
+              )}
+              {canViewActivityLogs(user) && (
+                <NavItem
+                  href="/activity-logs"
+                  label="Activity Logs"
+                  icon={ScrollText}
+                  active={isActive("/activity-logs")}
+                  onClick={closeMobile}
+                />
+              )}
             </>
           )}
         </nav>

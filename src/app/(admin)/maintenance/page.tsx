@@ -31,6 +31,7 @@ import {
   fetchMaintenance,
   updateMaintenance,
 } from "@/lib/api/maintenance";
+import { fetchAssets } from "@/lib/api/assets";
 import { verifyPassword } from "@/lib/api/auth";
 import { canWrite } from "@/lib/auth/permissions";
 import { MaintenanceExportColumnDialog } from "@/components/MaintenanceExportColumnDialog";
@@ -43,7 +44,7 @@ import {
 import { todayIso, validateMaintenanceForm } from "@/lib/maintenance-form";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 import { labelEnum } from "@/lib/labels";
-import type { MaintenanceRecord } from "@/lib/types";
+import type { Asset, MaintenanceRecord } from "@/lib/types";
 
 type ViewMode = "table" | "grid";
 type DrawerMode = "create" | "view" | "edit";
@@ -83,6 +84,7 @@ export default function MaintenancePage() {
   const user = useSessionUser();
   const write = canWrite(user);
   const [items, setItems] = useState<MaintenanceRecord[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -209,6 +211,16 @@ export default function MaintenancePage() {
     void load();
   }, [load]);
 
+  const loadAssets = useCallback(() => {
+    fetchAssets({ limit: 200 })
+      .then((r) => setAssets(r.items))
+      .catch(() => setAssets([]));
+  }, []);
+
+  useEffect(() => {
+    loadAssets();
+  }, [loadAssets]);
+
   useEffect(() => {
     if (!success) return;
     const timer = window.setTimeout(() => setSuccess(""), 5000);
@@ -223,6 +235,7 @@ export default function MaintenancePage() {
     setError("");
     setFieldErrors({});
     setDrawerOpen(true);
+    loadAssets();
   };
 
   const closeDrawer = () => {
@@ -251,6 +264,7 @@ export default function MaintenancePage() {
     setError("");
     setFieldErrors({});
     setDrawerOpen(true);
+    loadAssets();
   };
 
   const save = async () => {
@@ -466,21 +480,21 @@ export default function MaintenancePage() {
         {viewMode === "table" ? (
           <div className="card overflow-hidden">
             <div className="table-scroll">
-              <table className="data-table data-table--fixed" style={{ minWidth: "62rem" }}>
+              <table className="data-table data-table--fixed" style={{ minWidth: "68rem" }}>
                 <colgroup>
-                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "8%" }} />
                   <col style={{ width: "12%" }} />
                   <col style={{ width: "14%" }} />
                   <col style={{ width: "14%" }} />
-                  <col style={{ width: "24%" }} />
+                  <col style={{ width: "22%" }} />
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "10%" }} />
-                  <col style={{ width: "6%" }} />
+                  <col style={{ width: "10%" }} />
                 </colgroup>
                 <thead>
                   <tr>
                     <th>Record ID</th>
-                    <th>Computer</th>
+                    <th className="cell-wrap">Computer</th>
                     <th className="cell-wrap">Employee</th>
                     <th className="cell-wrap">Department</th>
                     <th className="cell-wrap">Issue</th>
@@ -494,7 +508,7 @@ export default function MaintenancePage() {
                     <TableSkeleton columns={8} />
                   ) : items.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-8 text-center text-slate-400">
+                      <td colSpan={8} className="text-slate-400">
                         No maintenance records found.
                       </td>
                     </tr>
@@ -502,17 +516,15 @@ export default function MaintenancePage() {
                     items.map((row) => (
                       <tr key={row.id} className="cursor-pointer" onClick={() => openView(row)}>
                         <td className="font-mono text-[#2E7D9A]">{row.record_code}</td>
-                        <td className="font-medium text-white">{row.computer_name ?? "—"}</td>
+                        <td className="cell-wrap font-medium text-white">{row.computer_name ?? "—"}</td>
                         <td className="cell-wrap text-slate-300">{row.employee ?? "—"}</td>
-                        <td className="cell-wrap text-slate-400">{row.audit_register?.department?.name ?? "—"}</td>
+                        <td className="cell-wrap">{row.audit_register?.department?.name ?? "—"}</td>
                         <td className="cell-wrap text-slate-300">{row.issue}</td>
                         <td>
                           <Badge value={row.status} />
                         </td>
-                        <td className="text-slate-400">{row.date_opened?.slice(0, 10) ?? "—"}</td>
-                        <td onClick={(e) => e.stopPropagation()} className="w-0">
-                          {renderRowActions(row)}
-                        </td>
+                        <td className="text-slate-300">{row.date_opened?.slice(0, 10) ?? "—"}</td>
+                        <td onClick={(e) => e.stopPropagation()}>{renderRowActions(row)}</td>
                       </tr>
                     ))
                   )}
@@ -640,6 +652,7 @@ export default function MaintenancePage() {
             mode={drawerMode === "create" ? "create" : "edit"}
             form={form}
             onChange={setForm}
+            assets={assets}
             fieldErrors={fieldErrors}
             readOnly={!write}
           />

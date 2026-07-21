@@ -465,14 +465,14 @@ export default function DeviceHistoryPage() {
             <div className="table-scroll">
               <table className="data-table data-table--fixed" style={{ minWidth: "68rem" }}>
                 <colgroup>
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "8%" }} />
                   <col style={{ width: "10%" }} />
                   <col style={{ width: "14%" }} />
+                  <col style={{ width: "16%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "16%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "10%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -499,11 +499,11 @@ export default function DeviceHistoryPage() {
                     items.map((row) => (
                       <tr key={row.id} className="cursor-pointer" onClick={() => openView(row)}>
                         <td className="font-mono text-[#2E7D9A]">{row.record_code}</td>
-                        <td className="font-mono text-slate-300">{row.asset?.asset_code ?? "-"}</td>
-                        <td className="cell-wrap font-medium text-white">{row.asset?.computer_name ?? "-"}</td>
-                        <td className="cell-wrap text-slate-300">{row.assigned_to ?? "-"}</td>
-                        <td className="cell-wrap text-slate-400">{row.last_user ?? "-"}</td>
-                        <td className="cell-wrap">{row.department?.name ?? "-"}</td>
+                        <td className="font-mono text-slate-300">{row.asset?.asset_code ?? "—"}</td>
+                        <td className="cell-wrap font-medium text-white">{row.asset?.computer_name ?? "—"}</td>
+                        <td className="cell-wrap text-slate-300">{row.assigned_to ?? "—"}</td>
+                        <td className="cell-wrap text-slate-300">{row.last_user ?? "—"}</td>
+                        <td className="cell-wrap">{row.department?.name ?? "—"}</td>
                         <td className="text-slate-300">{row.assigned_date.slice(0, 10)}</td>
                         <td onClick={(e) => e.stopPropagation()}>{renderRowActions(row)}</td>
                       </tr>
