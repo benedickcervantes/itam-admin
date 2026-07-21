@@ -195,6 +195,36 @@ export type Supplier = {
   updated_at?: string;
 };
 
+export type ActivityAction =
+  | "CREATE"
+  | "UPDATE"
+  | "DELETE"
+  | "LOGIN_SUCCESS"
+  | "LOGIN_FAILURE"
+  | "PASSWORD_VERIFY_SUCCESS"
+  | "PASSWORD_VERIFY_FAILURE";
+
+export type ActivityFieldChange = {
+  field: string;
+  before: unknown;
+  after: unknown;
+};
+
+export type ActivityLog = {
+  id: string;
+  actor_user_id?: string | null;
+  actor_email?: string | null;
+  actor_name?: string | null;
+  action: ActivityAction;
+  entity_type: string;
+  entity_id?: string | null;
+  entity_label?: string | null;
+  summary: string;
+  changes?: ActivityFieldChange[] | null;
+  ip_address?: string | null;
+  created_at: string;
+};
+
 function qs(params: Record<string, string | number | undefined>) {
   const sp = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {

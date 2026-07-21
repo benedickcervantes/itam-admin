@@ -12,6 +12,10 @@ export function canViewUsers(user: ItamUser | null): boolean {
   return !!user;
 }
 
+export function canViewActivityLogs(user: ItamUser | null): boolean {
+  return user?.role === "IT_ADMIN" || user?.role === "SUPER_ADMIN";
+}
+
 export function isViewer(user: ItamUser | null): boolean {
   return user?.role === "VIEWER";
 }

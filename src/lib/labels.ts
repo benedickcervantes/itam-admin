@@ -1,5 +1,12 @@
 const LABELS: Record<string, string> = {
   ACTIVE: "Active",
+  CREATE: "Create",
+  UPDATE: "Update",
+  DELETE: "Delete",
+  LOGIN_SUCCESS: "Login success",
+  LOGIN_FAILURE: "Login failure",
+  PASSWORD_VERIFY_SUCCESS: "Password verified",
+  PASSWORD_VERIFY_FAILURE: "Password verify failed",
   CURRENTLY_ASSIGNED: "Currently assigned",
   REPLACED: "Replaced",
   RETURNED: "Returned",
