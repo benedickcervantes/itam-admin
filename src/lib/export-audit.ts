@@ -147,7 +147,7 @@ const COLUMN_SECTIONS: ColumnSection[] = [
       { key: "assessment", header: "Assessment", width: 16, value: (r) => labelEnumOrBlank(r.overall_assessment) },
       { key: "priority", header: "Priority", width: 12, value: (r) => labelEnumOrBlank(r.priority) },
       { key: "itemsNeeded", header: "Items Needed", width: 28, value: (r) => formatItemsNeededList(r.upgrade_components) },
-      { key: "recommendedAction", header: "Recommended Action", width: 18, value: (r) => labelEnumOrBlank(r.recommended_action) },
+      { key: "recommendedAction", header: "Recommended Action", width: 28, value: (r) => formatItemsNeededList(r.recommended_actions) },
       { key: "immediateAction", header: "Immediate Action", width: 12, value: (r) => (r.immediate_action ? "Yes" : "No") },
     ],
   },

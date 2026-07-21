@@ -28,6 +28,7 @@ const ENTITY_TYPES = [
   "Auth",
   "User",
   "Asset",
+  "AssetPeripheralMove",
   "AuditRegister",
   "DeviceHistory",
   "DeviceHistoryTransfer",

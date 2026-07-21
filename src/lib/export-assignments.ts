@@ -3,6 +3,7 @@ import type { Assignment } from "./types";
 export type AssignmentExportColumnKey =
   | "recordId"
   | "assetId"
+  | "brandModel"
   | "computer"
   | "assignedTo"
   | "lastUser"
@@ -35,6 +36,7 @@ const COLUMN_SECTIONS: ColumnSection[] = [
     columns: [
       { key: "recordId", header: "Record ID", width: 14, value: (r) => r.record_code },
       { key: "assetId", header: "Asset ID", width: 14, value: (r) => r.asset?.asset_code ?? "" },
+      { key: "brandModel", header: "Brand / Model", width: 28, value: (r) => r.asset?.brand_model ?? "" },
       { key: "computer", header: "Computer", width: 22, value: (r) => r.asset?.computer_name ?? "" },
     ],
   },

@@ -466,18 +466,20 @@ export default function DeviceHistoryPage() {
               <table className="data-table data-table--fixed" style={{ minWidth: "68rem" }}>
                 <colgroup>
                   <col style={{ width: "8%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "16%" }} />
-                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "8%" }} />
                   <col style={{ width: "16%" }} />
                   <col style={{ width: "12%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "8%" }} />
                   <col style={{ width: "10%" }} />
                 </colgroup>
                 <thead>
                   <tr>
                     <th>Record ID</th>
                     <th>Asset ID</th>
+                    <th className="cell-wrap">Brand/Model</th>
                     <th className="cell-wrap">Computer</th>
                     <th className="cell-wrap">Assigned To</th>
                     <th className="cell-wrap">Last User</th>
@@ -488,10 +490,10 @@ export default function DeviceHistoryPage() {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <TableSkeleton columns={8} />
+                    <TableSkeleton columns={9} />
                   ) : items.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="text-slate-400">
+                      <td colSpan={9} className="text-slate-400">
                         No device history records found.
                       </td>
                     </tr>
@@ -500,7 +502,8 @@ export default function DeviceHistoryPage() {
                       <tr key={row.id} className="cursor-pointer" onClick={() => openView(row)}>
                         <td className="font-mono text-[#2E7D9A]">{row.record_code}</td>
                         <td className="font-mono text-slate-300">{row.asset?.asset_code ?? "—"}</td>
-                        <td className="cell-wrap font-medium text-white">{row.asset?.computer_name ?? "—"}</td>
+                        <td className="cell-wrap font-medium text-white">{row.asset?.brand_model?.trim() || "—"}</td>
+                        <td className="cell-wrap text-slate-300">{row.asset?.computer_name ?? "—"}</td>
                         <td className="cell-wrap text-slate-300">{row.assigned_to ?? "—"}</td>
                         <td className="cell-wrap text-slate-300">{row.last_user ?? "—"}</td>
                         <td className="cell-wrap">{row.department?.name ?? "—"}</td>
@@ -531,11 +534,13 @@ export default function DeviceHistoryPage() {
                       <div className="min-w-0">
                         <p className="font-mono text-sm font-medium text-[#2E7D9A]">{row.record_code}</p>
                         <p className="mt-1 truncate text-base font-medium text-white">
-                          {row.asset?.computer_name ?? "-"}
+                          {row.asset?.brand_model?.trim() || row.asset?.computer_name || "—"}
                         </p>
                         <p className="truncate font-mono text-xs text-slate-400">
-                          {row.asset?.asset_code ?? "-"} · {row.assigned_to}
+                          {row.asset?.asset_code ?? "—"}
+                          {row.asset?.computer_name ? ` · ${row.asset.computer_name}` : ""}
                         </p>
+                        <p className="truncate text-sm text-slate-400">{row.assigned_to}</p>
                       </div>
                       <div onClick={(e) => e.stopPropagation()}>{renderRowActions(row)}</div>
                     </div>

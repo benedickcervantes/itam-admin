@@ -47,7 +47,7 @@ export type AuditRegister = {
   immediate_action_notes?: string | null;
   findings_summary?: string | null;
   detailed_findings?: string | null;
-  recommended_action?: string | null;
+  recommended_actions?: string[] | null;
   upgrade_components?: string[] | null;
   upgrade_notes?: string | null;
   internal_notes?: string | null;
@@ -117,7 +117,12 @@ export type DeviceHistory = {
   id: string;
   record_code: string;
   asset_id: string;
-  asset?: { asset_code: string; computer_name: string };
+  asset?: {
+    asset_code: string;
+    computer_name: string;
+    brand_model?: string | null;
+    item_type?: string | null;
+  };
   assigned_to: string;
   last_user?: string | null;
   department_id?: string | null;
