@@ -86,6 +86,21 @@ export function DeviceInventoryForm({
     set("upgradeComponents", next.join(","));
   };
 
+  const recommendedActionsSelected = useMemo(
+    () =>
+      String(form.recommendedActions ?? "")
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean),
+    [form.recommendedActions],
+  );
+  const toggleRecommendedAction = (action: string) => {
+    const next = recommendedActionsSelected.includes(action)
+      ? recommendedActionsSelected.filter((a) => a !== action)
+      : [...recommendedActionsSelected, action];
+    set("recommendedActions", next.join(","));
+  };
+
   const overallAssessment = String(form.overallAssessment);
   const showsComponentChecklist =
     overallAssessment === "NEEDS_UPGRADE" || overallAssessment === "NEEDS_REPLACEMENT";
@@ -315,7 +330,7 @@ export function DeviceInventoryForm({
     [],
   );
   const recommendedActionOptions = useMemo(
-    () => optionsFromStrings([...REFERENCE_DATA.recommendedActions], { emptyLabel: "—" }),
+    () => [...REFERENCE_DATA.recommendedActions],
     [],
   );
   const mouseConditionOptions = useMemo(
@@ -1329,12 +1344,20 @@ export function DeviceInventoryForm({
               />
             </Field>
             <Field label="Recommended Action">
-              <Select
-                value={String(form.recommendedAction)}
-                onChange={(v) => set("recommendedAction", v)}
-                options={recommendedActionOptions}
-                disabled={!write}
-              />
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {recommendedActionOptions.map((action) => (
+                  <label key={action} className="flex items-center gap-2 text-sm text-slate-300">
+                    <input
+                      type="checkbox"
+                      checked={recommendedActionsSelected.includes(action)}
+                      onChange={() => toggleRecommendedAction(action)}
+                      disabled={!write}
+                      className="rounded border-slate-600"
+                    />
+                    {labelEnum(action)}
+                  </label>
+                ))}
+              </div>
             </Field>
           </div>
 

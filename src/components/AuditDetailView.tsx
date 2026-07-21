@@ -131,7 +131,16 @@ export function AuditDetailView({ audit }: { audit: AuditRegister }) {
         <DetailRow label="Audit Status" value={fmtLabel(audit.audit_status)} />
         <DetailRow label="Overall Assessment" value={fmtLabel(audit.overall_assessment)} />
         <DetailRow label="Priority" value={fmtLabel(audit.priority)} />
-        <DetailRow label="Recommended Action" value={fmtLabel(audit.recommended_action)} />
+        {audit.recommended_actions && audit.recommended_actions.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-1.5 py-1.5">
+            <span className="text-sm text-slate-500">Recommended Action:</span>
+            {audit.recommended_actions.map((a) => (
+              <Badge key={a} value={a} />
+            ))}
+          </div>
+        ) : (
+          <DetailRow label="Recommended Action" value={null} />
+        )}
         {audit.upgrade_components && audit.upgrade_components.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 py-1.5">
             <span className="text-sm text-slate-500">{upgradeChecklistLabel(audit.overall_assessment)}:</span>

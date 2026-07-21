@@ -183,7 +183,7 @@ export function emptyForm(): DeviceFormState {
     immediateActionNotes: "",
     findingsSummary: "",
     detailedFindings: "",
-    recommendedAction: "",
+    recommendedActions: "",
     upgradeComponents: "",
     upgradeNotes: "",
     internalNotes: "",
@@ -301,7 +301,7 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
     immediateActionNotes: row.immediate_action_notes ?? "",
     findingsSummary: row.findings_summary ?? "",
     detailedFindings: row.detailed_findings ?? "",
-    recommendedAction: row.recommended_action ?? "",
+    recommendedActions: (row.recommended_actions ?? []).join(","),
     upgradeComponents: (row.upgrade_components ?? []).join(","),
     upgradeNotes: row.upgrade_notes ?? "",
     internalNotes: row.internal_notes ?? "",
@@ -576,6 +576,13 @@ export function prepareAuditPayload(form: DeviceFormState): Record<string, strin
     .filter(Boolean);
   if (upgradeComponents.length > 0) result.upgradeComponents = upgradeComponents;
 
+  const recommendedActionsCsv = String(body.recommendedActions ?? "");
+  delete result.recommendedActions;
+  result.recommendedActions = recommendedActionsCsv
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+
   Object.keys(result).forEach((k) => {
     if (result[k] === "") delete result[k];
   });
@@ -596,7 +603,7 @@ const AUDIT_ONLY_KEYS = [
   "immediateActionNotes",
   "findingsSummary",
   "detailedFindings",
-  "recommendedAction",
+  "recommendedActions",
   "upgradeComponents",
   "upgradeNotes",
   "internalNotes",

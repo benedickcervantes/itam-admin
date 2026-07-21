@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ArrowRightLeft,
   ChevronDown,
   Download,
   Eye,
@@ -19,6 +20,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { AssetDetailView } from "@/components/AssetDetailView";
 import { DeviceFormToolbar } from "@/components/DeviceFormToolbar";
 import { DeviceInventoryForm } from "@/components/DeviceInventoryForm";
+import { MovePeripheralForm } from "@/components/MovePeripheralForm";
 import { PeripheralAssetForm } from "@/components/PeripheralAssetForm";
 import { Drawer, inputClass, selectClass } from "@/components/Drawer";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
@@ -43,7 +45,7 @@ import { emptyForm, emptyFormForCategory, formStateFromAsset, isComponentItemTyp
 import type { Asset, Department } from "@/lib/types";
 
 type ViewMode = "table" | "grid";
-type DrawerMode = "create" | "view" | "edit";
+type DrawerMode = "create" | "view" | "edit" | "move";
 
 const VIEW_MODE_STORAGE_KEY = "assets-view";
 
@@ -669,7 +671,9 @@ export default function AssetsPage() {
               : "New Asset"
             : drawerMode === "edit"
               ? `Edit ${editing.asset_code}`
-              : `View ${editing.asset_code}`
+              : drawerMode === "move"
+                ? `Move ${editing.asset_code}`
+                : `View ${editing.asset_code}`
         }
         subtitle={
           !editing
@@ -678,12 +682,15 @@ export default function AssetsPage() {
               : "Register a device in the assets inventory"
             : drawerMode === "edit"
               ? "Update hardware inventory details"
-              : "Hardware inventory summary"
+              : drawerMode === "move"
+                ? "Reassign this peripheral to another workstation — asset number stays the same"
+                : "Hardware inventory summary"
         }
         onClose={closeDrawer}
-        wide
+        wide={drawerMode !== "move"}
         toolbar={
           drawerMode !== "view" &&
+          drawerMode !== "move" &&
           !isComponentItemType(String(form.itemType)) &&
           !isSparePeripheralCategory(String(form.assetCategory)) ? (
             <DeviceFormToolbar
@@ -694,7 +701,7 @@ export default function AssetsPage() {
           ) : undefined
         }
         banner={
-          drawerMode !== "view" && error ? (
+          (drawerMode === "edit" || drawerMode === "create" || drawerMode === "move") && error ? (
             <p className="rounded-lg border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-400">
               {error}
             </p>
@@ -710,6 +717,16 @@ export default function AssetsPage() {
               >
                 Close
               </button>
+              {isComponentItemType(editing.item_type) && (
+                <button
+                  type="button"
+                  onClick={() => setDrawerMode("move")}
+                  className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center gap-1.5 rounded-lg border border-slate-600 px-3 text-sm font-medium leading-none text-slate-200 hover:bg-slate-800"
+                >
+                  <ArrowRightLeft className="h-4 w-4" />
+                  Move
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
@@ -719,6 +736,16 @@ export default function AssetsPage() {
                 className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center rounded-lg bg-[#2E7D9A] px-3 text-sm font-medium leading-none text-white hover:bg-[#256b85]"
               >
                 Edit
+              </button>
+            </div>
+          ) : drawerMode === "move" ? (
+            <div className="ml-auto flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={closeDrawer}
+                className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center rounded-lg border border-slate-600 px-3 text-sm font-medium leading-none text-slate-200 hover:bg-slate-800"
+              >
+                Cancel
               </button>
             </div>
           ) : drawerMode !== "view" && write ? (
@@ -752,6 +779,19 @@ export default function AssetsPage() {
           <p className="py-12 text-center text-sm text-slate-400">Loading asset details...</p>
         ) : drawerMode === "view" && editing ? (
           <AssetDetailView asset={editing} />
+        ) : drawerMode === "move" && editing ? (
+          <MovePeripheralForm
+            asset={editing}
+            departments={departments}
+            onDone={(message) => {
+              setSuccess(message);
+              setError("");
+              setDrawerOpen(false);
+              setDrawerMode("create");
+              void load();
+            }}
+            onError={(message) => setError(message)}
+          />
         ) : isComponentItemType(String(form.itemType)) ||
           isSparePeripheralCategory(String(form.assetCategory)) ? (
           <PeripheralAssetForm
