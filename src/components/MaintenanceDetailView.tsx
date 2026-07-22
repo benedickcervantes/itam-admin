@@ -26,9 +26,9 @@ export function MaintenanceDetailView({ record }: { record: MaintenanceRecord })
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <DetailSection title="Device & Employee" icon={User}>
+        <DetailSection title="Asset & User" icon={User}>
           <DetailRow label="Computer" value={record.computer_name} />
-          <DetailRow label="Employee" value={record.employee} />
+          <DetailRow label="Employee / User" value={record.employee} />
           <DetailRow label="Department" value={record.audit_register?.department?.name} />
           <DetailRow label="Performed By" value={record.performed_by} />
           <DetailRow label="Status" value={labelEnum(record.status)} />
@@ -40,7 +40,7 @@ export function MaintenanceDetailView({ record }: { record: MaintenanceRecord })
         </DetailSection>
       </div>
 
-      <DetailSection title="Repair Details" icon={Wrench}>
+      <DetailSection title="Service / Repair Details" icon={Wrench}>
         <DetailRow label="Issue" value={record.issue} />
         <DetailRow label="Action Taken" value={record.action_taken} />
       </DetailSection>
