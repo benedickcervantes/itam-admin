@@ -37,7 +37,7 @@ export function AttentionBand({
     { key: "critical", label: "Critical Audits", value: criticalAudits, icon: TriangleAlert },
     { key: "immediate", label: "Immediate Actions", value: immediateActions, icon: Siren },
     { key: "repair", label: "Assets Under Repair", value: assetsUnderRepair, icon: Wrench },
-    { key: "maintenance", label: "Open Maintenance", value: openMaintenance, icon: Hammer },
+    { key: "maintenance", label: "Open Service / Repair", value: openMaintenance, icon: Hammer },
     { key: "priority", label: "High Priority", value: highPriority, icon: Flame },
     { key: "os", label: "Cracked OS", value: crackedOs, icon: ShieldOff },
   ];

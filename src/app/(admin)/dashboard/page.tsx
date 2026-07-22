@@ -298,11 +298,11 @@ export default function DashboardPage() {
               </div>
               <div className="card p-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <h3 className="font-medium text-white">Peripherals & Maintenance</h3>
+                  <h3 className="font-medium text-white">Peripherals & Service Log</h3>
                   <SectionAlert count={data.peripheralsMaintenance.openMaintenance} label="Open" />
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <MiniStat icon={Hammer} color="orange" label="Open Maintenance" value={data.peripheralsMaintenance.openMaintenance} />
+                  <MiniStat icon={Hammer} color="orange" label="Open Service / Repair" value={data.peripheralsMaintenance.openMaintenance} />
                   <MiniStat icon={RefreshCw} color="amber" label="Assets Under Repair" value={data.peripheralsMaintenance.assetsUnderRepair} />
                   <MiniStat icon={Keyboard} color="red" label="Keyboard Issues" value={data.peripheralsMaintenance.keyboardIssues} />
                   <MiniStat icon={Mouse} color="teal" label="Personal Mouse (BYOD)" value={data.peripheralsMaintenance.personalMouse} />

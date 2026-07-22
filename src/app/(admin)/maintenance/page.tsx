@@ -31,7 +31,7 @@ import {
   fetchMaintenance,
   updateMaintenance,
 } from "@/lib/api/maintenance";
-import { fetchAssets } from "@/lib/api/assets";
+import { fetchAllAssets } from "@/lib/api/assets";
 import { verifyPassword } from "@/lib/api/auth";
 import { canWrite } from "@/lib/auth/permissions";
 import { MaintenanceExportColumnDialog } from "@/components/MaintenanceExportColumnDialog";
@@ -59,16 +59,23 @@ function readStoredViewMode(): ViewMode {
 
 function emptyForm(performedBy = ""): Record<string, string> {
   return {
+    computerName: "",
+    auditId: "",
+    employee: "",
     issue: "",
+    actionTaken: "",
     status: "OPEN",
     dateOpened: todayIso(),
+    dateClosed: "",
     performedBy,
+    notes: "",
   };
 }
 
 function formFromRecord(row: MaintenanceRecord): Record<string, string> {
   return {
     computerName: row.computer_name ?? "",
+    auditId: row.audit_id ?? "",
     employee: row.employee ?? "",
     issue: row.issue,
     actionTaken: row.action_taken ?? "",
@@ -85,6 +92,7 @@ export default function MaintenancePage() {
   const write = canWrite(user);
   const [items, setItems] = useState<MaintenanceRecord[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [assetsLoading, setAssetsLoading] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -159,7 +167,7 @@ export default function MaintenancePage() {
         status: status || undefined,
       });
       if (rows.length === 0) {
-        setError("No maintenance records match the current filters to export.");
+        setError("No service/repair records match the current filters to export.");
         return;
       }
       const filterSummary = buildExportFilterSummary(columns);
@@ -170,7 +178,7 @@ export default function MaintenancePage() {
       }
       const label = format === "excel" ? "Excel" : "PDF";
       setSuccess(
-        `Exported ${rows.length} maintenance ${rows.length === 1 ? "record" : "records"} to ${label} (${columns.length} column${columns.length === 1 ? "" : "s"}).`,
+        `Exported ${rows.length} service/repair ${rows.length === 1 ? "record" : "records"} to ${label} (${columns.length} column${columns.length === 1 ? "" : "s"}).`,
       );
       setExportDialogOpen(false);
     } catch (e) {
@@ -212,9 +220,11 @@ export default function MaintenancePage() {
   }, [load]);
 
   const loadAssets = useCallback(() => {
-    fetchAssets({ limit: 200 })
-      .then((r) => setAssets(r.items))
-      .catch(() => setAssets([]));
+    setAssetsLoading(true);
+    fetchAllAssets()
+      .then(setAssets)
+      .catch(() => setAssets([]))
+      .finally(() => setAssetsLoading(false));
   }, []);
 
   useEffect(() => {
@@ -286,7 +296,7 @@ export default function MaintenancePage() {
       else await createMaintenance(body);
       setDrawerOpen(false);
       setDrawerMode("create");
-      setSuccess(editing ? `Updated ${editing.record_code}.` : "Maintenance record created.");
+      setSuccess(editing ? `Updated ${editing.record_code}.` : "Service/repair record created.");
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Save failed");
@@ -367,7 +377,10 @@ export default function MaintenancePage() {
 
   return (
     <>
-      <Header title="Maintenance" subtitle="Repairs and service actions linked to audits" />
+      <Header
+        title="Asset Service / Repair Log"
+        subtitle="Hands-on repair and service history for assets — not a helpdesk ticket queue"
+      />
       <div className="page-content flex-1 overflow-y-auto">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           <FilterSearch
@@ -469,7 +482,7 @@ export default function MaintenancePage() {
               onClick={openCreate}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2 text-sm font-medium text-white sm:w-auto"
             >
-              <Plus className="h-4 w-4" /> New Record
+              <Plus className="h-4 w-4" /> New Service Log
             </button>
           )}
         </div>
@@ -509,7 +522,7 @@ export default function MaintenancePage() {
                   ) : items.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="text-slate-400">
-                        No maintenance records found.
+                        No service/repair records found.
                       </td>
                     </tr>
                   ) : (
@@ -537,7 +550,7 @@ export default function MaintenancePage() {
             {loading ? (
               <CardGridSkeleton />
             ) : items.length === 0 ? (
-              <p className="py-8 text-center text-sm text-slate-400">No maintenance records found.</p>
+              <p className="py-8 text-center text-sm text-slate-400">No service/repair records found.</p>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {items.map((row) => (
@@ -584,17 +597,17 @@ export default function MaintenancePage() {
         open={drawerOpen}
         title={
           !editing
-            ? "New Maintenance"
+            ? "New Service Log"
             : drawerMode === "edit"
               ? `Edit ${editing.record_code}`
               : `View ${editing.record_code}`
         }
         subtitle={
           !editing
-            ? "Log a repair or maintenance action"
+            ? "Log hands-on repair or preventive service on an asset"
             : drawerMode === "edit"
-              ? "Update maintenance record details"
-              : "Maintenance record summary"
+              ? "Update service/repair record details"
+              : "Service/repair record summary"
         }
         onClose={closeDrawer}
         banner={
@@ -639,7 +652,7 @@ export default function MaintenancePage() {
                 className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center gap-1.5 rounded-lg border border-transparent bg-[#2E7D9A] px-3 text-sm font-medium leading-none text-white hover:bg-[#256b85] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving && <Loader2 className="h-4 w-4 shrink-0 animate-spin" />}
-                {saving ? "Saving..." : drawerMode === "create" ? "Create Record" : "Save Changes"}
+                {saving ? "Saving..." : drawerMode === "create" ? "Create Log" : "Save Changes"}
               </button>
             </div>
           ) : undefined
@@ -653,6 +666,7 @@ export default function MaintenancePage() {
             form={form}
             onChange={setForm}
             assets={assets}
+            assetsLoading={assetsLoading}
             fieldErrors={fieldErrors}
             readOnly={!write}
           />
@@ -671,10 +685,10 @@ export default function MaintenancePage() {
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="Delete maintenance record?"
+        title="Delete service/repair record?"
         message={
           deleteTarget
-            ? `Are you sure you want to delete maintenance record ${deleteTarget.record_code}? This action cannot be undone.`
+            ? `Are you sure you want to delete service/repair record ${deleteTarget.record_code}? This action cannot be undone.`
             : ""
         }
         requirePassword

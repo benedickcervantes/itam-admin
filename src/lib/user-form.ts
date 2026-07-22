@@ -12,7 +12,7 @@ export const ROLE_META: Record<
   },
   IT_ADMIN: {
     label: "IT Admin",
-    description: "Manage assets, audits, maintenance, and day-to-day IT operations.",
+    description: "Manage assets, audits, service/repair logs, and day-to-day IT operations.",
     permissions: "Read & write · All departments",
   },
   VIEWER: {

@@ -30,7 +30,7 @@ const NAV: NavEntry[] = [
   { href: "/audit-register", label: "IT Audit Register", icon: ClipboardList },
   { href: "/assets", label: "Assets", icon: HardDrive },
   { href: "/device-history", label: "Device History", icon: History },
-  { href: "/maintenance", label: "Maintenance", icon: Wrench },
+  { href: "/maintenance", label: "Service / Repair Log", icon: Wrench },
   { href: "/procurement", label: "Procurement", icon: ShoppingCart },
   { href: "/disposals", label: "Disposals", icon: Trash2 },
 ];
