@@ -7,10 +7,10 @@ export const MAINTENANCE_STATUS_META: Record<
   MaintenanceStatus,
   { label: string; description: string }
 > = {
-  OPEN: { label: "Open", description: "New ticket — work has not started yet." },
-  IN_PROGRESS: { label: "In Progress", description: "Repair or service is currently underway." },
-  COMPLETED: { label: "Completed", description: "Issue resolved and the ticket is closed." },
-  CANCELLED: { label: "Cancelled", description: "No longer needed or superseded." },
+  OPEN: { label: "Open", description: "Logged — work not started yet." },
+  IN_PROGRESS: { label: "In Progress", description: "Repair or service underway." },
+  COMPLETED: { label: "Completed", description: "Work finished; record closed." },
+  CANCELLED: { label: "Cancelled", description: "No longer needed." },
 };
 
 export function todayIso(): string {
@@ -19,15 +19,18 @@ export function todayIso(): string {
 
 export function validateMaintenanceForm(
   form: Record<string, string>,
-  mode: MaintenanceFormMode,
+  _mode: MaintenanceFormMode,
 ): Record<string, string> {
   const errors: Record<string, string> = {};
+  const computerName = form.computerName?.trim() ?? "";
   const issue = form.issue?.trim() ?? "";
   const dateOpened = form.dateOpened?.trim() ?? "";
   const dateClosed = form.dateClosed?.trim() ?? "";
   const status = form.status ?? "OPEN";
 
-  if (!issue) errors.issue = "Describe the issue or request.";
+  if (!computerName) errors.computerName = "Select the asset being serviced.";
+
+  if (!issue) errors.issue = "Describe the fault, finding, or service reason.";
   else if (issue.length < 5) errors.issue = "Provide more detail (at least 5 characters).";
 
   if (dateOpened && dateClosed && dateClosed < dateOpened) {
@@ -38,8 +41,8 @@ export function validateMaintenanceForm(
     errors.actionTaken = "Describe what was done before marking as completed.";
   }
 
-  if (status === "COMPLETED" && !dateClosed && mode === "create") {
-    errors.dateClosed = "Set a close date when marking the ticket completed.";
+  if (status === "COMPLETED" && !dateClosed) {
+    errors.dateClosed = "Set a close date when marking the service completed.";
   }
 
   return errors;
