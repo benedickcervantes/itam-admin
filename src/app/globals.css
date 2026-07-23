@@ -414,3 +414,24 @@ table.data-table th.cell-clip {
     animation: none;
   }
 }
+
+/* Clean print: hide chrome when printing Recommendation Specs (or any admin page) */
+@media print {
+  aside,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #1e293b !important;
+  }
+
+  main {
+    overflow: visible !important;
+  }
+
+  .page-content {
+    padding: 0 !important;
+  }
+}
