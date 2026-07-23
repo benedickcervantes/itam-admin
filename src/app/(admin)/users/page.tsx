@@ -1,10 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Eye, LayoutGrid, List, Loader2, Pencil, Plus, UserX } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  ChevronDown,
+  Download,
+  Eye,
+  FileSpreadsheet,
+  FileText,
+  LayoutGrid,
+  List,
+  Loader2,
+  Pencil,
+  Plus,
+  UserCheck,
+  UserX,
+  X,
+} from "lucide-react";
 import { Badge } from "@/components/Badge";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Drawer } from "@/components/Drawer";
 import { UserDetailView, UserForm } from "@/components/UserForm";
+import { UserExportColumnDialog } from "@/components/UserExportColumnDialog";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { Pagination } from "@/components/Pagination";
@@ -12,13 +29,21 @@ import { CardGridSkeleton, TableSkeleton } from "@/components/TableSkeleton";
 import { useSessionUser } from "@/components/SessionContext";
 import { fetchDepartments } from "@/lib/api/departments";
 import { createUser, deleteUser, fetchUsers, updateUser } from "@/lib/api/users";
-import { canWrite } from "@/lib/auth/permissions";
+import { verifyPassword } from "@/lib/api/auth";
+import { canManageUsers, canViewUsers } from "@/lib/auth/permissions";
+import {
+  ALL_USER_EXPORT_COLUMN_KEYS,
+  exportUsersExcel,
+  exportUsersPdf,
+  type UserExportColumnKey,
+} from "@/lib/export-users";
 import { labelEnum } from "@/lib/labels";
 import { validateUserForm } from "@/lib/user-form";
 import type { AdminUser, Department } from "@/lib/types";
 
 type ViewMode = "table" | "grid";
 type DrawerMode = "create" | "view" | "edit";
+type StatusTarget = { row: AdminUser; action: "deactivate" | "reactivate" };
 
 const VIEW_MODE_STORAGE_KEY = "users-view";
 const PAGE_SIZE = 20;
@@ -62,7 +87,10 @@ function formatDate(value?: string) {
 
 export default function UsersPage() {
   const sessionUser = useSessionUser();
-  const write = canWrite(sessionUser);
+  const router = useRouter();
+  const allowed = canViewUsers(sessionUser);
+  const write = canManageUsers(sessionUser);
+
   const [items, setItems] = useState<AdminUser[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [searchInput, setSearchInput] = useState("");
@@ -81,13 +109,38 @@ export default function UsersPage() {
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [viewMode, setViewMode] = useState<ViewMode>(readStoredViewMode);
+  const [statusTarget, setStatusTarget] = useState<StatusTarget | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [statusError, setStatusError] = useState("");
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   const changeViewMode = (mode: ViewMode) => {
     setViewMode(mode);
     localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
   };
 
+  useEffect(() => {
+    if (sessionUser && !allowed) {
+      router.replace("/dashboard");
+    }
+  }, [sessionUser, allowed, router]);
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onClick = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [exportMenuOpen]);
+
   const load = useCallback(async () => {
+    if (!allowed) return;
     setLoading(true);
     try {
       setItems(await fetchUsers());
@@ -97,12 +150,14 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [allowed]);
 
   useEffect(() => {
     void load();
-    fetchDepartments().then(setDepartments).catch(() => {});
-  }, [load]);
+    if (allowed) {
+      fetchDepartments().then(setDepartments).catch(() => {});
+    }
+  }, [load, allowed]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput), 300);
@@ -133,6 +188,18 @@ export default function UsersPage() {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const hasActiveFilters = Boolean(searchInput || search || roleFilter || departmentFilter || activeFilter);
+  const rangeStart = filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(page * PAGE_SIZE, filtered.length);
+
+  const clearFilters = () => {
+    setSearchInput("");
+    setSearch("");
+    setRoleFilter("");
+    setDepartmentFilter("");
+    setActiveFilter("");
+    setPage(1);
+  };
 
   const stats = useMemo(() => ({
     total: items.length,
@@ -140,6 +207,63 @@ export default function UsersPage() {
     admins: items.filter((u) => u.role === "IT_ADMIN" || u.role === "SUPER_ADMIN").length,
     viewers: items.filter((u) => u.role === "VIEWER").length,
   }), [items]);
+
+  const buildFilterSummary = () => {
+    const parts: string[] = [];
+    if (search) parts.push(`Search: "${search}"`);
+    if (roleFilter) parts.push(`Role: ${labelEnum(roleFilter)}`);
+    if (departmentFilter) {
+      parts.push(`Department: ${departments.find((d) => d.id === departmentFilter)?.name ?? departmentFilter}`);
+    }
+    if (activeFilter === "active") parts.push("Status: Active");
+    if (activeFilter === "inactive") parts.push("Status: Inactive");
+    return parts.length ? parts.join(" · ") : "None (all records)";
+  };
+
+  const buildExportFilterSummary = (columns: UserExportColumnKey[]) => {
+    const parts = [buildFilterSummary()];
+    if (columns.length < ALL_USER_EXPORT_COLUMN_KEYS.length) {
+      parts.push(`Columns: ${columns.length} of ${ALL_USER_EXPORT_COLUMN_KEYS.length}`);
+    }
+    return parts.join(" · ");
+  };
+
+  const runExport = async (
+    format: "excel" | "pdf",
+    columns: UserExportColumnKey[] = ALL_USER_EXPORT_COLUMN_KEYS,
+  ) => {
+    if (exporting) return;
+    if (columns.length === 0) {
+      setError("Select at least one column to export.");
+      setExportDialogOpen(true);
+      return;
+    }
+    setExportMenuOpen(false);
+    setExporting(true);
+    setError("");
+    setSuccess("");
+    try {
+      if (filtered.length === 0) {
+        setError("No users match the current filters to export.");
+        return;
+      }
+      const filterSummary = buildExportFilterSummary(columns);
+      if (format === "excel") {
+        await exportUsersExcel(filtered, filterSummary, columns);
+      } else {
+        exportUsersPdf(filtered, filterSummary, columns);
+      }
+      const label = format === "excel" ? "Excel" : "PDF";
+      setSuccess(
+        `Exported ${filtered.length} user${filtered.length === 1 ? "" : "s"} to ${label} (${columns.length} column${columns.length === 1 ? "" : "s"}).`,
+      );
+      setExportDialogOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -222,21 +346,33 @@ export default function UsersPage() {
     }
   };
 
-  const deactivate = async (row: AdminUser) => {
-    if (!write) return;
-    if (row.id === sessionUser.id) {
-      setError("You cannot deactivate your own account.");
-      return;
-    }
-    if (!confirm(`Deactivate ${row.full_name}? They will no longer be able to sign in.`)) return;
+  const confirmStatusChange = async (password: string) => {
+    if (!statusTarget || statusLoading || !write) return;
+    setStatusLoading(true);
+    setStatusError("");
     try {
-      await deleteUser(row.id);
-      setSuccess(`Deactivated ${row.full_name}.`);
+      await verifyPassword(password);
+      if (statusTarget.action === "deactivate") {
+        await deleteUser(statusTarget.row.id);
+        setSuccess(`Deactivated ${statusTarget.row.full_name}.`);
+      } else {
+        await updateUser(statusTarget.row.id, { isActive: true });
+        setSuccess(`Reactivated ${statusTarget.row.full_name}.`);
+      }
+      setStatusTarget(null);
       setError("");
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Deactivate failed");
+      setStatusError(e instanceof Error ? e.message : "Action failed");
+    } finally {
+      setStatusLoading(false);
     }
+  };
+
+  const canChangeStatus = (row: AdminUser) => {
+    if (!write || row.id === sessionUser.id) return false;
+    if (row.role === "SUPER_ADMIN" && sessionUser.role !== "SUPER_ADMIN") return false;
+    return true;
   };
 
   const renderRowActions = (row: AdminUser) => (
@@ -272,12 +408,13 @@ export default function UsersPage() {
           >
             <Pencil className="h-4 w-4" />
           </button>
-          {row.is_active && row.id !== sessionUser.id && (
+          {canChangeStatus(row) && row.is_active && (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                void deactivate(row);
+                setStatusError("");
+                setStatusTarget({ row, action: "deactivate" });
               }}
               className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-red-400"
               title="Deactivate user"
@@ -286,11 +423,36 @@ export default function UsersPage() {
               <UserX className="h-4 w-4" />
             </button>
           )}
+          {canChangeStatus(row) && !row.is_active && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setStatusError("");
+                setStatusTarget({ row, action: "reactivate" });
+              }}
+              className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-emerald-400"
+              title="Reactivate user"
+              aria-label="Reactivate user"
+            >
+              <UserCheck className="h-4 w-4" />
+            </button>
+          )}
         </>
       )}
     </div>
   );
 
+  if (!allowed) {
+    return (
+      <>
+        <Header title="User Management" subtitle="Redirecting…" />
+        <div className="page-content flex flex-1 items-center justify-center">
+          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -318,52 +480,128 @@ export default function UsersPage() {
           </div>
         </div>
 
-        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <FilterSearch value={searchInput} onChange={setSearchInput} placeholder="Search name or email…" className="w-full sm:w-64" />
-            <FilterSelect label="Role" value={roleFilter} onChange={setRoleFilter} className="w-full sm:w-auto">
-              <option value="">All roles</option>
-              {ROLES.map((role) => (
-                <option key={role} value={role}>{labelEnum(role)}</option>
-              ))}
-            </FilterSelect>
-            <FilterSelect label="Department" value={departmentFilter} onChange={setDepartmentFilter} className="w-full sm:w-auto">
-              <option value="">All departments</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </FilterSelect>
-            <FilterSelect label="Status" value={activeFilter} onChange={setActiveFilter} className="w-full sm:w-auto">
-              <option value="">All statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </FilterSelect>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <FilterSearch
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Search name or email…"
+            className="min-w-0 flex-1"
+          />
+          <FilterSelect label="Role" value={roleFilter} onChange={setRoleFilter} className="w-full sm:w-auto">
+            <option value="">All roles</option>
+            {ROLES.map((role) => (
+              <option key={role} value={role}>{labelEnum(role)}</option>
+            ))}
+          </FilterSelect>
+          <FilterSelect label="Department" value={departmentFilter} onChange={setDepartmentFilter} className="w-full sm:w-auto">
+            <option value="">All departments</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </FilterSelect>
+          <FilterSelect label="Status" value={activeFilter} onChange={setActiveFilter} className="w-full sm:w-auto">
+            <option value="">All statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </FilterSelect>
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-300 hover:border-slate-500 hover:bg-slate-800 hover:text-white sm:w-auto"
+            >
+              <X className="h-4 w-4" />
+              Clear filters
+            </button>
+          )}
+          <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="View mode">
+            <button
+              type="button"
+              onClick={() => changeViewMode("table")}
+              aria-pressed={viewMode === "table"}
+              title="Table view"
+              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition ${
+                viewMode === "table" ? "bg-[#2E7D9A] text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+              }`}
+            >
+              <List className="h-4 w-4" />
+              <span className="hidden sm:inline">Table</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => changeViewMode("grid")}
+              aria-pressed={viewMode === "grid"}
+              title="Grid view"
+              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition ${
+                viewMode === "grid" ? "bg-[#2E7D9A] text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+              }`}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              <span className="hidden sm:inline">Grid</span>
+            </button>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="inline-flex rounded-lg border border-slate-700 bg-slate-800/60 p-0.5">
-              <button
-                type="button"
-                onClick={() => changeViewMode("table")}
-                aria-pressed={viewMode === "table"}
-                className={`rounded-md p-1.5 ${viewMode === "table" ? "bg-sky-500/20 text-sky-300" : "text-slate-400"}`}
+          <div className="relative w-full sm:w-auto" ref={exportMenuRef}>
+            <button
+              type="button"
+              onClick={() => setExportMenuOpen((o) => !o)}
+              disabled={exporting}
+              aria-haspopup="menu"
+              aria-expanded={exportMenuOpen}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            >
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {exporting ? "Exporting..." : "Export"}
+              {!exporting && <ChevronDown className="h-4 w-4" />}
+            </button>
+            {exportMenuOpen && !exporting && (
+              <div
+                role="menu"
+                className="absolute right-0 z-20 mt-1 w-full min-w-[14rem] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-lg sm:w-auto"
               >
-                <List className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => changeViewMode("grid")}
-                aria-pressed={viewMode === "grid"}
-                className={`rounded-md p-1.5 ${viewMode === "grid" ? "bg-sky-500/20 text-sky-300" : "text-slate-400"}`}
-              >
-                <LayoutGrid className="h-4 w-4" />
-              </button>
-            </div>
-            {write && (
-              <button type="button" onClick={openCreate} className="inline-flex items-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2 text-sm text-white">
-                <Plus className="h-4 w-4" /> New User
-              </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setExportMenuOpen(false);
+                    setExportDialogOpen(true);
+                  }}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                >
+                  <Download className="h-4 w-4 text-[#2E7D9A]" />
+                  Customize columns...
+                  <span className="ml-auto text-xs text-slate-500">
+                    {ALL_USER_EXPORT_COLUMN_KEYS.length} columns
+                  </span>
+                </button>
+                <div className="border-t border-slate-800" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void runExport("excel")}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                >
+                  <FileSpreadsheet className="h-4 w-4 text-emerald-400" /> Export as Excel
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void runExport("pdf")}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                >
+                  <FileText className="h-4 w-4 text-red-400" /> Export as PDF
+                </button>
+              </div>
             )}
           </div>
+          {write && (
+            <button
+              type="button"
+              onClick={openCreate}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2 text-sm font-medium text-white sm:w-auto"
+            >
+              <Plus className="h-4 w-4" /> New User
+            </button>
+          )}
         </div>
 
         {success && <p className="mb-3 text-sm text-emerald-400">{success}</p>}
@@ -405,13 +643,26 @@ export default function UsersPage() {
                 <Plus className="h-4 w-4" /> New User
               </button>
             )}
+            {hasActiveFilters && items.length > 0 && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-slate-600 px-3 py-1.5 text-sm font-medium text-slate-300 hover:bg-slate-800"
+              >
+                <X className="h-4 w-4" /> Clear filters
+              </button>
+            )}
           </div>
         ) : viewMode === "grid" ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {paged.map((row) => (
-              <div key={row.id} className="card p-4">
+              <div
+                key={row.id}
+                className="card cursor-pointer p-4 transition hover:border-[#2E7D9A]/50 hover:bg-slate-800/40"
+                onClick={() => openView(row)}
+              >
                 <div className="flex items-start gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sky-500/15 text-sm font-semibold text-sky-300">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2E7D9A]/15 text-sm font-semibold text-[#4FB0CE]">
                     {userInitials(row.full_name)}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -426,7 +677,7 @@ export default function UsersPage() {
                     </p>
                   </div>
                 </div>
-                <div className="mt-3 flex justify-end border-t border-slate-700/60 pt-3">
+                <div className="mt-3 flex justify-end border-t border-slate-700/60 pt-3" onClick={(e) => e.stopPropagation()}>
                   {renderRowActions(row)}
                 </div>
               </div>
@@ -452,7 +703,7 @@ export default function UsersPage() {
                     <tr
                       key={row.id}
                       className="cursor-pointer"
-                      onClick={() => (write ? openEditForm(row) : openView(row))}
+                      onClick={() => openView(row)}
                     >
                       <td className="font-medium text-white">{row.full_name}</td>
                       <td>{row.email}</td>
@@ -470,7 +721,23 @@ export default function UsersPage() {
         )}
 
         {!loading && filtered.length > 0 && (
-          <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+          <>
+            <p className="mt-3 text-sm text-slate-400">
+              Showing{" "}
+              <span className="font-semibold text-slate-200">
+                {rangeStart}–{rangeEnd}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-slate-200">{filtered.length}</span>
+              {filtered.length !== items.length && (
+                <>
+                  {" "}
+                  <span className="text-slate-500">(filtered from {items.length})</span>
+                </>
+              )}
+            </p>
+            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+          </>
         )}
       </div>
 
@@ -556,6 +823,40 @@ export default function UsersPage() {
           />
         )}
       </Drawer>
+
+      <UserExportColumnDialog
+        open={exportDialogOpen}
+        filterSummary={buildFilterSummary()}
+        exporting={exporting}
+        onClose={() => {
+          if (!exporting) setExportDialogOpen(false);
+        }}
+        onExport={(format, columns) => void runExport(format, columns)}
+      />
+
+      <ConfirmDialog
+        open={statusTarget !== null}
+        title={statusTarget?.action === "reactivate" ? "Reactivate user?" : "Deactivate user?"}
+        message={
+          statusTarget
+            ? statusTarget.action === "reactivate"
+              ? `Reactivate ${statusTarget.row.full_name}? They will be able to sign in again.`
+              : `Deactivate ${statusTarget.row.full_name}? They will no longer be able to sign in.`
+            : ""
+        }
+        confirmLabel={statusTarget?.action === "reactivate" ? "Reactivate" : "Deactivate"}
+        loadingLabel={statusTarget?.action === "reactivate" ? "Reactivating..." : "Deactivating..."}
+        requirePassword
+        error={statusError}
+        loading={statusLoading}
+        onCancel={() => {
+          if (!statusLoading) {
+            setStatusTarget(null);
+            setStatusError("");
+          }
+        }}
+        onConfirm={(password) => void confirmStatusChange(password)}
+      />
     </>
   );
 }

@@ -82,8 +82,10 @@ export function validateUserForm(
 
     if (!confirmPassword) errors.confirmPassword = "Please confirm the password.";
     else if (password !== confirmPassword) errors.confirmPassword = "Passwords do not match.";
-  } else if (password && password.length < 6) {
-    errors.password = "Password must be at least 6 characters.";
+  } else if (password) {
+    if (password.length < 6) errors.password = "Password must be at least 6 characters.";
+    if (!confirmPassword) errors.confirmPassword = "Please confirm the new password.";
+    else if (password !== confirmPassword) errors.confirmPassword = "Passwords do not match.";
   }
 
   if (form.role === "VIEWER" && !form.departmentId) {

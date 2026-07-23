@@ -8,8 +8,9 @@ export function canManageUsers(user: ItamUser | null): boolean {
   return canWrite(user);
 }
 
+/** User directory is admin-only (emails, roles, account status). */
 export function canViewUsers(user: ItamUser | null): boolean {
-  return !!user;
+  return canWrite(user);
 }
 
 export function canViewActivityLogs(user: ItamUser | null): boolean {
