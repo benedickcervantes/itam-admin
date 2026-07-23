@@ -200,6 +200,32 @@ export type Supplier = {
   updated_at?: string;
 };
 
+export type SpecAudience = "ENGINEER" | "NON_ENGINEER";
+export type SpecDeviceType = "LAPTOP" | "DESKTOP";
+export type SpecTier = "MINIMUM" | "RECOMMENDED";
+
+export type RecommendationSpecItem = {
+  id: string;
+  spec_id: string;
+  tier: SpecTier;
+  sort_order: number;
+  component: string;
+  specification: string;
+  notes?: string | null;
+};
+
+export type RecommendationSpec = {
+  id: string;
+  audience: SpecAudience;
+  device_type: SpecDeviceType;
+  title: string;
+  for_roles?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  items: RecommendationSpecItem[];
+};
+
 export type ActivityAction =
   | "CREATE"
   | "UPDATE"
