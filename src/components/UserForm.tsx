@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import {
+  Check,
+  Copy,
   Eye,
   EyeOff,
   Lock,
@@ -174,17 +176,32 @@ export function UserForm({
 }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [copied, setCopied] = useState(false);
   const roles = availableRoles(actorRole);
   const strength = passwordStrength(form.password ?? "");
   const isSelf = editingId === sessionUserId;
+  const showConfirmField = mode === "create" || Boolean(form.password);
 
   const set = (patch: Record<string, string>) => onChange({ ...form, ...patch });
 
   const handleGeneratePassword = () => {
     const password = generatePassword();
-    set({ password, confirmPassword: mode === "create" ? password : form.confirmPassword ?? "" });
+    set({ password, confirmPassword: password });
     setShowPassword(true);
-    if (mode === "create") setShowConfirm(true);
+    setShowConfirm(true);
+    setCopied(false);
+  };
+
+  const handleCopyPassword = async () => {
+    const password = form.password ?? "";
+    if (!password) return;
+    try {
+      await navigator.clipboard.writeText(password);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
   };
 
   return (
@@ -230,13 +247,25 @@ export function UserForm({
                 {mode === "create" ? "Password" : "New Password"}
                 {mode === "create" && <span className="text-red-400">*</span>}
               </div>
-              <button
-                type="button"
-                onClick={handleGeneratePassword}
-                className="inline-flex items-center gap-1 rounded-md border border-slate-600 px-2 py-1 text-[11px] font-medium text-slate-300 hover:border-[#2E7D9A]/50 hover:text-[#2E7D9A]"
-              >
-                <RefreshCw className="h-3 w-3" /> Generate
-              </button>
+              <div className="flex items-center gap-1.5">
+                {form.password && (
+                  <button
+                    type="button"
+                    onClick={() => void handleCopyPassword()}
+                    className="inline-flex items-center gap-1 rounded-md border border-slate-600 px-2 py-1 text-[11px] font-medium text-slate-300 hover:border-[#2E7D9A]/50 hover:text-[#2E7D9A]"
+                  >
+                    {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                    {copied ? "Copied" : "Copy"}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleGeneratePassword}
+                  className="inline-flex items-center gap-1 rounded-md border border-slate-600 px-2 py-1 text-[11px] font-medium text-slate-300 hover:border-[#2E7D9A]/50 hover:text-[#2E7D9A]"
+                >
+                  <RefreshCw className="h-3 w-3" /> Generate
+                </button>
+              </div>
             </div>
 
             <div className="relative">
@@ -244,7 +273,14 @@ export function UserForm({
                 type={showPassword ? "text" : "password"}
                 className={`${inputClass} pr-10 ${fieldErrors.password ? "border-red-500/60" : ""}`}
                 value={form.password ?? ""}
-                onChange={(e) => set({ password: e.target.value })}
+                onChange={(e) => {
+                  const password = e.target.value;
+                  set({
+                    password,
+                    ...(password ? {} : { confirmPassword: "" }),
+                  });
+                  if (!password) setCopied(false);
+                }}
                 placeholder={mode === "edit" ? "Leave blank to keep current password" : "Minimum 6 characters"}
                 autoComplete="new-password"
               />
@@ -276,30 +312,28 @@ export function UserForm({
             )}
             <FieldError message={fieldErrors.password} />
 
-            {mode === "create" && (
-              <>
-                <Field label="Confirm Password" required>
-                  <div className="relative">
-                    <input
-                      type={showConfirm ? "text" : "password"}
-                      className={`${inputClass} pr-10 ${fieldErrors.confirmPassword ? "border-red-500/60" : ""}`}
-                      value={form.confirmPassword ?? ""}
-                      onChange={(e) => set({ confirmPassword: e.target.value })}
-                      placeholder="Re-enter password"
-                      autoComplete="new-password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirm((v) => !v)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-white"
-                      aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
-                    >
-                      {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <FieldError message={fieldErrors.confirmPassword} />
-                </Field>
-              </>
+            {showConfirmField && (
+              <Field label="Confirm Password" required>
+                <div className="relative">
+                  <input
+                    type={showConfirm ? "text" : "password"}
+                    className={`${inputClass} pr-10 ${fieldErrors.confirmPassword ? "border-red-500/60" : ""}`}
+                    value={form.confirmPassword ?? ""}
+                    onChange={(e) => set({ confirmPassword: e.target.value })}
+                    placeholder={mode === "edit" ? "Re-enter new password" : "Re-enter password"}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirm((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 hover:text-white"
+                    aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
+                  >
+                    {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <FieldError message={fieldErrors.confirmPassword} />
+              </Field>
             )}
           </div>
         )}

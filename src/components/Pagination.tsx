@@ -9,17 +9,19 @@ export function Pagination({
   page,
   totalPages,
   onPageChange,
+  className = "mt-4",
 }: {
   page: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  className?: string;
 }) {
   const safeTotal = Math.max(totalPages, 1);
   const canPrev = page > 1;
   const canNext = page < safeTotal;
 
   return (
-    <div className="mt-4 flex flex-col items-center justify-between gap-3 rounded-lg border border-slate-700/60 bg-slate-900/40 px-4 py-3 sm:flex-row">
+    <div className={`flex flex-col items-center justify-between gap-3 rounded-lg border border-slate-700/60 bg-slate-900/40 px-4 py-3 sm:flex-row ${className}`}>
       <p className="text-sm text-slate-400">
         Page <span className="font-semibold text-slate-200">{page}</span> of{" "}
         <span className="font-semibold text-slate-200">{safeTotal}</span>
