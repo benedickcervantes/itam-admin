@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
+  ClipboardCheck,
   ClipboardList,
   HardDrive,
   History,
@@ -32,6 +33,7 @@ const NAV: NavEntry[] = [
   { href: "/device-history", label: "Device History", icon: History },
   { href: "/maintenance", label: "Service / Repair Log", icon: Wrench },
   { href: "/procurement", label: "Procurement", icon: ShoppingCart },
+  { href: "/recommendation-specs", label: "Recommendation Specs", icon: ClipboardCheck },
   { href: "/disposals", label: "Disposals", icon: Trash2 },
 ];
 
