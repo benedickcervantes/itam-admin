@@ -95,6 +95,17 @@ const LABELS: Record<string, string> = {
   IT_ADMIN: "IT Admin",
   VIEWER: "Viewer",
   SUPER_ADMIN: "Super Admin",
+  Auth: "Auth",
+  User: "User",
+  Asset: "Asset",
+  AssetPeripheralMove: "Peripheral move",
+  AuditRegister: "Audit register",
+  DeviceHistory: "Device history",
+  DeviceHistoryTransfer: "Device transfer",
+  MaintenanceRecord: "Maintenance",
+  DisposalRecord: "Disposal",
+  Supplier: "Supplier",
+  RecommendationSpec: "Recommendation spec",
 };
 
 const COMPACT_LABELS: Record<string, string> = {
