@@ -38,6 +38,7 @@ import {
   type UserExportColumnKey,
 } from "@/lib/export-users";
 import { labelEnum } from "@/lib/labels";
+import { matchesSearchTokens } from "@/lib/search";
 import { validateUserForm } from "@/lib/user-form";
 import type { AdminUser, Department } from "@/lib/types";
 
@@ -160,7 +161,7 @@ export default function UsersPage() {
   }, [load, allowed]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setSearch(searchInput), 300);
+    const timer = window.setTimeout(() => setSearch(searchInput.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
@@ -175,9 +176,8 @@ export default function UsersPage() {
   }, [success]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
     return items.filter((row) => {
-      if (q && !row.full_name.toLowerCase().includes(q) && !row.email.toLowerCase().includes(q)) return false;
+      if (!matchesSearchTokens(search, [row.full_name, row.email])) return false;
       if (roleFilter && row.role !== roleFilter) return false;
       if (departmentFilter && row.department_id !== departmentFilter) return false;
       if (activeFilter === "active" && !row.is_active) return false;
@@ -484,8 +484,8 @@ export default function UsersPage() {
           <FilterSearch
             value={searchInput}
             onChange={setSearchInput}
-            placeholder="Search name or email…"
-            className="min-w-0 flex-1"
+            placeholder="Search name or email..."
+            className="w-full sm:flex-1"
           />
           <FilterSelect label="Role" value={roleFilter} onChange={setRoleFilter} className="w-full sm:w-auto">
             <option value="">All roles</option>

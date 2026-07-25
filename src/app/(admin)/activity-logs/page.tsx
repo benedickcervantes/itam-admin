@@ -182,7 +182,7 @@ export default function ActivityLogsPage() {
   }, [allowed]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setSearch(searchInput), 300);
+    const timer = window.setTimeout(() => setSearch(searchInput.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
@@ -356,13 +356,14 @@ export default function ActivityLogsPage() {
       />
 
       <div className="page-content flex-1 overflow-y-auto">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="mb-4 flex flex-col gap-3">
           <FilterSearch
             value={searchInput}
             onChange={setSearchInput}
-            placeholder="Search actor, summary, entity…"
-            className="min-w-0 flex-1"
+            placeholder="Search actor, summary, entity..."
+            className="w-full"
           />
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           <FilterSelect label="Action" value={actionFilter} onChange={setActionFilter} className="w-full sm:w-auto">
             <option value="">All actions</option>
             {ACTIVITY_ACTIONS.map((action) => (
@@ -411,7 +412,7 @@ export default function ActivityLogsPage() {
               }`}
             />
           </label>
-          <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="Date presets">
+          <div className="inline-flex self-end rounded-lg border border-slate-600 p-0.5" role="group" aria-label="Date presets">
             {(
               [
                 ["today", "Today"],
@@ -513,6 +514,7 @@ export default function ActivityLogsPage() {
                 </button>
               </div>
             )}
+          </div>
           </div>
         </div>
 

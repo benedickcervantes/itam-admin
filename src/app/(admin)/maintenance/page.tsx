@@ -207,7 +207,7 @@ export default function MaintenancePage() {
   }, [page, search, status]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setSearch(searchInput), 300);
+    const timer = window.setTimeout(() => setSearch(searchInput.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
@@ -386,8 +386,8 @@ export default function MaintenancePage() {
           <FilterSearch
             value={searchInput}
             onChange={setSearchInput}
-            placeholder="Search record ID, computer, employee, issue..."
-            className="min-w-0 flex-1"
+            placeholder="Search record, computer, employee, issue, performed by..."
+            className="w-full sm:flex-1"
           />
           <FilterSelect label="Status" value={status} onChange={setStatus} className="w-full sm:w-auto">
             <option value="">All statuses</option>

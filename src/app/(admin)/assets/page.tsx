@@ -197,8 +197,16 @@ export default function AssetsPage() {
     }
   }, [page, search, departmentId, status, itemType]);
 
+  // Deep links from activity logs: /assets?search=AST-0001
   useEffect(() => {
-    const timer = window.setTimeout(() => setSearch(searchInput), 300);
+    const q = new URLSearchParams(window.location.search).get("search")?.trim();
+    if (!q) return;
+    setSearchInput(q);
+    setSearch(q);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearch(searchInput.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 

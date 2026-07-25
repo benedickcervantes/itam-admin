@@ -39,6 +39,7 @@ const LABELS: Record<string, string> = {
   TOUCHPAD: "Touchpad",
   LAPTOP_SCREEN: "Laptop Screen",
   POWER_SUPPLY: "Power Supply",
+  BATTERY: "Battery",
   NEW_LAPTOP: "New Laptop",
   NEW_DESKTOP: "New Desktop",
   LICENSED: "Licensed",

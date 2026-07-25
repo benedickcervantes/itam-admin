@@ -50,6 +50,7 @@ export const REFERENCE_DATA = {
     "MONITOR",
     "LAPTOP_SCREEN",
     "POWER_SUPPLY",
+    "BATTERY",
   ],
   replacementOnlyComponents: ["NEW_LAPTOP", "NEW_DESKTOP"],
   assetStatuses: ["IN_USE", "AVAILABLE", "UNDER_REPAIR", "RESERVED", "RETIRED", "DISPOSED"],
