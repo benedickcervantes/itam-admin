@@ -210,7 +210,7 @@ export default function ProcurementPage() {
   }, [page, search, statusFilter, categoryFilter]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setSearch(searchInput), 300);
+    const timer = window.setTimeout(() => setSearch(searchInput.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
@@ -373,8 +373,8 @@ export default function ProcurementPage() {
           <FilterSearch
             value={searchInput}
             onChange={setSearchInput}
-            placeholder="Search code, name, contact, email, phone..."
-            className="min-w-0 flex-1"
+            placeholder="Search code, name, contact, email, phone, address..."
+            className="w-full sm:flex-1"
           />
           <FilterSelect label="Status" value={statusFilter} onChange={setStatusFilter} className="w-full sm:w-auto">
             <option value="">All statuses</option>
