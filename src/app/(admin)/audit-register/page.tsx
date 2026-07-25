@@ -202,7 +202,7 @@ export default function AuditRegisterPage() {
   }, [success]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setSearch(searchInput), 300);
+    const timer = window.setTimeout(() => setSearch(searchInput.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
@@ -389,8 +389,8 @@ export default function AuditRegisterPage() {
           <FilterSearch
             value={searchInput}
             onChange={setSearchInput}
-            placeholder="Search audits..."
-            className="min-w-0 flex-1"
+            placeholder="Search code, employee, computer, brand, job title..."
+            className="w-full sm:flex-1"
           />
           <FilterSelect label="Items needed" value={itemNeeded} onChange={setItemNeeded} className="w-full sm:w-auto">
             <option value="">All items needed</option>

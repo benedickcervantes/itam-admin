@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -118,7 +118,7 @@ export default function DeviceHistoryPage() {
     if (departmentId) {
       parts.push(`Department: ${departments.find((d) => d.id === departmentId)?.name ?? departmentId}`);
     }
-    return parts.length ? parts.join(" � ") : "None (all records)";
+    return parts.length ? parts.join(" ? ") : "None (all records)";
   };
 
   const buildExportFilterSummary = (columns: AssignmentExportColumnKey[]) => {
@@ -126,7 +126,7 @@ export default function DeviceHistoryPage() {
     if (columns.length < ALL_ASSIGNMENT_EXPORT_COLUMN_KEYS.length) {
       parts.push(`Columns: ${columns.length} of ${ALL_ASSIGNMENT_EXPORT_COLUMN_KEYS.length}`);
     }
-    return parts.join(" � ");
+    return parts.join(" ? ");
   };
 
   const runExport = async (
@@ -189,7 +189,7 @@ export default function DeviceHistoryPage() {
   }, [page, search, departmentId]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setSearch(searchInput), 300);
+    const timer = window.setTimeout(() => setSearch(searchInput.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
@@ -356,8 +356,8 @@ export default function DeviceHistoryPage() {
           <FilterSearch
             value={searchInput}
             onChange={setSearchInput}
-            placeholder="Search record ID, asset, employee, assigned by..."
-            className="min-w-0 flex-1"
+            placeholder="Search record, asset, employee, brand, serial..."
+            className="w-full sm:flex-1"
           />
           <FilterSelect label="Department" value={departmentId} onChange={setDepartmentId} className="w-full sm:w-auto">
             <option value="">All departments</option>

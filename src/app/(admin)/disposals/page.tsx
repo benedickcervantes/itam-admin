@@ -195,7 +195,7 @@ export default function DisposalsPage() {
   }, [page, search, methodFilter]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setSearch(searchInput), 300);
+    const timer = window.setTimeout(() => setSearch(searchInput.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
@@ -373,8 +373,8 @@ export default function DisposalsPage() {
           <FilterSearch
             value={searchInput}
             onChange={setSearchInput}
-            placeholder="Search record ID, asset ID, computer, reason..."
-            className="min-w-0 flex-1"
+            placeholder="Search record, asset, computer, brand, serial, reason..."
+            className="w-full sm:flex-1"
           />
           <FilterSelect label="Method" value={methodFilter} onChange={setMethodFilter} className="w-full sm:w-auto">
             <option value="">All methods</option>
