@@ -8,7 +8,23 @@ import {
   fetchDeviceHistoryAssignees,
   transferAssets,
 } from "@/lib/api/device-history";
+import { labelEnum } from "@/lib/labels";
 import type { Asset, Department } from "@/lib/types";
+
+function assetTransferLabel(a: Asset) {
+  const kind = a.item_type || a.device_type;
+  const kindLabel = kind ? labelEnum(kind) : null;
+  const detail = a.brand_model?.trim() || a.monitor?.trim() || null;
+  const title = detail || a.computer_name || a.asset_code;
+  const meta = [
+    kindLabel,
+    detail && a.computer_name ? a.computer_name : null,
+    a.department?.name,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return { title, meta };
+}
 
 function UserSearchField({
   label,
@@ -385,6 +401,7 @@ export function TransferAssetsForm({
             <ul className="space-y-2">
               {preview.map((a) => {
                 const checked = selectedIds.has(a.id);
+                const { title, meta } = assetTransferLabel(a);
                 return (
                   <li key={a.id}>
                     <label
@@ -402,9 +419,9 @@ export function TransferAssetsForm({
                       />
                       <span className="min-w-0 flex-1">
                         <span className="block font-mono text-xs text-[#2E7D9A]">{a.asset_code}</span>
-                        <span className="block font-medium text-white">{a.computer_name}</span>
+                        <span className="block font-medium text-white">{title}</span>
                         <span className="block text-xs text-slate-400">
-                          {a.department?.name ?? "-"}
+                          {meta || "-"}
                         </span>
                       </span>
                     </label>
