@@ -32,8 +32,9 @@ export type DashboardSummary = {
     laptops: number;
   };
   peripheralsMaintenance: {
-    keyboardIssues: number;
-    personalMouse: number;
+    keyboardFaulty: number;
+    keyboardFadingKeys: number;
+    mouseFaulty: number;
     openMaintenance: number;
     assetsUnderRepair: number;
   };
