@@ -227,6 +227,24 @@ export type RecommendationSpec = {
   items: RecommendationSpecItem[];
 };
 
+export type DeviceContract = {
+  id: string;
+  contract_code: string;
+  employee_name: string;
+  job_title?: string | null;
+  department_name?: string | null;
+  date_issued?: string | null;
+  asset_count: number;
+  asset_codes: string[];
+  storage_key: string;
+  pdf_filename: string;
+  docx_filename: string;
+  generated_by?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at?: string;
+};
+
 export type ActivityAction =
   | "CREATE"
   | "UPDATE"
