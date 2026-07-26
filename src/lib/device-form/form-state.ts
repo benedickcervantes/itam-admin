@@ -306,7 +306,10 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
     upgradeNotes: row.upgrade_notes ?? "",
     internalNotes: row.internal_notes ?? "",
     auditedBy: row.audited_by ?? "",
-    status: "IN_USE",
+    status:
+      row.assets?.find((a) => a.device_type && a.device_type === row.device_type)?.status ??
+      row.assets?.find((a) => a.status)?.status ??
+      "IN_USE",
     condition: row.condition ?? "",
     notes: "",
   };
@@ -334,6 +337,7 @@ export function formStateFromAsset(row: Asset): DeviceFormState {
     assetCategory: assetCategoryFromAsset(hardware),
     employeeName: hardware.assigned_to ?? "",
     jobTitle: hardware.job_title ?? "",
+    employeeStatus: row.audit_register?.employee_status ?? "ACTIVE",
     departmentId: hardware.department_id ?? "",
     deviceType,
     itemType: hardware.item_type ?? "",
@@ -523,7 +527,6 @@ export function prepareComposedForm(form: DeviceFormState): DeviceFormState {
 const ASSET_ONLY_KEYS = [
   "macAddress",
   "serialNumber",
-  "status",
   "notes",
   "location",
   "managementIp",
@@ -591,6 +594,11 @@ export function prepareAuditPayload(form: DeviceFormState): Record<string, strin
   result.computerName = String(form.computerName ?? "").trim();
   result.departmentId = String(form.departmentId ?? "").trim();
 
+  // Asset status is applied to generated assets; not stored on the audit row itself.
+  const assetStatus = String(form.status ?? "").trim();
+  delete result.status;
+  if (assetStatus) result.assetStatus = assetStatus;
+
   return result;
 }
 
@@ -608,7 +616,6 @@ const AUDIT_ONLY_KEYS = [
   "upgradeNotes",
   "internalNotes",
   "auditedBy",
-  "employeeStatus",
   "screen",
   "screenCondition",
   "keyboardCondition",
@@ -639,6 +646,8 @@ function prepareComponentAssetPayload(
     const jobTitle = String(form.jobTitle ?? "").trim();
     if (jobTitle) payload.jobTitle = jobTitle;
   }
+  const employeeStatus = String(form.employeeStatus ?? "").trim();
+  if (employeeStatus) payload.employeeStatus = employeeStatus;
 
   Object.keys(payload).forEach((k) => {
     if (payload[k] === "") delete payload[k];
@@ -681,6 +690,7 @@ export function prepareAssetPayload(form: DeviceFormState): Record<string, strin
 
   if (composed.employeeName) payload.assignedTo = composed.employeeName;
   if (!infra && composed.jobTitle) payload.jobTitle = composed.jobTitle;
+  if (!infra && composed.employeeStatus) payload.employeeStatus = composed.employeeStatus;
 
   if (infra) {
     if (composed.location) payload.location = composed.location;

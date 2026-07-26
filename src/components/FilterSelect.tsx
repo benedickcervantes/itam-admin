@@ -28,7 +28,7 @@ export function FilterSelect({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           aria-label={label}
-          className={`${filterSelectClass} min-w-[10rem] ${
+          className={`${filterSelectClass} min-w-0 sm:min-w-[10rem] ${
             isActive ? "border-[#2E7D9A]/70 bg-[#2E7D9A]/10" : ""
           }`}
         >

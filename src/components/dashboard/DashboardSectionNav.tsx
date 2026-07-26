@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 
-export type DashboardSection = { id: string; label: string };
+export type DashboardSection = {
+  id: string;
+  label: string;
+  shortLabel?: string;
+  icon?: LucideIcon;
+};
 
 const DEFAULT_NAV_OFFSET = 52;
 const LANDING_GAP = 8;
@@ -18,6 +24,8 @@ export function DashboardSectionNav({
   const barRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const [navOffset, setNavOffset] = useState(DEFAULT_NAV_OFFSET);
+  const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false });
+  const [canScroll, setCanScroll] = useState({ left: false, right: false });
   const clickScrollingRef = useRef(false);
   const clickScrollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -89,19 +97,54 @@ export function DashboardSectionNav({
     };
   }, [sections, navOffset]);
 
+  useLayoutEffect(() => {
+    const tabs = tabsRef.current;
+    if (!tabs) return;
+
+    const syncIndicator = (centerActive: boolean) => {
+      const activeTab = tabs.querySelector<HTMLButtonElement>(`[data-section-id="${active}"]`);
+      if (!activeTab) return;
+
+      const left = activeTab.offsetLeft;
+      const width = activeTab.offsetWidth;
+      setIndicator({ left, width, ready: true });
+
+      if (!centerActive) return;
+      const nextLeft = left - (tabs.clientWidth - width) / 2;
+      tabs.scrollTo({ left: Math.max(0, nextLeft), behavior: "smooth" });
+    };
+
+    syncIndicator(true);
+    const observer = new ResizeObserver(() => syncIndicator(false));
+    observer.observe(tabs);
+
+    return () => observer.disconnect();
+  }, [active, sections]);
+
   useEffect(() => {
     const tabs = tabsRef.current;
     if (!tabs) return;
 
-    const activeTab = tabs.querySelector<HTMLButtonElement>(`[data-section-id="${active}"]`);
-    if (!activeTab) return;
+    const syncScrollEdges = () => {
+      const maxScroll = tabs.scrollWidth - tabs.clientWidth;
+      setCanScroll({
+        left: tabs.scrollLeft > 4,
+        right: tabs.scrollLeft < maxScroll - 4,
+      });
+    };
 
-    const tabsRect = tabs.getBoundingClientRect();
-    const tabRect = activeTab.getBoundingClientRect();
-    const nextLeft = tabs.scrollLeft + (tabRect.left - tabsRect.left) - (tabsRect.width - tabRect.width) / 2;
+    syncScrollEdges();
+    tabs.addEventListener("scroll", syncScrollEdges, { passive: true });
+    window.addEventListener("resize", syncScrollEdges);
+    const observer = new ResizeObserver(syncScrollEdges);
+    observer.observe(tabs);
 
-    tabs.scrollTo({ left: Math.max(0, nextLeft), behavior: "smooth" });
-  }, [active]);
+    return () => {
+      tabs.removeEventListener("scroll", syncScrollEdges);
+      window.removeEventListener("resize", syncScrollEdges);
+      observer.disconnect();
+    };
+  }, [sections]);
 
   const scrollToSection = (id: string) => {
     const root = document.querySelector<HTMLElement>(".page-content");
@@ -128,36 +171,70 @@ export function DashboardSectionNav({
   return (
     <div
       ref={barRef}
-      className="sticky top-0 z-20 -mx-3 mb-5 border-b border-slate-800/70 bg-[#0F172A]/95 px-3 py-2.5 backdrop-blur sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6"
+      className="sticky top-0 z-20 -mx-3 mb-5 border-b border-slate-800/80 bg-[#0F172A]/92 px-3 py-2.5 backdrop-blur-md sm:-mx-5 sm:px-5 lg:-mx-6 lg:px-6"
     >
       {toolbar && (
-        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/60 pb-2.5">
+        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2.5 border-b border-slate-800/60 pb-2.5 sm:gap-3">
           {toolbar}
         </div>
       )}
-      <div
-        ref={tabsRef}
-        className="flex snap-x snap-mandatory gap-1.5 overflow-x-auto scroll-smooth pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {sections.map((section) => {
-          const isActive = active === section.id;
-          return (
-            <button
-              key={section.id}
-              type="button"
-              data-section-id={section.id}
-              onClick={() => scrollToSection(section.id)}
-              aria-current={isActive ? "true" : undefined}
-              className={`shrink-0 snap-start whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                isActive
-                  ? "bg-[#2E7D9A]/20 text-sky-300 ring-1 ring-[#2E7D9A]/40"
-                  : "text-slate-400 hover:bg-slate-800/70 hover:text-slate-200"
-              }`}
-            >
-              {section.label}
-            </button>
-          );
-        })}
+
+      <div className="relative">
+        {canScroll.left && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-[#0F172A] to-transparent"
+          />
+        )}
+        {canScroll.right && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-[#0F172A] to-transparent"
+          />
+        )}
+
+        <div
+          ref={tabsRef}
+          role="navigation"
+          aria-label="Dashboard sections"
+          className="relative flex snap-x snap-mandatory gap-0.5 overflow-x-auto scroll-smooth rounded-lg border border-slate-700/80 bg-slate-800/50 p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {indicator.ready && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute top-1 bottom-1 rounded-md bg-[#2E7D9A]/22 ring-1 ring-[#2E7D9A]/45 transition-[left,width] duration-300 ease-out"
+              style={{ left: indicator.left, width: indicator.width }}
+            />
+          )}
+
+          {sections.map((section) => {
+            const isActive = active === section.id;
+            const Icon = section.icon;
+            return (
+              <button
+                key={section.id}
+                type="button"
+                data-section-id={section.id}
+                onClick={() => scrollToSection(section.id)}
+                aria-current={isActive ? "true" : undefined}
+                className={`relative z-[1] inline-flex shrink-0 snap-start items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2E7D9A]/50 ${
+                  isActive
+                    ? "text-sky-300"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                {Icon && (
+                  <Icon
+                    className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-sky-300" : "text-slate-500"}`}
+                    aria-hidden
+                  />
+                )}
+                <span className="sm:hidden">{section.shortLabel ?? section.label}</span>
+                <span className="hidden sm:inline">{section.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

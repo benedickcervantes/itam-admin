@@ -427,62 +427,42 @@ export function DeviceInventoryForm({
               disabled={!write}
             />
           </Field>
-          {mode === "audit" && (
-            <>
-              <Field label="Job Title">
-                <input
-                  className={inputClass}
-                  value={String(form.jobTitle)}
-                  onChange={(e) => set("jobTitle", e.target.value)}
-                  readOnly={!write}
-                />
-              </Field>
-              <Field label="Employee Status">
-                <Select
-                  value={String(form.employeeStatus)}
-                  onChange={(v) => set("employeeStatus", v)}
-                  options={employeeStatusOptions}
-                  disabled={!write}
-                />
-              </Field>
-            </>
+          {(mode === "audit" || (mode === "asset" && !infra)) && (
+            <Field label="Job Title">
+              <input
+                className={inputClass}
+                value={String(form.jobTitle)}
+                onChange={(e) => set("jobTitle", e.target.value)}
+                placeholder={
+                  mode === "asset" && !String(form.employeeName).trim() ? "—" : undefined
+                }
+                readOnly={!write || (mode === "asset" && !String(form.employeeName).trim())}
+              />
+            </Field>
           )}
-          {mode === "asset" && !infra && (
-            <>
-              <Field label="Job Title">
-                <input
-                  className={inputClass}
-                  value={String(form.jobTitle)}
-                  onChange={(e) => set("jobTitle", e.target.value)}
-                  placeholder={String(form.employeeName).trim() ? undefined : "—"}
-                  readOnly={!write || !String(form.employeeName).trim()}
-                />
-              </Field>
-              <Field label="Status">
-                <Select
-                  value={String(form.status)}
-                  onChange={(v) => set("status", v)}
-                  options={assetStatusOptions}
-                  disabled={!write}
-                />
-              </Field>
-              {!String(form.employeeName).trim() && (
-                <p className="md:col-span-2 text-xs text-slate-500">
-                  No assignee yet — keep status as <span className="text-slate-300">Available</span> or{" "}
-                  <span className="text-slate-300">Reserved</span>. Assign later via Edit.
-                </p>
-              )}
-            </>
-          )}
-          {mode === "asset" && infra && (
-            <Field label="Status">
+          {(mode === "audit" || (mode === "asset" && !infra)) && (
+            <Field label="Employee Status">
               <Select
-                value={String(form.status)}
-                onChange={(v) => set("status", v)}
-                options={infraAssetStatusOptions}
+                value={String(form.employeeStatus)}
+                onChange={(v) => set("employeeStatus", v)}
+                options={employeeStatusOptions}
                 disabled={!write}
               />
             </Field>
+          )}
+          <Field label="Asset Status">
+            <Select
+              value={String(form.status)}
+              onChange={(v) => set("status", v)}
+              options={infra ? infraAssetStatusOptions : assetStatusOptions}
+              disabled={!write}
+            />
+          </Field>
+          {mode === "asset" && !infra && !String(form.employeeName).trim() && (
+            <p className="md:col-span-2 text-xs text-slate-500">
+              No assignee yet — keep asset status as <span className="text-slate-300">Available</span> or{" "}
+              <span className="text-slate-300">Reserved</span>. Assign later via Edit.
+            </p>
           )}
           {mode === "asset" && (
             <>

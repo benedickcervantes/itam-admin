@@ -80,6 +80,7 @@ export default function AssetsPage() {
   const [search, setSearch] = useState("");
   const [departmentId, setDepartmentId] = useState("");
   const [status, setStatus] = useState("");
+  const [employeeStatus, setEmployeeStatus] = useState("");
   const [itemType, setItemType] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -122,6 +123,7 @@ export default function AssetsPage() {
     if (search) parts.push(`Search: "${search}"`);
     if (departmentId) parts.push(`Department: ${departments.find((d) => d.id === departmentId)?.name ?? departmentId}`);
     if (status) parts.push(`Status: ${labelEnum(status)}`);
+    if (employeeStatus) parts.push(`Employee status: ${labelEnum(employeeStatus)}`);
     if (itemType) parts.push(`Type: ${labelEnum(itemType)}`);
     return parts.length ? parts.join(" · ") : "None (all records)";
   };
@@ -153,6 +155,7 @@ export default function AssetsPage() {
         search: search || undefined,
         departmentId: departmentId || undefined,
         status: status || undefined,
+        employeeStatus: employeeStatus || undefined,
         itemType: itemType || undefined,
       });
       if (rows.length === 0) {
@@ -185,6 +188,7 @@ export default function AssetsPage() {
         search: search || undefined,
         departmentId: departmentId || undefined,
         status: status || undefined,
+        employeeStatus: employeeStatus || undefined,
         itemType: itemType || undefined,
       });
       setItems(res.items);
@@ -195,7 +199,7 @@ export default function AssetsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, departmentId, status, itemType]);
+  }, [page, search, departmentId, status, employeeStatus, itemType]);
 
   // Deep links from activity logs: /assets?search=AST-0001
   useEffect(() => {
@@ -212,7 +216,7 @@ export default function AssetsPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, departmentId, status, itemType]);
+  }, [search, departmentId, status, employeeStatus, itemType]);
 
   useEffect(() => {
     void load();
@@ -436,124 +440,184 @@ export default function AssetsPage() {
     <>
       <Header title="Assets" subtitle="Long-term hardware inventory linked to audits" />
       <div className="page-content flex-1 overflow-y-auto">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-          <FilterSearch
-            value={searchInput}
-            onChange={setSearchInput}
-            placeholder="Search assets..."
-            className="min-w-0 flex-1"
-          />
-          <FilterSelect label="Department" value={departmentId} onChange={setDepartmentId} className="w-full sm:w-auto">
-            <option value="">All departments</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </FilterSelect>
-          <FilterSelect label="Status" value={status} onChange={setStatus} className="w-full sm:w-auto">
-            <option value="">All statuses</option>
-            {REFERENCE_DATA.assetStatuses.map((s) => (
-              <option key={s} value={s}>
-                {labelEnum(s)}
-              </option>
-            ))}
-          </FilterSelect>
-          <FilterSelect label="Item type" value={itemType} onChange={setItemType} className="w-full sm:w-auto">
-            <option value="">All types</option>
-            {ITEM_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {labelEnum(t)}
-              </option>
-            ))}
-          </FilterSelect>
-          <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="View mode">
-            <button
-              type="button"
-              onClick={() => changeViewMode("table")}
-              aria-pressed={viewMode === "table"}
-              title="Table view"
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition ${
-                viewMode === "table" ? "bg-[#2E7D9A] text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
-              }`}
-            >
-              <List className="h-4 w-4" />
-              <span className="hidden sm:inline">Table</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => changeViewMode("grid")}
-              aria-pressed={viewMode === "grid"}
-              title="Grid view"
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition ${
-                viewMode === "grid" ? "bg-[#2E7D9A] text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
-              }`}
-            >
-              <LayoutGrid className="h-4 w-4" />
-              <span className="hidden sm:inline">Grid</span>
-            </button>
-          </div>
-          <div className="relative w-full sm:w-auto" ref={exportMenuRef}>
-            <button
-              type="button"
-              onClick={() => setExportMenuOpen((o) => !o)}
-              disabled={exporting}
-              aria-haspopup="menu"
-              aria-expanded={exportMenuOpen}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-            >
-              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              {exporting ? "Exporting..." : "Export"}
-              {!exporting && <ChevronDown className="h-4 w-4" />}
-            </button>
-            {exportMenuOpen && !exporting && (
-              <div
-                role="menu"
-                className="absolute right-0 z-20 mt-1 w-full min-w-[14rem] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-lg sm:w-auto"
-              >
+        <div className="mb-4 space-y-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+            <FilterSearch
+              value={searchInput}
+              onChange={setSearchInput}
+              placeholder="Search code, assignee, brand, serial..."
+              className="min-w-0 w-full lg:flex-1"
+            />
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="View mode">
                 <button
                   type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setExportMenuOpen(false);
-                    setExportDialogOpen(true);
-                  }}
-                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                  onClick={() => changeViewMode("table")}
+                  aria-pressed={viewMode === "table"}
+                  title="Table view"
+                  className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition ${
+                    viewMode === "table" ? "bg-[#2E7D9A] text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                  }`}
                 >
-                  <Download className="h-4 w-4 text-[#2E7D9A]" />
-                  Customize columns...
-                  <span className="ml-auto text-xs text-slate-500">
-                    {ALL_ASSET_EXPORT_COLUMN_KEYS.length} columns
-                  </span>
-                </button>
-                <div className="border-t border-slate-800" />
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => void runExport("excel")}
-                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
-                >
-                  <FileSpreadsheet className="h-4 w-4 text-emerald-400" /> Export as Excel
+                  <List className="h-4 w-4" />
+                  <span className="hidden sm:inline">Table</span>
                 </button>
                 <button
                   type="button"
-                  role="menuitem"
-                  onClick={() => void runExport("pdf")}
-                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                  onClick={() => changeViewMode("grid")}
+                  aria-pressed={viewMode === "grid"}
+                  title="Grid view"
+                  className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition ${
+                    viewMode === "grid" ? "bg-[#2E7D9A] text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                  }`}
                 >
-                  <FileText className="h-4 w-4 text-red-400" /> Export as PDF
+                  <LayoutGrid className="h-4 w-4" />
+                  <span className="hidden sm:inline">Grid</span>
                 </button>
               </div>
-            )}
+              <div className="relative" ref={exportMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setExportMenuOpen((o) => !o)}
+                  disabled={exporting}
+                  aria-haspopup="menu"
+                  aria-expanded={exportMenuOpen}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  {exporting ? "Exporting..." : "Export"}
+                  {!exporting && <ChevronDown className="h-4 w-4" />}
+                </button>
+                {exportMenuOpen && !exporting && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 z-20 mt-1 w-full min-w-[14rem] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-lg sm:w-auto"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setExportMenuOpen(false);
+                        setExportDialogOpen(true);
+                      }}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                    >
+                      <Download className="h-4 w-4 text-[#2E7D9A]" />
+                      Customize columns...
+                      <span className="ml-auto text-xs text-slate-500">
+                        {ALL_ASSET_EXPORT_COLUMN_KEYS.length} columns
+                      </span>
+                    </button>
+                    <div className="border-t border-slate-800" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => void runExport("excel")}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 text-emerald-400" /> Export as Excel
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => void runExport("pdf")}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                    >
+                      <FileText className="h-4 w-4 text-red-400" /> Export as PDF
+                    </button>
+                  </div>
+                )}
+              </div>
+              {write && (
+                <button
+                  type="button"
+                  onClick={openCreate}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2 text-sm font-medium text-white"
+                >
+                  <Plus className="h-4 w-4" /> New Asset
+                </button>
+              )}
+            </div>
           </div>
-          {write && (
-            <button
-              type="button"
-              onClick={openCreate}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2 text-sm font-medium text-white sm:w-auto"
-            >
-              <Plus className="h-4 w-4" /> New Asset
-            </button>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <FilterSelect label="Department" value={departmentId} onChange={setDepartmentId}>
+              <option value="">All departments</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </FilterSelect>
+            <FilterSelect label="Asset status" value={status} onChange={setStatus}>
+              <option value="">All statuses</option>
+              {REFERENCE_DATA.assetStatuses.map((s) => (
+                <option key={s} value={s}>
+                  {labelEnum(s)}
+                </option>
+              ))}
+            </FilterSelect>
+            <FilterSelect label="Employee status" value={employeeStatus} onChange={setEmployeeStatus}>
+              <option value="">All employee statuses</option>
+              {REFERENCE_DATA.employeeStatuses.map((s) => (
+                <option key={s} value={s}>
+                  {labelEnum(s)}
+                </option>
+              ))}
+            </FilterSelect>
+            <FilterSelect label="Item type" value={itemType} onChange={setItemType}>
+              <option value="">All types</option>
+              {ITEM_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {labelEnum(t)}
+                </option>
+              ))}
+            </FilterSelect>
+          </div>
+
+          {(departmentId || status || employeeStatus || itemType || search) && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-slate-500">Active filters:</span>
+              {search && (
+                <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-300 ring-1 ring-slate-700">
+                  Search: {search}
+                </span>
+              )}
+              {departmentId && (
+                <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-300 ring-1 ring-slate-700">
+                  {departments.find((d) => d.id === departmentId)?.name ?? "Department"}
+                </span>
+              )}
+              {status && (
+                <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-300 ring-1 ring-slate-700">
+                  Asset: {labelEnum(status)}
+                </span>
+              )}
+              {employeeStatus && (
+                <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-300 ring-1 ring-slate-700">
+                  Employee: {labelEnum(employeeStatus)}
+                </span>
+              )}
+              {itemType && (
+                <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-300 ring-1 ring-slate-700">
+                  Type: {labelEnum(itemType)}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchInput("");
+                  setSearch("");
+                  setDepartmentId("");
+                  setStatus("");
+                  setEmployeeStatus("");
+                  setItemType("");
+                }}
+                className="text-xs font-medium text-[#2E7D9A] hover:text-[#4a9bb8]"
+              >
+                Clear all
+              </button>
+            </div>
           )}
         </div>
 
@@ -563,15 +627,16 @@ export default function AssetsPage() {
         {viewMode === "table" ? (
           <div className="card overflow-hidden">
             <div className="table-scroll">
-              <table className="data-table data-table--fixed" style={{ minWidth: "68rem" }}>
+              <table className="data-table data-table--fixed" style={{ minWidth: "76rem" }}>
                 <colgroup>
                   <col style={{ width: "8%" }} />
-                  <col style={{ width: "11%" }} />
-                  <col style={{ width: "19%" }} />
-                  <col style={{ width: "16%" }} />
-                  <col style={{ width: "15%" }} />
                   <col style={{ width: "10%" }} />
+                  <col style={{ width: "16%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "12%" }} />
                   <col style={{ width: "11%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "10%" }} />
                   <col style={{ width: "10%" }} />
                 </colgroup>
                 <thead>
@@ -581,6 +646,7 @@ export default function AssetsPage() {
                     <th className="cell-wrap">Brand/Model</th>
                     <th className="cell-wrap">Assigned To</th>
                     <th className="cell-wrap">Department</th>
+                    <th>Employee</th>
                     <th>Status</th>
                     <th>Condition</th>
                     <th>{write ? "Actions" : "View"}</th>
@@ -588,10 +654,10 @@ export default function AssetsPage() {
                 </thead>
                 <tbody>
                   {loading ? (
-                    <TableSkeleton columns={8} />
+                    <TableSkeleton columns={9} />
                   ) : items.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="text-slate-400">
+                      <td colSpan={9} className="text-slate-400">
                         No assets found.
                       </td>
                     </tr>
@@ -605,6 +671,13 @@ export default function AssetsPage() {
                         <td className="cell-wrap font-medium text-white">{row.brand_model ?? "—"}</td>
                         <td className="cell-wrap text-slate-300">{row.assigned_to ?? "—"}</td>
                         <td className="cell-wrap">{row.department?.name ?? "—"}</td>
+                        <td>
+                          {row.audit_register?.employee_status ? (
+                            <Badge value={row.audit_register.employee_status} />
+                          ) : (
+                            <span className="text-slate-500">—</span>
+                          )}
+                        </td>
                         <td>
                           <Badge value={row.status} />
                         </td>
@@ -658,6 +731,9 @@ export default function AssetsPage() {
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       <Badge value={row.status} />
                       <Badge value={row.condition} />
+                      {row.audit_register?.employee_status && (
+                        <Badge value={row.audit_register.employee_status} />
+                      )}
                       {(row.item_type || row.device_type) && <Badge value={row.item_type ?? row.device_type} />}
                     </div>
                   </article>
