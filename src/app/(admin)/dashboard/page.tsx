@@ -23,6 +23,11 @@ import {
   Mouse,
   Hammer,
   Eye,
+  LayoutGrid,
+  Gauge,
+  ShieldAlert,
+  Building2,
+  ListOrdered,
 } from "lucide-react";
 import { Header } from "@/components/Header";
 import { useSessionUser } from "@/components/SessionContext";
@@ -46,21 +51,21 @@ import {
 } from "@/lib/api/dashboard";
 import { formatPercent } from "@/lib/labels";
 
-const PERIOD_OPTIONS: { value: DashboardPeriod; label: string }[] = [
-  { value: "week", label: "Weekly" },
-  { value: "month", label: "Monthly" },
-  { value: "quarter", label: "Quarterly" },
-  { value: "year", label: "Yearly" },
+const PERIOD_OPTIONS: { value: DashboardPeriod; label: string; shortLabel: string }[] = [
+  { value: "week", label: "Weekly", shortLabel: "Week" },
+  { value: "month", label: "Monthly", shortLabel: "Month" },
+  { value: "quarter", label: "Quarterly", shortLabel: "Quarter" },
+  { value: "year", label: "Yearly", shortLabel: "Year" },
 ];
 
 const SECTIONS: DashboardSection[] = [
-  { id: "glance", label: "At a Glance" },
-  { id: "overview", label: "Overview" },
-  { id: "breakdown", label: "Breakdown" },
-  { id: "health", label: "Health & Risk" },
-  { id: "workforce", label: "Workforce" },
-  { id: "departments", label: "Departments" },
-  { id: "priority", label: "Priority" },
+  { id: "glance", label: "At a Glance", shortLabel: "Glance", icon: LayoutGrid },
+  { id: "overview", label: "Overview", icon: Gauge },
+  { id: "breakdown", label: "Breakdown", icon: PieChart },
+  { id: "health", label: "Health & Risk", shortLabel: "Health", icon: ShieldAlert },
+  { id: "workforce", label: "Workforce", icon: Users },
+  { id: "departments", label: "Departments", shortLabel: "Depts", icon: Building2 },
+  { id: "priority", label: "Priority", icon: ListOrdered },
 ];
 
 function SectionAlert({ count, label }: { count: number; label: string }) {
@@ -139,26 +144,40 @@ export default function DashboardPage() {
 
   const toolbar = (
     <>
-      <div className="flex items-center gap-2 text-xs text-slate-500">
+      <div
+        className={`inline-flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs ${
+          loading
+            ? "border-sky-500/25 bg-sky-500/10 text-sky-200"
+            : "border-slate-700/80 bg-slate-800/40 text-slate-400"
+        }`}
+      >
         {loading ? (
-          <span className="inline-flex items-center gap-1.5 text-slate-400">
-            <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-            Refreshing data…
-          </span>
+          <>
+            <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin text-sky-300" />
+            <span className="truncate font-medium">Refreshing…</span>
+          </>
         ) : updatedAt ? (
-          <span className="inline-flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 text-slate-500" />
-            Last updated {formatUpdatedAt(updatedAt)}
-          </span>
+          <>
+            <Clock className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+            <span className="truncate">
+              <span className="text-slate-500">Updated</span>{" "}
+              <span className="font-medium text-slate-300">{formatUpdatedAt(updatedAt)}</span>
+            </span>
+          </>
         ) : (
-          <span className="inline-flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 text-slate-500" />
-            Loading…
-          </span>
+          <>
+            <Clock className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+            <span className="truncate font-medium text-slate-400">Loading…</span>
+          </>
         )}
       </div>
+
       <div className="flex items-center gap-2">
-        <div className="inline-flex rounded-lg border border-slate-700 bg-slate-800/60 p-0.5">
+        <div
+          role="group"
+          aria-label="Reporting period"
+          className="inline-flex rounded-lg border border-slate-700/80 bg-slate-800/50 p-0.5"
+        >
           {PERIOD_OPTIONS.map((opt) => {
             const active = period === opt.value;
             return (
@@ -168,13 +187,14 @@ export default function DashboardPage() {
                 onClick={() => setPeriod(opt.value)}
                 disabled={loading}
                 aria-pressed={active}
-                className={`rounded-md px-3 py-1.5 text-xs font-medium transition disabled:cursor-not-allowed ${
+                className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2E7D9A]/50 disabled:cursor-not-allowed sm:px-3 ${
                   active
-                    ? "bg-sky-500/20 text-sky-300 ring-1 ring-sky-500/40"
+                    ? "bg-[#2E7D9A]/22 text-sky-300 ring-1 ring-[#2E7D9A]/45"
                     : "text-slate-400 hover:text-slate-200"
                 }`}
               >
-                {opt.label}
+                <span className="sm:hidden">{opt.shortLabel}</span>
+                <span className="hidden sm:inline">{opt.label}</span>
               </button>
             );
           })}
@@ -185,7 +205,7 @@ export default function DashboardPage() {
           disabled={loading}
           title="Refresh data"
           aria-label="Refresh data"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs font-medium text-slate-300 transition hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-800/50 px-2.5 py-1.5 text-xs font-medium text-slate-300 transition hover:border-[#2E7D9A]/45 hover:bg-[#2E7D9A]/10 hover:text-sky-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2E7D9A]/50 disabled:cursor-not-allowed disabled:opacity-60 sm:px-3"
         >
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           <span className="hidden sm:inline">Refresh</span>
@@ -304,8 +324,9 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <MiniStat icon={Hammer} color="orange" label="Open Service / Repair" value={data.peripheralsMaintenance.openMaintenance} />
                   <MiniStat icon={RefreshCw} color="amber" label="Assets Under Repair" value={data.peripheralsMaintenance.assetsUnderRepair} />
-                  <MiniStat icon={Keyboard} color="red" label="Keyboard Issues" value={data.peripheralsMaintenance.keyboardIssues} />
-                  <MiniStat icon={Mouse} color="teal" label="Personal Mouse (BYOD)" value={data.peripheralsMaintenance.personalMouse} />
+                  <MiniStat icon={Keyboard} color="red" label="Keyboard Faulty / Replace" value={data.peripheralsMaintenance.keyboardFaulty} />
+                  <MiniStat icon={Keyboard} color="amber" label="Fading Keys" value={data.peripheralsMaintenance.keyboardFadingKeys} />
+                  <MiniStat icon={Mouse} color="red" label="Mouse / Trackpad Faulty" value={data.peripheralsMaintenance.mouseFaulty} />
                 </div>
               </div>
             </section>

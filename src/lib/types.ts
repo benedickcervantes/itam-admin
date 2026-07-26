@@ -99,6 +99,7 @@ export type Asset = {
   last_audit_date?: string | null;
   audit_register?: {
     audit_code: string;
+    employee_status?: string | null;
     network?: string | null;
     graphics_gpu?: string | null;
     screen?: string | null;

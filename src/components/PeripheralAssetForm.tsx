@@ -80,6 +80,10 @@ export function PeripheralAssetForm({
     () => optionsFromStrings([...REFERENCE_DATA.assetStatuses], { labelFn: labelEnum }),
     [],
   );
+  const employeeStatusOptions = useMemo(
+    () => optionsFromStrings([...REFERENCE_DATA.employeeStatuses], { labelFn: labelEnum }),
+    [],
+  );
   const conditionOptions = useMemo(
     () => optionsFromStrings([...REFERENCE_DATA.conditions], { emptyLabel: "—" }),
     [],
@@ -156,7 +160,15 @@ export function PeripheralAssetForm({
               disabled={!write}
             />
           </Field>
-          <Field label="Status">
+          <Field label="Employee Status">
+            <Select
+              value={String(form.employeeStatus)}
+              onChange={(v) => set("employeeStatus", v)}
+              options={employeeStatusOptions}
+              disabled={!write}
+            />
+          </Field>
+          <Field label="Asset Status">
             <Select
               value={String(form.status)}
               onChange={(v) => set("status", v)}
@@ -166,7 +178,7 @@ export function PeripheralAssetForm({
           </Field>
           {!assignedTo && (
             <p className="md:col-span-2 text-xs text-slate-500">
-              No assignee — keep status as <span className="text-slate-300">Available</span> or{" "}
+              No assignee — keep asset status as <span className="text-slate-300">Available</span> or{" "}
               <span className="text-slate-300">Reserved</span>. Assign later via Edit.
             </p>
           )}
