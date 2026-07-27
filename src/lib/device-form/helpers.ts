@@ -52,6 +52,7 @@ export const isSharedPrinterCategory = isSparePeripheralCategory;
 /** Item types that can be created as standalone spare / shared stock (no user). */
 export const SPARE_PERIPHERAL_ITEM_TYPES = [
   "PRINTER",
+  "PROJECTOR",
   "KEYBOARD",
   "MOUSE",
   "MONITOR",
@@ -72,6 +73,7 @@ export const COMPONENT_ITEM_TYPES = [
   "MOUSE",
   "MONITOR",
   "PRINTER",
+  "PROJECTOR",
   "UPS",
   "AVR",
 ] as const;

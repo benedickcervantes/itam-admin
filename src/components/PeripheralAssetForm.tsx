@@ -8,6 +8,7 @@ import {
   Mouse,
   Plug,
   Printer,
+  Projector,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -24,6 +25,7 @@ import type { Department } from "@/lib/types";
 
 const ITEM_TYPE_ICONS: Record<string, LucideIcon> = {
   PRINTER: Printer,
+  PROJECTOR: Projector,
   MONITOR: Monitor,
   KEYBOARD: Keyboard,
   MOUSE: Mouse,
@@ -33,6 +35,7 @@ const ITEM_TYPE_ICONS: Record<string, LucideIcon> = {
 
 const NAME_PLACEHOLDERS: Record<string, string> = {
   PRINTER: "e.g. FLOOR2-SHARED-PRN",
+  PROJECTOR: "e.g. CONF-ROOM-A-PRJ",
   KEYBOARD: "e.g. SPARE-KB-01",
   MOUSE: "e.g. SPARE-MS-01",
   MONITOR: "e.g. SPARE-MON-01",
@@ -40,6 +43,7 @@ const NAME_PLACEHOLDERS: Record<string, string> = {
 
 const BRAND_PLACEHOLDERS: Record<string, string> = {
   PRINTER: "e.g. HP 115 Ink Tank Printer",
+  PROJECTOR: "e.g. Epson EB-X41",
   KEYBOARD: "e.g. Logitech K120",
   MOUSE: "e.g. Logitech M90",
   MONITOR: "e.g. Dell P2422H",
