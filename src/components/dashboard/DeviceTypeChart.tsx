@@ -3,7 +3,7 @@
 import { labelEnum } from "@/lib/labels";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 
-const COMPONENT_CHART_TYPES = ["KEYBOARD", "MOUSE", "PRINTER", "UPS", "AVR"] as const;
+const COMPONENT_CHART_TYPES = ["KEYBOARD", "MOUSE", "PRINTER", "PROJECTOR", "UPS", "AVR"] as const;
 
 /** All device / item types shown on the dashboard chart (includes zero-count rows). */
 const ALL_CHART_DEVICE_TYPES = [
@@ -28,6 +28,7 @@ const DEVICE_TYPE_COLORS: Record<string, string> = {
   MONITOR: "#0EA5E9",
   UPS: "#CA8A04",
   PRINTER: "#EAB308",
+  PROJECTOR: "#F472B6",
 };
 
 const FALLBACK_COLOR = "#475569";

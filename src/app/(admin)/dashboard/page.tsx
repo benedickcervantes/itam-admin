@@ -264,8 +264,8 @@ export default function DashboardPage() {
             <section id="breakdown" className="grid scroll-mt-[var(--dashboard-nav-offset,4rem)] items-stretch gap-6 xl:grid-cols-2">
               <div className="flex flex-col">
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-sky-400">Asset Status Breakdown</h2>
-                <div className="card flex flex-1 items-center p-4 sm:p-5">
-                  <div className="w-full">
+                <div className="card flex min-h-64 flex-1 items-stretch p-3 sm:min-h-72 sm:p-4">
+                  <div className="h-full w-full min-h-0">
                     <AssetStatusChart data={data.assetStatusBreakdown} />
                   </div>
                 </div>

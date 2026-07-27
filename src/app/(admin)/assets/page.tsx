@@ -59,6 +59,7 @@ const ITEM_TYPES = Array.from(
     "KEYBOARD",
     "MOUSE",
     "PRINTER",
+    "PROJECTOR",
     "UPS",
     "AVR",
     "OTHER",
