@@ -21,22 +21,22 @@ export function AssetStatusChart({ data = [] }: { data?: AssetStatusRow[] }) {
   const chartData = data.filter((row) => row.count > 0);
 
   return (
-    <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-      <div className="relative mx-auto h-52 w-52 shrink-0 sm:mx-0">
+    <div className="flex h-full min-h-0 flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-4">
+      <div className="relative mx-auto aspect-square w-full max-w-72 shrink-0 sm:mx-0 sm:h-full sm:w-auto sm:max-w-[min(50%,20rem)]">
         {chartData.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-center text-sm text-slate-500">
+          <div className="flex h-full min-h-40 items-center justify-center text-center text-sm text-slate-500">
             No assets yet
           </div>
         ) : (
           <>
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+              <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                 <Pie
                   data={chartData}
                   dataKey="count"
                   nameKey="status"
-                  innerRadius="65%"
-                  outerRadius="100%"
+                  innerRadius="62%"
+                  outerRadius="98%"
                   paddingAngle={2}
                   stroke="none"
                   isAnimationActive={false}
@@ -60,18 +60,18 @@ export function AssetStatusChart({ data = [] }: { data?: AssetStatusRow[] }) {
               </PieChart>
             </ResponsiveContainer>
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-bold text-white">{total}</span>
+              <span className="text-3xl font-bold text-white">{total}</span>
               <span className="text-xs uppercase tracking-wide text-slate-400">Total Assets</span>
             </div>
           </>
         )}
       </div>
 
-      <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="grid flex-1 grid-cols-1 content-center gap-2 sm:grid-cols-2">
         {data.map((row) => (
           <div
             key={row.status}
-            className="flex items-center justify-between gap-2 rounded-lg bg-slate-900/40 px-3 py-2"
+            className="flex items-center justify-between gap-2 rounded-lg bg-slate-900/40 px-3 py-2.5"
           >
             <div className="flex items-center gap-2">
               <span
