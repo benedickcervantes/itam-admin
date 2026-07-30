@@ -41,7 +41,7 @@ import { canWrite } from "@/lib/auth/permissions";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 import { labelEnum } from "@/lib/labels";
 import { useSessionUser } from "@/components/SessionContext";
-import { emptyForm, emptyFormForCategory, formStateFromAsset, isComponentItemType, isSparePeripheralCategory, prepareAssetPayload, ramSlotDefaults, showsInfraNetworkSpecs, showsInfraServerSpecs, showsInfraStorageSpecs, validateAssetForm, type AssetCategory } from "@/lib/device-form";
+import { emptyForm, emptyFormForCategory, formStateFromAsset, isComponentItemType, isSparePeripheralCategory, prepareAssetPayload, ramSlotDefaults, showsInfraNetworkSpecs, showsInfraServerSpecs, showsInfraStorageSpecs, sparePeripheralTag, validateAssetForm, type AssetCategory } from "@/lib/device-form";
 import type { Asset, Department } from "@/lib/types";
 
 type ViewMode = "table" | "grid";
@@ -380,10 +380,19 @@ export default function AssetsPage() {
         if (assignedTo && String(next.status) === "AVAILABLE") next.status = "IN_USE";
       }
       if (key === "status") {
-        const assignedTo = String(next.employeeName ?? "").trim();
-        if (value === "AVAILABLE" && assignedTo) {
+        if (value === "AVAILABLE" || value === "RESERVED") {
+          // Same defaults as New Asset / spare stock.
           next.employeeName = "";
           next.jobTitle = "";
+          next.departmentId = "";
+          next.employeeStatus = "";
+          if (isComponentItemType(String(next.itemType))) {
+            // Drop linked workstation — unique spare tag (avoids name collision).
+            next.computerName = sparePeripheralTag(
+              String(next.itemType),
+              editing?.asset_code,
+            );
+          }
         }
       }
       return next;
@@ -673,7 +682,10 @@ export default function AssetsPage() {
                         <td className="cell-wrap text-slate-300">{row.assigned_to ?? "—"}</td>
                         <td className="cell-wrap">{row.department?.name ?? "—"}</td>
                         <td>
-                          {row.audit_register?.employee_status ? (
+                          {row.status !== "AVAILABLE" &&
+                          row.status !== "RESERVED" &&
+                          row.assigned_to &&
+                          row.audit_register?.employee_status ? (
                             <Badge value={row.audit_register.employee_status} />
                           ) : (
                             <span className="text-slate-500">—</span>
@@ -732,7 +744,10 @@ export default function AssetsPage() {
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       <Badge value={row.status} />
                       <Badge value={row.condition} />
-                      {row.audit_register?.employee_status && (
+                      {row.status !== "AVAILABLE" &&
+                        row.status !== "RESERVED" &&
+                        row.assigned_to &&
+                        row.audit_register?.employee_status && (
                         <Badge value={row.audit_register.employee_status} />
                       )}
                       {(row.item_type || row.device_type) && <Badge value={row.item_type ?? row.device_type} />}

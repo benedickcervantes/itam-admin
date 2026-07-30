@@ -63,6 +63,8 @@ export function fetchAssetsByUser(assignedTo: string) {
 export function transferAssets(body: {
   fromUser: string;
   toUser: string;
+  /** Same person → new PC: required when fromUser === toUser. */
+  targetAuditId?: string;
   /** If set, only these assets are transferred. */
   assetIds?: string[];
   departmentId?: string;
@@ -72,6 +74,8 @@ export function transferAssets(body: {
     success: boolean;
     fromUser: string;
     toUser: string;
+    targetAuditId?: string | null;
+    targetComputerName?: string | null;
     transferred: number;
     auditsUpdated?: number;
     assetCodes: string[];

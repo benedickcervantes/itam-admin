@@ -20,6 +20,7 @@ import {
   showsInfraMonitorSpecs,
   showsInfraNetworkSpecs,
   isLaptopDevice,
+  sparePeripheralTag,
   parseLaptopKeyboard,
   parseLaptopPointer,
   parseGpuPair,
@@ -217,9 +218,18 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
 
   return {
     employeeName: row.employee_name,
-    departmentId: row.department_id ?? row.department?.id ?? "",
-    jobTitle: row.job_title ?? "",
-    employeeStatus: row.employee_status ?? "ACTIVE",
+    departmentId:
+      !row.employee_name?.trim() || /^unassigned$/i.test(row.employee_name.trim())
+        ? ""
+        : (row.department_id ?? row.department?.id ?? ""),
+    jobTitle:
+      !row.employee_name?.trim() || /^unassigned$/i.test(row.employee_name.trim())
+        ? ""
+        : (row.job_title ?? ""),
+    employeeStatus:
+      !row.employee_name?.trim() || /^unassigned$/i.test(row.employee_name.trim())
+        ? ""
+        : (row.employee_status ?? "ACTIVE"),
     deviceType,
     computerName: row.computer_name,
     laptopBrandModel: row.laptop_brand_model ?? "",
@@ -335,9 +345,13 @@ export function formStateFromAsset(row: Asset): DeviceFormState {
   return {
     ...emptyForm(),
     assetCategory: assetCategoryFromAsset(hardware),
+    assetCode: row.asset_code ?? "",
     employeeName: hardware.assigned_to ?? "",
     jobTitle: hardware.job_title ?? "",
-    employeeStatus: row.audit_register?.employee_status ?? "ACTIVE",
+    employeeStatus:
+      hardware.status === "AVAILABLE" || hardware.status === "RESERVED"
+        ? ""
+        : (row.audit_register?.employee_status ?? "ACTIVE"),
     departmentId: hardware.department_id ?? "",
     deviceType,
     itemType: hardware.item_type ?? "",
@@ -537,15 +551,22 @@ const ASSET_ONLY_KEYS = [
 export function validateAssetForm(form: DeviceFormState): string | null {
   const itemType = String(form.itemType ?? "");
   const isPeripheral = isComponentItemType(itemType);
+  const status = String(form.status ?? "");
+  const releaseToStock = status === "AVAILABLE" || status === "RESERVED";
+  const computerName = String(form.computerName ?? "").trim();
 
-  if (!String(form.computerName ?? "").trim()) {
-    return isPeripheral ? "Asset name / tag is required." : "Computer name is required.";
+  if (!computerName) {
+    // Edit → Available can auto-fill SPARE-{assetCode}; create still needs a name/tag.
+    const canAutoFill =
+      isPeripheral && releaseToStock && String(form.assetCode ?? "").trim().length > 0;
+    if (!canAutoFill) {
+      return isPeripheral ? "Asset name / tag is required." : "Computer name is required.";
+    }
   }
   if (isPeripheral && !String(form.laptopBrandModel ?? "").trim()) {
     return "Brand / Model is required.";
   }
   const assignedTo = String(form.employeeName ?? "").trim();
-  const status = String(form.status ?? "");
   if (status === "IN_USE" && !assignedTo) {
     return "Assigned To is required when status is In Use.";
   }
@@ -553,10 +574,12 @@ export function validateAssetForm(form: DeviceFormState): string | null {
 }
 
 export function validateAuditForm(form: DeviceFormState): string | null {
-  if (!String(form.employeeName ?? "").trim()) {
+  const employeeName = String(form.employeeName ?? "").trim();
+  if (!employeeName) {
     return "Employee name is required.";
   }
-  if (!String(form.departmentId ?? "").trim()) {
+  const unassigned = /^unassigned$/i.test(employeeName);
+  if (!unassigned && !String(form.departmentId ?? "").trim()) {
     return "Department is required.";
   }
   if (!String(form.computerName ?? "").trim()) {
@@ -592,7 +615,19 @@ export function prepareAuditPayload(form: DeviceFormState): Record<string, strin
 
   result.employeeName = String(form.employeeName ?? "").trim();
   result.computerName = String(form.computerName ?? "").trim();
-  result.departmentId = String(form.departmentId ?? "").trim();
+  const departmentId = String(form.departmentId ?? "").trim();
+  const employeeStatus = String(form.employeeStatus ?? "").trim();
+  const unassigned = /^unassigned$/i.test(result.employeeName);
+
+  if (unassigned) {
+    // Explicit nulls so the API clears stale dept / employee status (Asset Dashboard parity).
+    result.departmentId = null as unknown as string;
+    result.employeeStatus = null as unknown as string;
+    result.jobTitle = null as unknown as string;
+  } else {
+    result.departmentId = departmentId;
+    if (employeeStatus) result.employeeStatus = employeeStatus;
+  }
 
   // Asset status is applied to generated assets; not stored on the audit row itself.
   const assetStatus = String(form.status ?? "").trim();
@@ -629,28 +664,46 @@ function prepareComponentAssetPayload(
   form: DeviceFormState,
   itemType: string,
 ): Record<string, string | boolean | number> {
+  const status = String(form.status ?? "AVAILABLE") || "AVAILABLE";
+  const releaseToStock = status === "AVAILABLE" || status === "RESERVED";
+  let computerName = String(form.computerName ?? "").trim();
+  if (releaseToStock && !computerName) {
+    computerName = sparePeripheralTag(
+      itemType,
+      String(form.assetCode ?? "").trim() || undefined,
+    );
+  }
+
   const payload: Record<string, string | boolean | number> = {
-    computerName: String(form.computerName ?? "").trim(),
+    computerName,
     itemType,
     brandModel: String(form.laptopBrandModel ?? "").trim(),
     departmentId: String(form.departmentId ?? "").trim(),
     serialNumber: String(form.serialNumber ?? "").trim(),
-    status: String(form.status ?? "AVAILABLE") || "AVAILABLE",
+    status,
     condition: String(form.condition ?? ""),
     notes: String(form.notes ?? ""),
   };
 
   const assignedTo = String(form.employeeName ?? "").trim();
-  if (assignedTo) {
+  if (assignedTo && !releaseToStock) {
     payload.assignedTo = assignedTo;
     const jobTitle = String(form.jobTitle ?? "").trim();
     if (jobTitle) payload.jobTitle = jobTitle;
+  } else if (releaseToStock || !assignedTo) {
+    // Explicit clear so old monitor/printer returns to spare stock (unlink user + audit).
+    payload.assignedTo = "";
+  }
+  if (releaseToStock) {
+    // Omit departmentId — empty string fails @IsUUID(); backend clears it on Available.
+    delete payload.departmentId;
   }
   const employeeStatus = String(form.employeeStatus ?? "").trim();
-  if (employeeStatus) payload.employeeStatus = employeeStatus;
+  if (employeeStatus && !releaseToStock) payload.employeeStatus = employeeStatus;
 
   Object.keys(payload).forEach((k) => {
-    if (payload[k] === "") delete payload[k];
+    // Keep assignedTo: "" so the API clears the assignee on update.
+    if (payload[k] === "" && k !== "assignedTo") delete payload[k];
   });
 
   return payload;
@@ -692,6 +745,18 @@ export function prepareAssetPayload(form: DeviceFormState): Record<string, strin
   if (!infra && composed.jobTitle) payload.jobTitle = composed.jobTitle;
   if (!infra && composed.employeeStatus) payload.employeeStatus = composed.employeeStatus;
 
+  // Explicit clear when releasing PC/laptop to spare (nobody using it).
+  if (
+    String(composed.status ?? "") === "AVAILABLE" ||
+    String(composed.status ?? "") === "RESERVED"
+  ) {
+    payload.assignedTo = "";
+    // Omit departmentId — empty string fails @IsUUID(); backend clears it on Available.
+    delete payload.departmentId;
+    delete payload.jobTitle;
+    delete payload.employeeStatus;
+  }
+
   if (infra) {
     if (composed.location) payload.location = composed.location;
     if (composed.managementIp) payload.managementIp = composed.managementIp;
@@ -732,7 +797,8 @@ export function prepareAssetPayload(form: DeviceFormState): Record<string, strin
   }
 
   Object.keys(payload).forEach((k) => {
-    if (payload[k] === "") delete payload[k];
+    // Keep assignedTo: "" so Available release clears the assignee on update.
+    if (payload[k] === "" && k !== "assignedTo") delete payload[k];
   });
 
   return payload;

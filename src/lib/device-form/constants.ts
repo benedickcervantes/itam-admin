@@ -106,6 +106,7 @@ export function scrollToDeviceSection(id: string) {
 
 export const UI_ONLY_KEYS = [
   "assetCategory",
+  "assetCode",
   "ramSize",
   "ramType",
   "ramSpeed",

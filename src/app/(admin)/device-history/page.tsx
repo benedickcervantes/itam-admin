@@ -67,6 +67,31 @@ function formFromRecord(row: DeviceHistory): Record<string, string> {
   };
 }
 
+/** Plain-language badge for tech and non-tech users. */
+function historyStatusBadge(row: DeviceHistory): { label: string; className: string } {
+  if (!row.returned_date) {
+    return {
+      label: "Current",
+      className: "text-emerald-400/90",
+    };
+  }
+  const notes = (row.notes ?? "").toLowerCase();
+  const releasedToStock =
+    /released to available|released to reserved|moved to spare|spare stock|available from/i.test(
+      notes,
+    );
+  if (releasedToStock) {
+    return {
+      label: "Available",
+      className: "text-sky-400/90",
+    };
+  }
+  return {
+    label: "Previous",
+    className: "text-amber-400/90",
+  };
+}
+
 export default function DeviceHistoryPage() {
   const user = useSessionUser();
   const write = canWrite(user);
@@ -76,6 +101,8 @@ export default function DeviceHistoryPage() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [departmentId, setDepartmentId] = useState("");
+  /** active = current only; returned = closed moves; all = both. Default all so releases/moves are visible. */
+  const [statusFilter, setStatusFilter] = useState<"active" | "returned" | "all">("all");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -115,6 +142,11 @@ export default function DeviceHistoryPage() {
   const buildFilterSummary = () => {
     const parts: string[] = [];
     if (search) parts.push(`Search: "${search}"`);
+    if (statusFilter === "returned") {
+      parts.push("Show: Previous / Available");
+    } else if (statusFilter === "active") {
+      parts.push("Show: Current only");
+    }
     if (departmentId) {
       parts.push(`Department: ${departments.find((d) => d.id === departmentId)?.name ?? departmentId}`);
     }
@@ -177,6 +209,7 @@ export default function DeviceHistoryPage() {
         page,
         search: search || undefined,
         departmentId: departmentId || undefined,
+        status: statusFilter,
       });
       setItems(res.items);
       setTotalPages(res.totalPages);
@@ -186,7 +219,7 @@ export default function DeviceHistoryPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, departmentId]);
+  }, [page, search, departmentId, statusFilter]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSearch(searchInput.trim()), 300);
@@ -195,7 +228,7 @@ export default function DeviceHistoryPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, departmentId]);
+  }, [search, departmentId, statusFilter]);
 
   useEffect(() => {
     void load();
@@ -367,6 +400,16 @@ export default function DeviceHistoryPage() {
               </option>
             ))}
           </FilterSelect>
+          <FilterSelect
+            label="Show"
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v as "active" | "returned" | "all")}
+            className="w-full sm:w-auto"
+          >
+            <option value="all">All records</option>
+            <option value="active">Current only</option>
+            <option value="returned">Previous / Available</option>
+          </FilterSelect>
           <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="View mode">
             <button
               type="button"
@@ -498,19 +541,29 @@ export default function DeviceHistoryPage() {
                       </td>
                     </tr>
                   ) : (
-                    items.map((row) => (
+                    items.map((row) => {
+                      const status = historyStatusBadge(row);
+                      return (
                       <tr key={row.id} className="cursor-pointer" onClick={() => openView(row)}>
                         <td className="font-mono text-[#2E7D9A]">{row.record_code}</td>
                         <td className="font-mono text-slate-300">{row.asset?.asset_code ?? "—"}</td>
                         <td className="cell-wrap font-medium text-white">{row.asset?.brand_model?.trim() || "—"}</td>
-                        <td className="cell-wrap text-slate-300">{row.asset?.computer_name ?? "—"}</td>
+                        <td className="cell-wrap text-slate-300">{row.computer_name ?? row.asset?.computer_name ?? "—"}</td>
                         <td className="cell-wrap text-slate-300">{row.assigned_to ?? "—"}</td>
                         <td className="cell-wrap text-slate-300">{row.last_user ?? "—"}</td>
                         <td className="cell-wrap">{row.department?.name ?? "—"}</td>
-                        <td className="text-slate-300">{row.assigned_date.slice(0, 10)}</td>
+                        <td className="text-slate-300">
+                          <span className="block">{row.assigned_date.slice(0, 10)}</span>
+                          <span
+                            className={`mt-0.5 block text-[10px] font-medium uppercase tracking-wide ${status.className}`}
+                          >
+                            {status.label}
+                          </span>
+                        </td>
                         <td onClick={(e) => e.stopPropagation()}>{renderRowActions(row)}</td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -524,7 +577,9 @@ export default function DeviceHistoryPage() {
               <p className="py-8 text-center text-sm text-slate-400">No device history records found.</p>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {items.map((row) => (
+                {items.map((row) => {
+                  const status = historyStatusBadge(row);
+                  return (
                   <article
                     key={row.id}
                     className="card cursor-pointer p-4 transition hover:border-[#2E7D9A]/50 hover:bg-slate-800/40"
@@ -538,9 +593,19 @@ export default function DeviceHistoryPage() {
                         </p>
                         <p className="truncate font-mono text-xs text-slate-400">
                           {row.asset?.asset_code ?? "—"}
-                          {row.asset?.computer_name ? ` · ${row.asset.computer_name}` : ""}
+                          {(row.computer_name || row.asset?.computer_name)
+                            ? ` · ${row.computer_name || row.asset?.computer_name}`
+                            : ""}
                         </p>
                         <p className="truncate text-sm text-slate-400">{row.assigned_to}</p>
+                        <p
+                          className={`mt-1 text-[10px] font-medium uppercase tracking-wide ${status.className}`}
+                        >
+                          {status.label}
+                        </p>
+                        {row.notes?.trim() ? (
+                          <p className="mt-1 line-clamp-2 text-xs text-slate-500">{row.notes}</p>
+                        ) : null}
                       </div>
                       <div onClick={(e) => e.stopPropagation()}>{renderRowActions(row)}</div>
                     </div>
@@ -559,7 +624,8 @@ export default function DeviceHistoryPage() {
                       </div>
                     </dl>
                   </article>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
