@@ -284,10 +284,16 @@ export function DeviceInventoryForm({
   const infraStorage = infra && showsInfraStorageSpecs(deviceType);
   const infraMonitor = infra && showsInfraMonitorSpecs(deviceType);
 
-  const departmentOptions = useMemo(
-    () => [{ value: "", label: "Select department..." }, ...departments.map((d) => ({ value: d.id, label: d.name }))],
-    [departments],
-  );
+  const departmentOptions = useMemo(() => {
+    const unassigned =
+      mode === "audit" &&
+      (!String(form.employeeName).trim() ||
+        /^unassigned$/i.test(String(form.employeeName).trim()));
+    return [
+      { value: "", label: unassigned ? "—" : "Select department..." },
+      ...departments.map((d) => ({ value: d.id, label: d.name })),
+    ];
+  }, [departments, mode, form.employeeName]);
   const deviceTypeOptions = useMemo(() => {
     const source =
       mode === "asset"
@@ -301,9 +307,10 @@ export function DeviceInventoryForm({
     });
   }, [mode, assetCategory]);
   const employeeStatusOptions = useMemo(
-    () => optionsFromStrings([...REFERENCE_DATA.employeeStatuses]),
+    () => optionsFromStrings([...REFERENCE_DATA.employeeStatuses], { emptyLabel: "—" }),
     [],
   );
+
   const assetStatusOptions = useMemo(
     () => optionsFromStrings([...REFERENCE_DATA.assetStatuses], { labelFn: labelEnum }),
     [],
@@ -413,17 +420,34 @@ export function DeviceInventoryForm({
               className={inputClass}
               value={String(form.employeeName)}
               onChange={(e) => set("employeeName", e.target.value)}
-              placeholder={mode === "asset" ? "Unassigned — leave blank for spare stock" : undefined}
+              placeholder={
+                mode === "asset"
+                  ? "Unassigned — leave blank for spare stock"
+                  : "Unassigned — for available / spare PC"
+              }
               required={mode === "audit"}
               readOnly={!write}
             />
           </Field>
-          <Field label={infra ? "Owning Department" : "Department"} required={mode === "audit"}>
+          <Field
+            label={infra ? "Owning Department" : "Department"}
+            required={
+              mode === "audit" &&
+              !!String(form.employeeName).trim() &&
+              !/^unassigned$/i.test(String(form.employeeName).trim())
+            }
+          >
             <Select
               value={String(form.departmentId)}
               onChange={(v) => set("departmentId", v)}
               options={departmentOptions}
-              placeholder="Select department..."
+              placeholder={
+                mode === "audit" &&
+                (!String(form.employeeName).trim() ||
+                  /^unassigned$/i.test(String(form.employeeName).trim()))
+                  ? "—"
+                  : "Select department..."
+              }
               disabled={!write}
             />
           </Field>
@@ -434,9 +458,21 @@ export function DeviceInventoryForm({
                 value={String(form.jobTitle)}
                 onChange={(e) => set("jobTitle", e.target.value)}
                 placeholder={
-                  mode === "asset" && !String(form.employeeName).trim() ? "—" : undefined
+                  mode === "asset" && !String(form.employeeName).trim()
+                    ? "—"
+                    : mode === "audit" &&
+                        (!String(form.employeeName).trim() ||
+                          /^unassigned$/i.test(String(form.employeeName).trim()))
+                      ? "—"
+                      : undefined
                 }
-                readOnly={!write || (mode === "asset" && !String(form.employeeName).trim())}
+                readOnly={
+                  !write ||
+                  (mode === "asset" && !String(form.employeeName).trim()) ||
+                  (mode === "audit" &&
+                    (!String(form.employeeName).trim() ||
+                      /^unassigned$/i.test(String(form.employeeName).trim())))
+                }
               />
             </Field>
           )}
@@ -446,7 +482,12 @@ export function DeviceInventoryForm({
                 value={String(form.employeeStatus)}
                 onChange={(v) => set("employeeStatus", v)}
                 options={employeeStatusOptions}
-                disabled={!write}
+                disabled={
+                  !write ||
+                  (mode === "audit" &&
+                    (!String(form.employeeName).trim() ||
+                      /^unassigned$/i.test(String(form.employeeName).trim())))
+                }
               />
             </Field>
           )}

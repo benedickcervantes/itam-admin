@@ -124,6 +124,8 @@ export type DeviceHistory = {
     brand_model?: string | null;
     item_type?: string | null;
   };
+  /** Workstation name at the time of this history row (may differ from live asset). */
+  computer_name?: string | null;
   assigned_to: string;
   last_user?: string | null;
   department_id?: string | null;

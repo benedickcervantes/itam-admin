@@ -82,6 +82,20 @@ export function isComponentItemType(itemType: string | null | undefined): boolea
   return !!itemType && (COMPONENT_ITEM_TYPES as readonly string[]).includes(itemType);
 }
 
+/**
+ * Default name/tag when a peripheral is released to Available / spare stock.
+ * Prefer a unique hint (asset code) so multiple SPARE monitors do not collide.
+ */
+export function sparePeripheralTag(
+  itemType: string | null | undefined,
+  uniqueHint?: string | null,
+): string {
+  const hint = (uniqueHint ?? "").trim();
+  if (hint) return `SPARE-${hint}`;
+  const t = (itemType ?? "OTHER").trim().toUpperCase() || "OTHER";
+  return `SPARE-${t}`;
+}
+
 export function isInfrastructureDevice(deviceType: string, assetCategory?: AssetCategory) {
   if (assetCategory === "infrastructure") return true;
   if (assetCategory === "end_user" || assetCategory === "spare_peripheral") return false;

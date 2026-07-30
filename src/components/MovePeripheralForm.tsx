@@ -5,6 +5,7 @@ import { ArrowRightLeft, Loader2, Search, X } from "lucide-react";
 import { Field, inputClass, selectClass } from "@/components/Drawer";
 import { movePeripheral } from "@/lib/api/assets";
 import { fetchAllAuditRegisters } from "@/lib/api/auditRegisters";
+import { sparePeripheralTag } from "@/lib/device-form";
 import { labelEnum } from "@/lib/labels";
 import type { Asset, AuditRegister, Department } from "@/lib/types";
 
@@ -176,6 +177,11 @@ export function MovePeripheralForm({
             onClick={() => {
               setMode("spare");
               setSelectedAudit(null);
+              setAssignedTo("");
+              setDepartmentId("");
+              setComputerName(
+                sparePeripheralTag(asset.item_type, asset.asset_code),
+              );
             }}
             className={`rounded-md px-3 py-1.5 text-sm transition ${
               mode === "spare" ? "bg-[#2E7D9A] text-white" : "text-slate-400 hover:text-white"

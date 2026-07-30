@@ -102,6 +102,10 @@ export function PeripheralAssetForm({
   );
 
   const assignedTo = String(form.employeeName).trim();
+  const isSpareStock =
+    String(form.status) === "AVAILABLE" || String(form.status) === "RESERVED";
+  const nameLabel =
+    createMode || isSpareStock ? `${typeLabel} Name / Tag` : "Linked Workstation";
 
   return (
     <div className="space-y-5">
@@ -206,15 +210,15 @@ export function PeripheralAssetForm({
             )}
           </Field>
           <Field
-            label={createMode ? `${typeLabel} Name / Tag` : "Linked Workstation"}
-            required={createMode}
+            label={nameLabel}
+            required={createMode || isSpareStock}
           >
             <input
               className={inputClass}
               value={String(form.computerName)}
               onChange={(e) => set("computerName", e.target.value)}
               placeholder={
-                createMode
+                createMode || isSpareStock
                   ? NAME_PLACEHOLDERS[itemType] ?? "e.g. SPARE-01"
                   : "e.g. WS-FINANCE-01"
               }
