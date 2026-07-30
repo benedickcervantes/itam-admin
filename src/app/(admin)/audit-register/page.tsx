@@ -369,7 +369,21 @@ export default function AuditRegisterPage() {
     </div>
   );
 
-  const set = (key: string, value: string | boolean) => setForm((f) => ({ ...f, [key]: value }));
+  const set = (key: string, value: string | boolean) =>
+    setForm((f) => {
+      const next = { ...f, [key]: value };
+      if (key === "employeeName") {
+        const name = String(value).trim();
+        const unassigned = !name || /^unassigned$/i.test(name);
+        if (unassigned) {
+          // Same defaults as Asset Dashboard when Available / no assignee.
+          next.jobTitle = "";
+          next.departmentId = "";
+          next.employeeStatus = "";
+        }
+      }
+      return next;
+    });
 
   const onDeviceTypeChange = (deviceType: string) => {
     const defaults = ramSlotDefaults(deviceType);
