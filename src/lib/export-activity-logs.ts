@@ -1,6 +1,7 @@
+import { labelEntityType } from "./activity-log-ui";
+import { openLandscapeTablePdf } from "./export-pdf";
 import { labelEnum } from "./labels";
 import type { ActivityLog } from "./types";
-import { labelEntityType } from "./activity-log-ui";
 
 export type ActivityLogExportColumnKey =
   | "time"
@@ -106,13 +107,12 @@ export const ALL_ACTIVITY_LOG_EXPORT_COLUMN_KEYS: ActivityLogExportColumnKey[] =
   (section) => section.columns.map((column) => column.key),
 );
 
-function resolveExportColumns(selectedColumnKeys?: ActivityLogExportColumnKey[]): Column[] {
+function resolveExportSections(selectedColumnKeys?: ActivityLogExportColumnKey[]): ColumnSection[] {
   const selected = new Set(selectedColumnKeys ?? ALL_ACTIVITY_LOG_EXPORT_COLUMN_KEYS);
-  return COLUMN_SECTIONS.flatMap((section) => section.columns.filter((column) => selected.has(column.key)));
-}
-
-function rowsToMatrix(rows: ActivityLog[], columns: Column[]) {
-  return rows.map((row) => columns.map((col) => col.value(row)));
+  return COLUMN_SECTIONS.map((section) => ({
+    ...section,
+    columns: section.columns.filter((column) => selected.has(column.key)),
+  })).filter((section) => section.columns.length > 0);
 }
 
 export function exportActivityLogsPdf(
@@ -120,30 +120,16 @@ export function exportActivityLogsPdf(
   filterSummary?: string,
   selectedColumnKeys?: ActivityLogExportColumnKey[],
 ) {
-  const columns = resolveExportColumns(selectedColumnKeys);
-  const headers = columns.map((c) => c.header);
-  const body = rowsToMatrix(rows, columns);
-  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Activity Logs Export</title>
-<style>
-body{font-family:Segoe UI,Arial,sans-serif;margin:24px;color:#111}
-h1{font-size:18px;margin:0 0 4px}
-.meta{font-size:12px;color:#555;margin-bottom:16px}
-table{border-collapse:collapse;width:100%;font-size:10px}
-th,td{border:1px solid #ccc;padding:5px 6px;text-align:left;vertical-align:top}
-th{background:#1e3a5f;color:#fff}
-tr:nth-child(even) td{background:#f8fafc}
-</style></head><body>
-<h1>Activity Logs Export</h1>
-<div class="meta">${filterSummary ? `Filters: ${filterSummary}` : "All records"} · ${rows.length} row(s)</div>
-<table><thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
-<tbody>${body.map((r) => `<tr>${r.map((c) => `<td>${String(c).replace(/</g, "&lt;")}</td>`).join("")}</tr>`).join("")}</tbody>
-</table></body></html>`;
-  const w = window.open("", "_blank");
-  if (!w) return;
-  w.document.write(html);
-  w.document.close();
-  w.focus();
-  w.print();
+  const sections = resolveExportSections(selectedColumnKeys);
+  const columns = sections.flatMap((section) => section.columns);
+  openLandscapeTablePdf({
+    documentTitle: "Activity Logs Export",
+    title: "ACTIVITY LOGS",
+    filterSummary,
+    rowCount: rows.length,
+    sections: sections.map((s) => ({ title: s.title, headers: s.columns.map((c) => c.header) })),
+    bodyRows: rows.map((row) => columns.map((c) => c.value(row))),
+  });
 }
 
 export async function exportActivityLogsExcel(
@@ -151,12 +137,15 @@ export async function exportActivityLogsExcel(
   filterSummary?: string,
   selectedColumnKeys?: ActivityLogExportColumnKey[],
 ) {
-  const columns = resolveExportColumns(selectedColumnKeys);
+  const sections = resolveExportSections(selectedColumnKeys);
+  const columns = sections.flatMap((section) => section.columns);
   const ExcelJS = (await import("exceljs")).default;
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "ITAM Admin";
   workbook.created = new Date();
-  const ws = workbook.addWorksheet("Activity Logs");
+  const ws = workbook.addWorksheet("Activity Logs", {
+    pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+  });
 
   columns.forEach((c, i) => {
     ws.getColumn(i + 1).width = c.width;
