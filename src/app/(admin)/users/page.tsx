@@ -22,6 +22,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Drawer } from "@/components/Drawer";
 import { UserDetailView, UserForm } from "@/components/UserForm";
 import { UserExportColumnDialog } from "@/components/UserExportColumnDialog";
+import { ActiveFilters } from "@/components/ActiveFilters";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { Pagination } from "@/components/Pagination";
@@ -486,7 +487,8 @@ export default function UsersPage() {
           </div>
         </div>
 
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="mb-4 space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           <FilterSearch
             value={searchInput}
             onChange={setSearchInput}
@@ -534,16 +536,6 @@ export default function UsersPage() {
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </FilterSelect>
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-300 hover:border-slate-500 hover:bg-slate-800 hover:text-white sm:w-auto"
-            >
-              <X className="h-4 w-4" />
-              Clear filters
-            </button>
-          )}
           <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="View mode">
             <button
               type="button"
@@ -632,6 +624,65 @@ export default function UsersPage() {
               <Plus className="h-4 w-4" /> New User
             </button>
           )}
+        </div>
+          <ActiveFilters
+            filters={[
+              ...(search
+                ? [
+                    {
+                      key: "search",
+                      label: "Search",
+                      value: search,
+                      onRemove: () => {
+                        setSearchInput("");
+                        setSearch("");
+                        setPage(1);
+                      },
+                    },
+                  ]
+                : []),
+              ...(roleFilter
+                ? [
+                    {
+                      key: "role",
+                      label: "Role",
+                      value: labelEnum(roleFilter),
+                      onRemove: () => {
+                        setRoleFilter("");
+                        setPage(1);
+                      },
+                    },
+                  ]
+                : []),
+              ...(departmentFilter
+                ? [
+                    {
+                      key: "department",
+                      label: "Department",
+                      value: departments.find((d) => d.id === departmentFilter)?.name ?? "Department",
+                      onRemove: () => {
+                        setDepartmentFilter("");
+                        setPage(1);
+                      },
+                    },
+                  ]
+                : []),
+              ...(activeFilter
+                ? [
+                    {
+                      key: "status",
+                      label: "Status",
+                      value: activeFilter === "active" ? "Active" : "Inactive",
+                      onRemove: () => {
+                        setActiveFilter("");
+                        setPage(1);
+                      },
+                    },
+                  ]
+                : []),
+            ]}
+            onClearAll={clearFilters}
+          />
         </div>
 
         {success && <p className="mb-3 text-sm text-emerald-400">{success}</p>}

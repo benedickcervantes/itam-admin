@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { ActivityLogExportColumnDialog } from "@/components/ActivityLogExportColumnDialog";
 import { Badge } from "@/components/Badge";
+import { ActiveFilters } from "@/components/ActiveFilters";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { Pagination } from "@/components/Pagination";
@@ -480,16 +481,6 @@ export default function ActivityLogsPage() {
               </option>
             ))}
           </FilterSelect>
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-300 hover:border-slate-500 hover:bg-slate-800 hover:text-white sm:w-auto"
-            >
-              <X className="h-4 w-4" />
-              Clear filters
-            </button>
-          )}
           <button
             type="button"
             onClick={() => void load()}
@@ -554,6 +545,90 @@ export default function ActivityLogsPage() {
             )}
           </div>
           </div>
+          <ActiveFilters
+            filters={[
+              ...(search
+                ? [
+                    {
+                      key: "search",
+                      label: "Search",
+                      value: search,
+                      onRemove: () => {
+                        setSearchInput("");
+                        setSearch("");
+                        setPage(1);
+                      },
+                    },
+                  ]
+                : []),
+              ...(actionFilter
+                ? [
+                    {
+                      key: "action",
+                      label: "Action",
+                      value: labelEnum(actionFilter),
+                      onRemove: () => {
+                        setActionFilter("");
+                        setPage(1);
+                      },
+                    },
+                  ]
+                : []),
+              ...(entityFilter
+                ? [
+                    {
+                      key: "entity",
+                      label: "Entity",
+                      value: labelEntityType(entityFilter),
+                      onRemove: () => {
+                        setEntityFilter("");
+                        setPage(1);
+                      },
+                    },
+                  ]
+                : []),
+              ...(actorFilter
+                ? [
+                    {
+                      key: "actor",
+                      label: "Actor",
+                      value: actors.find((a) => a.id === actorFilter)?.full_name ?? "Actor",
+                      onRemove: () => {
+                        setActorFilter("");
+                        setPage(1);
+                      },
+                    },
+                  ]
+                : []),
+              ...(fromDate
+                ? [
+                    {
+                      key: "fromDate",
+                      label: "From",
+                      value: fromDate,
+                      onRemove: () => {
+                        setFromDate("");
+                        setPage(1);
+                      },
+                    },
+                  ]
+                : []),
+              ...(toDate
+                ? [
+                    {
+                      key: "toDate",
+                      label: "To",
+                      value: toDate,
+                      onRemove: () => {
+                        setToDate("");
+                        setPage(1);
+                      },
+                    },
+                  ]
+                : []),
+            ]}
+            onClearAll={clearFilters}
+          />
         </div>
 
         {dateError && <p className="mb-3 text-sm text-red-400">{dateError}</p>}

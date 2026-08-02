@@ -23,6 +23,7 @@ import { DeviceInventoryForm } from "@/components/DeviceInventoryForm";
 import { MovePeripheralForm } from "@/components/MovePeripheralForm";
 import { PeripheralAssetForm } from "@/components/PeripheralAssetForm";
 import { Drawer, inputClass, selectClass } from "@/components/Drawer";
+import { ActiveFilters } from "@/components/ActiveFilters";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { Pagination } from "@/components/Pagination";
@@ -621,52 +622,75 @@ export default function AssetsPage() {
             </FilterSelect>
           </div>
 
-          {(departmentId || status || employeeStatus || itemType || search) && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-slate-500">Active filters:</span>
-              {search && (
-                <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-300 ring-1 ring-slate-700">
-                  Search: {search}
-                </span>
-              )}
-              {departmentId && (
-                <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-300 ring-1 ring-slate-700">
-                  {departments.find((d) => d.id === departmentId)?.name ?? "Department"}
-                </span>
-              )}
-              {status && (
-                <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-300 ring-1 ring-slate-700">
-                  Asset: {labelEnum(status)}
-                </span>
-              )}
-              {employeeStatus && (
-                <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-300 ring-1 ring-slate-700">
-                  Employee: {labelEnum(employeeStatus)}
-                </span>
-              )}
-              {itemType && (
-                <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-300 ring-1 ring-slate-700">
-                  Type: {labelEnum(itemType)}
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  setFilterAndResetPage(() => {
-                    setSearchInput("");
-                    setSearch("");
-                    setDepartmentId("");
-                    setStatus("");
-                    setEmployeeStatus("");
-                    setItemType("");
-                  });
-                }}
-                className="text-xs font-medium text-[#2E7D9A] hover:text-[#4a9bb8]"
-              >
-                Clear all
-              </button>
-            </div>
-          )}
+          <ActiveFilters
+            filters={[
+              ...(search
+                ? [
+                    {
+                      key: "search",
+                      label: "Search",
+                      value: search,
+                      onRemove: () =>
+                        setFilterAndResetPage(() => {
+                          setSearchInput("");
+                          setSearch("");
+                        }),
+                    },
+                  ]
+                : []),
+              ...(departmentId
+                ? [
+                    {
+                      key: "department",
+                      label: "Department",
+                      value:
+                        departments.find((d) => d.id === departmentId)?.name ?? "Department",
+                      onRemove: () => setFilterAndResetPage(() => setDepartmentId("")),
+                    },
+                  ]
+                : []),
+              ...(status
+                ? [
+                    {
+                      key: "status",
+                      label: "Asset",
+                      value: labelEnum(status),
+                      onRemove: () => setFilterAndResetPage(() => setStatus("")),
+                    },
+                  ]
+                : []),
+              ...(employeeStatus
+                ? [
+                    {
+                      key: "employeeStatus",
+                      label: "Employee",
+                      value: labelEnum(employeeStatus),
+                      onRemove: () => setFilterAndResetPage(() => setEmployeeStatus("")),
+                    },
+                  ]
+                : []),
+              ...(itemType
+                ? [
+                    {
+                      key: "itemType",
+                      label: "Type",
+                      value: labelEnum(itemType),
+                      onRemove: () => setFilterAndResetPage(() => setItemType("")),
+                    },
+                  ]
+                : []),
+            ]}
+            onClearAll={() => {
+              setFilterAndResetPage(() => {
+                setSearchInput("");
+                setSearch("");
+                setDepartmentId("");
+                setStatus("");
+                setEmployeeStatus("");
+                setItemType("");
+              });
+            }}
+          />
         </div>
 
         {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
