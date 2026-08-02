@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRightLeft,
   ChevronDown,
@@ -21,7 +21,9 @@ import { Drawer } from "@/components/Drawer";
 import { ActiveFilters } from "@/components/ActiveFilters";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
+import { TourEmptyCta, TourNudge, useTourHint } from "@/components/TourNudge";
 import { Pagination } from "@/components/Pagination";
+import { SpotlightTour, shouldAutoStartTour, type TourStep } from "@/components/SpotlightTour";
 import { CardGridSkeleton, TableSkeleton } from "@/components/TableSkeleton";
 import { useSessionUser } from "@/components/SessionContext";
 import { fetchAssets } from "@/lib/api/assets";
@@ -43,6 +45,10 @@ import {
 } from "@/lib/export-assignments";
 import { validateAssignmentForm } from "@/lib/assignment-form";
 import { TransferAssetsForm } from "@/components/TransferAssetsForm";
+import {
+  DEVICE_HISTORY_TOUR_STORAGE_KEY,
+  getDeviceHistoryTourSteps,
+} from "@/lib/tours/device-history";
 import type { DeviceHistory, Asset, Department } from "@/lib/types";
 
 type ViewMode = "table" | "grid";
@@ -122,8 +128,16 @@ export default function DeviceHistoryPage() {
   const [deleteTarget, setDeleteTarget] = useState<DeviceHistory | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [tourOpen, setTourOpen] = useState(false);
+  const { showHint, showPulse, dismissHint } = useTourHint(DEVICE_HISTORY_TOUR_STORAGE_KEY, tourOpen, user.id);
+  const startTour = () => {
+    dismissHint();
+    setTourOpen(true);
+  };
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const loadSeq = useRef(0);
+  const tourAutoStarted = useRef(false);
+  const tourOpenedTransfer = useRef(false);
 
   const changeViewMode = (mode: ViewMode) => {
     setViewMode(mode);
@@ -254,6 +268,15 @@ export default function DeviceHistoryPage() {
     fetchDepartments().then(setDepartments).catch(() => {});
   }, []);
 
+  // First visit: auto-start the spotlight tour once loading settles.
+  useEffect(() => {
+    if (tourAutoStarted.current || loading) return;
+    if (!shouldAutoStartTour(DEVICE_HISTORY_TOUR_STORAGE_KEY)) return;
+    tourAutoStarted.current = true;
+    const t = window.setTimeout(() => setTourOpen(true), 450);
+    return () => window.clearTimeout(t);
+  }, [loading]);
+
   const openTransfer = () => {
     setEditing(null);
     setDrawerMode("transfer");
@@ -270,6 +293,32 @@ export default function DeviceHistoryPage() {
     setError("");
     setFieldErrors({});
   };
+
+  const tourSteps = useMemo(() => getDeviceHistoryTourSteps(write), [write]);
+
+  const handleTourStepChange = useCallback((step: TourStep | null) => {
+    const needsTransfer = Boolean(step?.id?.startsWith("history-transfer"));
+    if (needsTransfer) {
+      if (!tourOpenedTransfer.current) {
+        setEditing(null);
+        setSaving(false);
+        setError("");
+        setFieldErrors({});
+        tourOpenedTransfer.current = true;
+      }
+      setDrawerMode("transfer");
+      setDrawerOpen(true);
+      return;
+    }
+    if (tourOpenedTransfer.current) {
+      setDrawerOpen(false);
+      setSaving(false);
+      setDrawerMode("view");
+      setError("");
+      setFieldErrors({});
+      tourOpenedTransfer.current = false;
+    }
+  }, []);
 
   const openView = (row: DeviceHistory) => {
     setEditing(row);
@@ -336,8 +385,8 @@ export default function DeviceHistoryPage() {
     }
   };
 
-  const renderRowActions = (row: DeviceHistory) => (
-    <div className="flex items-center gap-1">
+  const renderRowActions = (row: DeviceHistory, tourTarget = false) => (
+    <div className="flex items-center gap-1" {...(tourTarget ? { "data-tour": "history-actions" } : {})}>
       <button
         type="button"
         onClick={(e) => {
@@ -392,46 +441,61 @@ export default function DeviceHistoryPage() {
       <Header
         title="Device History"
         subtitle="When someone resigns or changes, transfer all their assets to the new user"
+        onHowItWorks={startTour}
+        howItWorksPulse={showPulse}
       />
       <div className="page-content flex-1 overflow-y-auto">
+        <TourNudge show={showHint} onDismiss={dismissHint} onStart={startTour} />
         <div className="mb-4 space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-          <FilterSearch
-            value={searchInput}
-            onChange={setSearchInput}
-            placeholder="Search record, asset, employee, brand, serial..."
-            className="w-full sm:flex-1"
-          />
-          <FilterSelect
-            label="Department"
-            value={departmentId}
-            onChange={(v) => {
-              setPage(1);
-              setDepartmentId(v);
-            }}
-            className="w-full sm:w-auto"
+          <div data-tour="history-search" className="w-full sm:flex-1">
+            <FilterSearch
+              value={searchInput}
+              onChange={setSearchInput}
+              placeholder="Search record, asset, employee, brand, serial..."
+              className="w-full"
+            />
+          </div>
+          <div
+            data-tour="history-filters"
+            className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-end"
           >
-            <option value="">All departments</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </FilterSelect>
-          <FilterSelect
-            label="Show"
-            value={statusFilter}
-            onChange={(v) => {
-              setPage(1);
-              setStatusFilter(v as "active" | "returned" | "all");
-            }}
-            className="w-full sm:w-auto"
+            <FilterSelect
+              label="Department"
+              value={departmentId}
+              onChange={(v) => {
+                setPage(1);
+                setDepartmentId(v);
+              }}
+              className="w-full sm:w-auto"
+            >
+              <option value="">All departments</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              label="Show"
+              value={statusFilter}
+              onChange={(v) => {
+                setPage(1);
+                setStatusFilter(v as "active" | "returned" | "all");
+              }}
+              className="w-full sm:w-auto"
+            >
+              <option value="all">All records</option>
+              <option value="active">Current only</option>
+              <option value="returned">Previous / Available</option>
+            </FilterSelect>
+          </div>
+          <div
+            data-tour="history-view-mode"
+            className="inline-flex rounded-lg border border-slate-600 p-0.5"
+            role="group"
+            aria-label="View mode"
           >
-            <option value="all">All records</option>
-            <option value="active">Current only</option>
-            <option value="returned">Previous / Available</option>
-          </FilterSelect>
-          <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="View mode">
             <button
               type="button"
               onClick={() => changeViewMode("table")}
@@ -457,7 +521,7 @@ export default function DeviceHistoryPage() {
               <span className="hidden sm:inline">Grid</span>
             </button>
           </div>
-          <div className="relative w-full sm:w-auto" ref={exportMenuRef}>
+          <div className="relative w-full sm:w-auto" ref={exportMenuRef} data-tour="history-export">
             <button
               type="button"
               onClick={() => setExportMenuOpen((o) => !o)}
@@ -513,6 +577,7 @@ export default function DeviceHistoryPage() {
           {write && (
             <button
               type="button"
+              data-tour="history-transfer"
               onClick={openTransfer}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2 text-sm font-medium text-white sm:w-auto"
             >
@@ -578,7 +643,7 @@ export default function DeviceHistoryPage() {
         {success && <p className="mb-3 text-sm text-emerald-400">{success}</p>}
 
         {viewMode === "table" ? (
-          <div className="card overflow-hidden">
+          <div className="card overflow-hidden" data-tour="history-list">
             <div className="table-scroll">
               <table className="data-table data-table--fixed" style={{ minWidth: "68rem" }}>
                 <colgroup>
@@ -611,11 +676,14 @@ export default function DeviceHistoryPage() {
                   ) : items.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="text-slate-400">
-                        No device history records found.
+                        <div className="flex flex-col items-start gap-1 py-1">
+                          <span>No device history records found.</span>
+                          <TourEmptyCta onStart={startTour} />
+                        </div>
                       </td>
                     </tr>
                   ) : (
-                    items.map((row) => {
+                    items.map((row, rowIndex) => {
                       const status = historyStatusBadge(row);
                       return (
                       <tr key={row.id} className="cursor-pointer" onClick={() => openView(row)}>
@@ -634,7 +702,9 @@ export default function DeviceHistoryPage() {
                             {status.label}
                           </span>
                         </td>
-                        <td onClick={(e) => e.stopPropagation()}>{renderRowActions(row)}</td>
+                        <td onClick={(e) => e.stopPropagation()}>
+                          {renderRowActions(row, rowIndex === 0)}
+                        </td>
                       </tr>
                       );
                     })
@@ -644,14 +714,17 @@ export default function DeviceHistoryPage() {
             </div>
           </div>
         ) : (
-          <div>
+          <div data-tour="history-list">
             {loading ? (
               <CardGridSkeleton />
             ) : items.length === 0 ? (
-              <p className="py-8 text-center text-sm text-slate-400">No device history records found.</p>
+              <div className="flex flex-col items-center py-8">
+                <p className="text-center text-sm text-slate-400">No device history records found.</p>
+                <TourEmptyCta onStart={startTour} />
+              </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {items.map((row) => {
+                {items.map((row, rowIndex) => {
                   const status = historyStatusBadge(row);
                   return (
                   <article
@@ -681,7 +754,9 @@ export default function DeviceHistoryPage() {
                           <p className="mt-1 line-clamp-2 text-xs text-slate-500">{row.notes}</p>
                         ) : null}
                       </div>
-                      <div onClick={(e) => e.stopPropagation()}>{renderRowActions(row)}</div>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        {renderRowActions(row, rowIndex === 0)}
+                      </div>
                     </div>
                     <dl className="space-y-2 text-sm">
                       <div className="flex items-center justify-between gap-2">
@@ -710,6 +785,7 @@ export default function DeviceHistoryPage() {
 
       <Drawer
         open={drawerOpen}
+        dataTour={drawerMode === "transfer" ? "history-transfer-drawer" : undefined}
         title={
           drawerMode === "transfer"
             ? "Transfer assets to new user"
@@ -841,6 +917,14 @@ export default function DeviceHistoryPage() {
           }
         }}
         onConfirm={(password) => void confirmDelete(password)}
+      />
+
+      <SpotlightTour
+        open={tourOpen}
+        steps={tourSteps}
+        storageKey={DEVICE_HISTORY_TOUR_STORAGE_KEY}
+        onStepChange={handleTourStepChange}
+        onClose={() => setTourOpen(false)}
       />
     </>
   );

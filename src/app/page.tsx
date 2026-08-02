@@ -26,12 +26,15 @@ import {
 } from "@/lib/api/public";
 import {
   clearSession,
+  consumeSessionExpiredNotice,
   getAccessToken,
   getRememberMePreference,
   getStoredUser,
   markSkipSessionOverlay,
   persistSession,
 } from "@/lib/auth/session";
+
+const SESSION_EXPIRED_MESSAGE = "Your session has expired. Please sign in again.";
 
 const FEATURES = ["Asset Monitoring", "Hardware Inventory", "Initial Asset Audit"] as const;
 
@@ -95,6 +98,9 @@ export default function LoginPage() {
 
   useEffect(() => {
     setRememberMe(getRememberMePreference());
+    if (consumeSessionExpiredNotice()) {
+      setError(SESSION_EXPIRED_MESSAGE);
+    }
   }, []);
 
   useEffect(() => {
@@ -113,6 +119,13 @@ export default function LoginPage() {
         setSessionRestoreReady(true);
       })
       .catch(() => {
+        // 401: apiJson opens the session-expired modal; form can still recover.
+        if (!getAccessToken()) {
+          setRestoringSession(false);
+          setCheckingSession(false);
+          setError(SESSION_EXPIRED_MESSAGE);
+          return;
+        }
         clearSession();
         setRestoringSession(false);
         setCheckingSession(false);

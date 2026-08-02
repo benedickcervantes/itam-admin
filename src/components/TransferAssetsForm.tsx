@@ -409,7 +409,10 @@ export function TransferAssetsForm({
       </div>
 
       <Field label="Transfer type">
-        <div className="inline-flex rounded-lg border border-slate-600 p-0.5">
+        <div
+          data-tour="history-transfer-type"
+          className="inline-flex rounded-lg border border-slate-600 p-0.5"
+        >
           <button
             type="button"
             onClick={() => {
@@ -438,15 +441,17 @@ export function TransferAssetsForm({
         </div>
       </Field>
 
-      <UserSearchField
-        label={mode === "new_pc" ? "Employee" : "Current user (resigning / leaving)"}
-        value={fromUser}
-        onChange={setFromUser}
-        options={assignees}
-        loading={loadingAssignees}
-        placeholder="Type to search current user…"
-        hint="Must already have assigned assets."
-      />
+      <div data-tour="history-transfer-from">
+        <UserSearchField
+          label={mode === "new_pc" ? "Employee" : "Current user (resigning / leaving)"}
+          value={fromUser}
+          onChange={setFromUser}
+          options={assignees}
+          loading={loadingAssignees}
+          placeholder="Type to search current user…"
+          hint="Must already have assigned assets."
+        />
+      </div>
 
       {mode === "resign" ? (
         <UserSearchField
@@ -579,7 +584,10 @@ export function TransferAssetsForm({
         />
       </Field>
 
-      <section className="rounded-xl border border-slate-700/60 bg-slate-900/30">
+      <section
+        data-tour="history-transfer-assets"
+        className="rounded-xl border border-slate-700/60 bg-slate-900/30"
+      >
         <div className="flex items-center justify-between gap-2 border-b border-slate-700/60 px-4 py-3">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-[#2E7D9A]" />
@@ -647,6 +655,7 @@ export function TransferAssetsForm({
 
       <button
         type="button"
+        data-tour="history-transfer-submit"
         disabled={!canSubmit}
         onClick={() => void submit()}
         className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2.5 text-sm font-medium text-white hover:bg-[#256b85] disabled:cursor-not-allowed disabled:opacity-60"

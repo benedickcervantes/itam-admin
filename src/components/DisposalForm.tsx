@@ -18,15 +18,21 @@ function FormSection({
   description,
   icon: Icon,
   children,
+  dataTour,
 }: {
   id: string;
   title: string;
   description?: string;
   icon: LucideIcon;
   children: React.ReactNode;
+  dataTour?: string;
 }) {
   return (
-    <section id={id} className="scroll-mt-4 rounded-xl border border-slate-700/60 bg-slate-900/30">
+    <section
+      id={id}
+      data-tour={dataTour}
+      className="scroll-mt-4 rounded-xl border border-slate-700/60 bg-slate-900/30"
+    >
       <div className="flex items-start gap-3 border-b border-slate-700/60 px-4 py-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#2E7D9A]/15 text-[#2E7D9A]">
           <Icon className="h-4 w-4" />
@@ -126,6 +132,7 @@ export function DisposalForm({
     <div className="space-y-4">
       <FormSection
         id="disposal-asset"
+        dataTour="disp-form-asset"
         title="Asset"
         description={mode === "create" ? "Select the asset being retired from inventory." : "Asset cannot be changed after creation."}
         icon={Trash2}
@@ -152,6 +159,7 @@ export function DisposalForm({
 
       <FormSection
         id="disposal-details"
+        dataTour="disp-form-details"
         title="Disposal Details"
         description="When and why the asset left active inventory."
         icon={FileText}
@@ -212,6 +220,7 @@ export function DisposalForm({
 
       <FormSection
         id="disposal-documentation"
+        dataTour="disp-form-docs"
         title="Documentation & Approval"
         description="Certificate numbers and sign-off for compliance tracking."
         icon={FileCheck}

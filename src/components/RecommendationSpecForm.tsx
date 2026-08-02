@@ -42,7 +42,7 @@ function TierEditor({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" data-tour={tier === "MINIMUM" ? "specs-form-minimum" : "specs-form-recommended"}>
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-white">{label}</h3>
         <button
@@ -110,7 +110,7 @@ export function RecommendationSpecForm({
 }) {
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div data-tour="specs-form-meta" className="grid gap-4 sm:grid-cols-2">
         <Field label="Title" required>
           <input
             className={inputClass}

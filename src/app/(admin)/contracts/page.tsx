@@ -19,7 +19,9 @@ import { ActiveFilters } from "@/components/ActiveFilters";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { GenerateContractForm } from "@/components/GenerateContractForm";
 import { Header } from "@/components/Header";
+import { TourEmptyCta, TourNudge, useTourHint } from "@/components/TourNudge";
 import { Pagination } from "@/components/Pagination";
+import { SpotlightTour, shouldAutoStartTour, type TourStep } from "@/components/SpotlightTour";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { useSessionUser } from "@/components/SessionContext";
 import { verifyPassword } from "@/lib/api/auth";
@@ -33,6 +35,7 @@ import {
 } from "@/lib/api/device-contracts";
 import { fetchAssetsByUser, fetchDeviceHistoryAssignees } from "@/lib/api/device-history";
 import { canWrite } from "@/lib/auth/permissions";
+import { CONTRACTS_TOUR_STORAGE_KEY, getContractsTourSteps } from "@/lib/tours/contracts";
 import type { Asset, DeviceContract } from "@/lib/types";
 
 type DrawerMode = "generate" | "view";
@@ -106,6 +109,12 @@ export default function ContractsPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [tourOpen, setTourOpen] = useState(false);
+  const { showHint, showPulse, dismissHint } = useTourHint(CONTRACTS_TOUR_STORAGE_KEY, tourOpen, user.id);
+  const startTour = () => {
+    dismissHint();
+    setTourOpen(true);
+  };
 
   const uniqueEmployeesOnPage = useMemo(
     () => new Set(items.map((r) => r.employee_name)).size,
@@ -122,6 +131,8 @@ export default function ContractsPage() {
   }, [assignees, items]);
 
   const loadSeq = useRef(0);
+  const tourAutoStarted = useRef(false);
+  const tourOpenedForm = useRef(false);
 
   const load = useCallback(async () => {
     const seq = ++loadSeq.current;
@@ -168,6 +179,15 @@ export default function ContractsPage() {
     const t = window.setTimeout(() => setSuccess(""), 5000);
     return () => window.clearTimeout(t);
   }, [success]);
+
+  // First visit: auto-start the spotlight tour once loading settles.
+  useEffect(() => {
+    if (tourAutoStarted.current || loading) return;
+    if (!shouldAutoStartTour(CONTRACTS_TOUR_STORAGE_KEY)) return;
+    tourAutoStarted.current = true;
+    const t = window.setTimeout(() => setTourOpen(true), 450);
+    return () => window.clearTimeout(t);
+  }, [loading]);
 
   useEffect(() => {
     fetchDeviceHistoryAssignees()
@@ -294,6 +314,38 @@ export default function ContractsPage() {
     setFormError("");
   }
 
+  const tourSteps = useMemo(() => getContractsTourSteps(write), [write]);
+
+  const handleTourStepChange = useCallback((step: TourStep | null) => {
+    if (step?.target === '[data-tour="dca-template"]') {
+      setTemplateOpen(true);
+    }
+
+    const needsForm = Boolean(step?.id?.startsWith("dca-form"));
+    if (needsForm) {
+      if (!tourOpenedForm.current) {
+        setViewing(null);
+        setEmployeeName("");
+        setJobTitle("");
+        setDepartmentName("");
+        setDateIssued(todayIso());
+        setNotes("");
+        setPreviewAssets([]);
+        setFormError("");
+        tourOpenedForm.current = true;
+      }
+      setDrawerMode("generate");
+      setDrawerOpen(true);
+      return;
+    }
+    if (tourOpenedForm.current && !saving) {
+      setDrawerOpen(false);
+      setViewing(null);
+      setFormError("");
+      tourOpenedForm.current = false;
+    }
+  }, [saving]);
+
   async function onGenerate() {
     if (!write || saving) return;
     const name = employeeName.trim();
@@ -359,8 +411,8 @@ export default function ContractsPage() {
     }
   }
 
-  const renderRowActions = (row: DeviceContract) => (
-    <div className="flex items-center gap-1">
+  const renderRowActions = (row: DeviceContract, tourTarget = false) => (
+    <div className="flex items-center gap-1" {...(tourTarget ? { "data-tour": "dca-actions" } : {})}>
       <button
         type="button"
         onClick={(e) => {
@@ -418,10 +470,13 @@ export default function ContractsPage() {
       <Header
         title="Device Agreements"
         subtitle="Generate Company Device Agreements from ITAM. PDFs are saved in the database (and Supabase Storage bucket when configured)."
+        onHowItWorks={startTour}
+        howItWorksPulse={showPulse}
       />
 
       <div className="page-content flex-1 overflow-y-auto">
-        <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        <TourNudge show={showHint} onDismiss={dismissHint} onStart={startTour} />
+        <div className="mb-4 grid gap-3 sm:grid-cols-3" data-tour="dca-kpis">
           <div className="card px-4 py-3">
             <div className="flex items-center gap-2 text-xs font-medium text-slate-400">
               <FileSignature className="h-3.5 w-3.5 text-[#2E7D9A]" />
@@ -445,7 +500,7 @@ export default function ContractsPage() {
           </div>
         </div>
 
-        <div className="card mb-4 overflow-hidden">
+        <div className="card mb-4 overflow-hidden" data-tour="dca-template">
           <button
             type="button"
             onClick={() => setTemplateOpen((v) => !v)}
@@ -524,15 +579,18 @@ export default function ContractsPage() {
 
         <div className="mb-4 space-y-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-            <FilterSearch
-              value={searchInput}
-              onChange={setSearchInput}
-              placeholder="Search code, employee, department..."
-              className="min-w-0 w-full lg:flex-1"
-            />
+            <div data-tour="dca-search" className="min-w-0 w-full lg:flex-1">
+              <FilterSearch
+                value={searchInput}
+                onChange={setSearchInput}
+                placeholder="Search code, employee, department..."
+                className="w-full"
+              />
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
+                data-tour="dca-refresh"
                 onClick={() => void load()}
                 className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800"
               >
@@ -542,6 +600,7 @@ export default function ContractsPage() {
               {write && (
                 <button
                   type="button"
+                  data-tour="dca-new"
                   onClick={openGenerate}
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2 text-sm font-medium text-white"
                 >
@@ -552,7 +611,7 @@ export default function ContractsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" data-tour="dca-filters">
             <FilterSelect
               label="Employee"
               value={employeeFilter}
@@ -607,7 +666,7 @@ export default function ContractsPage() {
         {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
         {success && <p className="mb-3 text-sm text-emerald-400">{success}</p>}
 
-        <div className="card overflow-hidden">
+        <div className="card overflow-hidden" data-tour="dca-list">
           <div className="overflow-x-hidden">
             <table className="data-table data-table--fixed w-full" style={{ minWidth: 0 }}>
               <colgroup>
@@ -638,14 +697,19 @@ export default function ContractsPage() {
                 ) : items.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="text-slate-400">
-                      No contracts found.
-                      {write
-                        ? " Generate a contract for an employee with assigned ITAM assets."
-                        : " Ask an IT Admin to generate the first DCA."}
+                      <div className="flex flex-col items-start gap-1 py-1">
+                        <span>
+                          No contracts found.
+                          {write
+                            ? " Generate a contract for an employee with assigned ITAM assets."
+                            : " Ask an IT Admin to generate the first DCA."}
+                        </span>
+                        <TourEmptyCta onStart={startTour} />
+                      </div>
                     </td>
                   </tr>
                 ) : (
-                  items.map((row) => (
+                  items.map((row, rowIndex) => (
                     <tr
                       key={row.id}
                       className="cursor-pointer"
@@ -672,7 +736,9 @@ export default function ContractsPage() {
                       </td>
                       <td className="text-slate-300">{formatDate(row.date_issued)}</td>
                       <td className="text-slate-400">{formatDate(row.created_at)}</td>
-                      <td onClick={(e) => e.stopPropagation()}>{renderRowActions(row)}</td>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        {renderRowActions(row, rowIndex === 0)}
+                      </td>
                     </tr>
                   ))
                 )}
@@ -687,6 +753,7 @@ export default function ContractsPage() {
       <Drawer
         open={drawerOpen}
         onClose={closeDrawer}
+        dataTour={drawerMode === "generate" ? "dca-form-drawer" : undefined}
         title={
           drawerMode === "generate"
             ? "Generate Company Device Agreement"
@@ -717,6 +784,7 @@ export default function ContractsPage() {
                 </button>
                 <button
                   type="button"
+                  data-tour="dca-form-save"
                   disabled={saving || !write || assetsLoading || previewAssets.length === 0}
                   onClick={() => void onGenerate()}
                   className="inline-flex items-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2 text-sm font-medium text-white hover:bg-[#266988] disabled:opacity-50"
@@ -866,6 +934,14 @@ export default function ContractsPage() {
           }
         }}
         onConfirm={(password) => void onConfirmDelete(password)}
+      />
+
+      <SpotlightTour
+        open={tourOpen}
+        steps={tourSteps}
+        storageKey={CONTRACTS_TOUR_STORAGE_KEY}
+        onStepChange={handleTourStepChange}
+        onClose={() => setTourOpen(false)}
       />
     </>
   );

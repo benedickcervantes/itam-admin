@@ -10,7 +10,12 @@ type DeviceFormToolbarProps = {
 
 export function DeviceFormToolbar({ mode, deviceType, assetCategory }: DeviceFormToolbarProps) {
   return (
-    <nav className="flex gap-2 overflow-x-auto rounded-xl border border-slate-700/60 bg-slate-900/90 p-1.5">
+    <nav
+      data-tour={
+        mode === "asset" ? "assets-form-toolbar" : mode === "audit" ? "audit-form-toolbar" : undefined
+      }
+      className="flex gap-2 overflow-x-auto rounded-xl border border-slate-700/60 bg-slate-900/90 p-1.5"
+    >
       {getFormSections(mode, {
         deviceType,
         assetCategory: assetCategory as "end_user" | "infrastructure" | "spare_peripheral" | undefined,

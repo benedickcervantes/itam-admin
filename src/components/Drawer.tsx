@@ -12,6 +12,7 @@ export function Drawer({
   footer,
   banner,
   wide,
+  dataTour,
 }: {
   open: boolean;
   title: string;
@@ -22,12 +23,15 @@ export function Drawer({
   footer?: React.ReactNode;
   banner?: React.ReactNode;
   wide?: boolean;
+  /** Optional spotlight-tour target on the drawer panel. */
+  dataTour?: string;
 }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/50 backdrop-blur-[2px]">
       <button type="button" className="flex-1" aria-label="Close drawer" onClick={onClose} />
       <div
+        data-tour={dataTour}
         className={`flex h-full w-full flex-col bg-[#1E293B] shadow-2xl sm:max-w-xl ${wide ? "lg:max-w-4xl" : ""}`}
       >
         <div className="flex items-start justify-between gap-3 border-b border-slate-700 px-4 py-3 sm:px-5 sm:py-4">

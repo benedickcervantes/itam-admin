@@ -21,7 +21,9 @@ import { Badge } from "@/components/Badge";
 import { ActiveFilters } from "@/components/ActiveFilters";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
+import { TourEmptyCta, TourNudge, useTourHint } from "@/components/TourNudge";
 import { Pagination } from "@/components/Pagination";
+import { SpotlightTour, shouldAutoStartTour, type TourStep } from "@/components/SpotlightTour";
 import { TableSkeleton } from "@/components/TableSkeleton";
 import { useSessionUser } from "@/components/SessionContext";
 import { fetchActivityLogs, fetchAllActivityLogs } from "@/lib/api/activity-logs";
@@ -44,6 +46,7 @@ import {
   type ActivityLogExportColumnKey,
 } from "@/lib/export-activity-logs";
 import { labelEnum } from "@/lib/labels";
+import { ACTIVITY_LOGS_TOUR_STORAGE_KEY, getActivityLogsTourSteps } from "@/lib/tours/activity-logs";
 import type { ActivityFieldChange, ActivityLog, AdminUser } from "@/lib/types";
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100] as const;
@@ -156,8 +159,18 @@ export default function ActivityLogsPage() {
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const { showHint, showPulse, dismissHint } = useTourHint(ACTIVITY_LOGS_TOUR_STORAGE_KEY, tourOpen, user.id);
+  const startTour = () => {
+    dismissHint();
+    setTourOpen(true);
+  };
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const loadSeq = useRef(0);
+  const tourAutoStarted = useRef(false);
+  const tourExpandedRow = useRef(false);
+
+  const tourSteps = useMemo(() => getActivityLogsTourSteps(), []);
 
   const hasActiveFilters = Boolean(
     searchInput || search || actionFilter || entityFilter || actorFilter || fromDate || toDate,
@@ -205,6 +218,15 @@ export default function ActivityLogsPage() {
     const timer = window.setTimeout(() => setSuccess(""), 5000);
     return () => window.clearTimeout(timer);
   }, [success]);
+
+  // First visit: auto-start the spotlight tour once loading settles.
+  useEffect(() => {
+    if (!allowed || tourAutoStarted.current || loading) return;
+    if (!shouldAutoStartTour(ACTIVITY_LOGS_TOUR_STORAGE_KEY)) return;
+    tourAutoStarted.current = true;
+    const t = window.setTimeout(() => setTourOpen(true), 450);
+    return () => window.clearTimeout(t);
+  }, [allowed, loading]);
 
   useEffect(() => {
     if (!exportMenuOpen) return;
@@ -259,6 +281,23 @@ export default function ActivityLogsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const handleTourStepChange = useCallback(
+    (step: TourStep | null) => {
+      if (step?.id === "logs-detail") {
+        if (items[0]) {
+          setExpandedId(items[0].id);
+          tourExpandedRow.current = true;
+        }
+        return;
+      }
+      if (tourExpandedRow.current) {
+        setExpandedId(null);
+        tourExpandedRow.current = false;
+      }
+    },
+    [items],
+  );
 
   const clearFilters = () => {
     setSearchInput("");
@@ -362,127 +401,139 @@ export default function ActivityLogsPage() {
       <Header
         title="Activity Logs"
         subtitle="Monitor user actions with before/after field changes"
+        onHowItWorks={startTour}
+        howItWorksPulse={showPulse}
       />
 
       <div className="page-content flex-1 overflow-y-auto">
+        <TourNudge show={showHint} onDismiss={dismissHint} onStart={startTour} />
         <div className="mb-4 flex flex-col gap-3">
-          <FilterSearch
-            value={searchInput}
-            onChange={setSearchInput}
-            placeholder="Search actor, summary, entity..."
-            className="w-full"
-          />
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-          <FilterSelect
-            label="Action"
-            value={actionFilter}
-            onChange={(v) => {
-              setPage(1);
-              setActionFilter(v);
-            }}
-            className="w-full sm:w-auto"
-          >
-            <option value="">All actions</option>
-            {ACTIVITY_ACTIONS.map((action) => (
-              <option key={action} value={action}>
-                {labelEnum(action)}
-              </option>
-            ))}
-          </FilterSelect>
-          <FilterSelect
-            label="Entity"
-            value={entityFilter}
-            onChange={(v) => {
-              setPage(1);
-              setEntityFilter(v);
-            }}
-            className="w-full sm:w-auto"
-          >
-            <option value="">All entities</option>
-            {ACTIVITY_ENTITY_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {labelEntityType(type)}
-              </option>
-            ))}
-          </FilterSelect>
-          <FilterSelect
-            label="Actor"
-            value={actorFilter}
-            onChange={(v) => {
-              setPage(1);
-              setActorFilter(v);
-            }}
-            className="w-full sm:w-auto"
-          >
-            <option value="">All actors</option>
-            {actors.map((actor) => (
-              <option key={actor.id} value={actor.id}>
-                {actor.full_name}
-              </option>
-            ))}
-          </FilterSelect>
-          <label className="flex w-full flex-col gap-1 sm:w-auto">
-            <span className="text-xs font-medium text-slate-400">From</span>
-            <input
-              type="date"
-              value={fromDate}
-              max={toDate || undefined}
-              onChange={(e) => {
-                setPage(1);
-                setFromDate(e.target.value);
-              }}
-              className={`rounded-lg border bg-slate-900/80 px-3 py-2 text-sm text-white outline-none focus:border-[#2E7D9A] focus:ring-1 focus:ring-[#2E7D9A]/40 ${
-                dateError ? "border-red-500/60" : "border-slate-600"
-              }`}
+          <div data-tour="logs-search" className="w-full">
+            <FilterSearch
+              value={searchInput}
+              onChange={setSearchInput}
+              placeholder="Search actor, summary, entity..."
+              className="w-full"
             />
-          </label>
-          <label className="flex w-full flex-col gap-1 sm:w-auto">
-            <span className="text-xs font-medium text-slate-400">To</span>
-            <input
-              type="date"
-              value={toDate}
-              min={fromDate || undefined}
-              onChange={(e) => {
-                setPage(1);
-                setToDate(e.target.value);
-              }}
-              className={`rounded-lg border bg-slate-900/80 px-3 py-2 text-sm text-white outline-none focus:border-[#2E7D9A] focus:ring-1 focus:ring-[#2E7D9A]/40 ${
-                dateError ? "border-red-500/60" : "border-slate-600"
-              }`}
-            />
-          </label>
-          <div className="inline-flex self-end rounded-lg border border-slate-600 p-0.5" role="group" aria-label="Date presets">
-            {(
-              [
-                ["today", "Today"],
-                ["7d", "7d"],
-                ["30d", "30d"],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => applyPreset(key)}
-                className="rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white"
-              >
-                {label}
-              </button>
-            ))}
           </div>
-          <FilterSelect
-            label="Page size"
-            value={String(pageSize)}
-            onChange={(v) => setPageSize(Number(v) as (typeof PAGE_SIZE_OPTIONS)[number])}
-            className="w-full sm:w-auto"
-          >
-            {PAGE_SIZE_OPTIONS.map((size) => (
-              <option key={size} value={size}>
-                {size} / page
-              </option>
-            ))}
-          </FilterSelect>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+          <div data-tour="logs-filters" className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-end">
+            <FilterSelect
+              label="Action"
+              value={actionFilter}
+              onChange={(v) => {
+                setPage(1);
+                setActionFilter(v);
+              }}
+              className="w-full sm:w-auto"
+            >
+              <option value="">All actions</option>
+              {ACTIVITY_ACTIONS.map((action) => (
+                <option key={action} value={action}>
+                  {labelEnum(action)}
+                </option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              label="Entity"
+              value={entityFilter}
+              onChange={(v) => {
+                setPage(1);
+                setEntityFilter(v);
+              }}
+              className="w-full sm:w-auto"
+            >
+              <option value="">All entities</option>
+              {ACTIVITY_ENTITY_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {labelEntityType(type)}
+                </option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              label="Actor"
+              value={actorFilter}
+              onChange={(v) => {
+                setPage(1);
+                setActorFilter(v);
+              }}
+              className="w-full sm:w-auto"
+            >
+              <option value="">All actors</option>
+              {actors.map((actor) => (
+                <option key={actor.id} value={actor.id}>
+                  {actor.full_name}
+                </option>
+              ))}
+            </FilterSelect>
+          </div>
+          <div data-tour="logs-dates" className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-end">
+            <label className="flex w-full flex-col gap-1 sm:w-auto">
+              <span className="text-xs font-medium text-slate-400">From</span>
+              <input
+                type="date"
+                value={fromDate}
+                max={toDate || undefined}
+                onChange={(e) => {
+                  setPage(1);
+                  setFromDate(e.target.value);
+                }}
+                className={`rounded-lg border bg-slate-900/80 px-3 py-2 text-sm text-white outline-none focus:border-[#2E7D9A] focus:ring-1 focus:ring-[#2E7D9A]/40 ${
+                  dateError ? "border-red-500/60" : "border-slate-600"
+                }`}
+              />
+            </label>
+            <label className="flex w-full flex-col gap-1 sm:w-auto">
+              <span className="text-xs font-medium text-slate-400">To</span>
+              <input
+                type="date"
+                value={toDate}
+                min={fromDate || undefined}
+                onChange={(e) => {
+                  setPage(1);
+                  setToDate(e.target.value);
+                }}
+                className={`rounded-lg border bg-slate-900/80 px-3 py-2 text-sm text-white outline-none focus:border-[#2E7D9A] focus:ring-1 focus:ring-[#2E7D9A]/40 ${
+                  dateError ? "border-red-500/60" : "border-slate-600"
+                }`}
+              />
+            </label>
+            <div className="inline-flex self-end rounded-lg border border-slate-600 p-0.5" role="group" aria-label="Date presets">
+              {(
+                [
+                  ["today", "Today"],
+                  ["7d", "7d"],
+                  ["30d", "30d"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => applyPreset(key)}
+                  className="rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-slate-800 hover:text-white"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div data-tour="logs-page-size" className="w-full sm:w-auto">
+            <FilterSelect
+              label="Page size"
+              value={String(pageSize)}
+              onChange={(v) => setPageSize(Number(v) as (typeof PAGE_SIZE_OPTIONS)[number])}
+              className="w-full sm:w-auto"
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size} / page
+                </option>
+              ))}
+            </FilterSelect>
+          </div>
           <button
             type="button"
+            data-tour="logs-refresh"
             onClick={() => void load()}
             disabled={loading || dateRangeInvalid}
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
@@ -491,7 +542,7 @@ export default function ActivityLogsPage() {
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </button>
-          <div className="relative w-full sm:w-auto" ref={exportMenuRef}>
+          <div className="relative w-full sm:w-auto" ref={exportMenuRef} data-tour="logs-export">
             <button
               type="button"
               onClick={() => setExportMenuOpen((o) => !o)}
@@ -646,6 +697,7 @@ export default function ActivityLogsPage() {
           </div>
         )}
 
+        <div data-tour="logs-list">
         {loading ? (
           <div className="card overflow-hidden">
             <div className="table-scroll">
@@ -676,6 +728,7 @@ export default function ActivityLogsPage() {
                 ? "Try adjusting your search, filters, or date range."
                 : "User actions will appear here once people start using the system."}
             </p>
+            <TourEmptyCta onStart={startTour} />
             {hasActiveFilters && (
               <button
                 type="button"
@@ -701,7 +754,7 @@ export default function ActivityLogsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((row) => {
+                  {items.map((row, rowIndex) => {
                     const expanded = expandedId === row.id;
                     const changes = Array.isArray(row.changes) ? row.changes : [];
                     const deepLink = entityDeepLink(row.entity_type, row.entity_label);
@@ -710,6 +763,7 @@ export default function ActivityLogsPage() {
                         <tr
                           className="cursor-pointer align-top hover:bg-slate-800/40"
                           onClick={() => setExpandedId(expanded ? null : row.id)}
+                          {...(rowIndex === 0 ? { "data-tour": "logs-detail" } : {})}
                         >
                           <td className="text-slate-500">
                             <button
@@ -797,6 +851,7 @@ export default function ActivityLogsPage() {
             </div>
           </div>
         )}
+        </div>
 
         {!loading && total > 0 && (
           <>
@@ -820,6 +875,14 @@ export default function ActivityLogsPage() {
           if (!exporting) setExportDialogOpen(false);
         }}
         onExport={(format, columns) => void runExport(format, columns)}
+      />
+
+      <SpotlightTour
+        open={tourOpen}
+        steps={tourSteps}
+        storageKey={ACTIVITY_LOGS_TOUR_STORAGE_KEY}
+        onStepChange={handleTourStepChange}
+        onClose={() => setTourOpen(false)}
       />
     </>
   );

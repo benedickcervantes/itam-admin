@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { Drawer } from "@/components/Drawer";
 import { Header } from "@/components/Header";
+import { TourEmptyCta, TourNudge, useTourHint } from "@/components/TourNudge";
+import { SpotlightTour, shouldAutoStartTour, type TourStep } from "@/components/SpotlightTour";
 import { Skeleton, TableSkeleton } from "@/components/TableSkeleton";
 import {
   buildUpdateBody,
@@ -32,6 +34,10 @@ import {
   printRecommendationSpecs,
   type RecommendationSpecExportRow,
 } from "@/lib/export-recommendation-specs";
+import {
+  RECOMMENDATION_SPECS_TOUR_STORAGE_KEY,
+  getRecommendationSpecsTourSteps,
+} from "@/lib/tours/recommendation-specs";
 import type {
   RecommendationSpec,
   RecommendationSpecItem,
@@ -150,7 +156,10 @@ function PillGroup<T extends string>({
 
 function SpecComparisonTable({ rows }: { rows: RecommendationSpecExportRow[] }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-slate-700/60 bg-[#1E293B]/60 print:border-slate-300 print:bg-white">
+    <section
+      data-tour="specs-table"
+      className="overflow-hidden rounded-xl border border-slate-700/60 bg-[#1E293B]/60 print:border-slate-300 print:bg-white"
+    >
       <div className="flex items-center justify-between gap-2 border-b border-slate-700/60 px-4 py-3 print:border-slate-300">
         <h3 className="text-sm font-semibold text-white print:text-slate-900">
           Requirements comparison
@@ -239,7 +248,15 @@ export default function RecommendationSpecsPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const { showHint, showPulse, dismissHint } = useTourHint(RECOMMENDATION_SPECS_TOUR_STORAGE_KEY, tourOpen, user.id);
+  const startTour = () => {
+    dismissHint();
+    setTourOpen(true);
+  };
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const tourAutoStarted = useRef(false);
+  const tourOpenedForm = useRef(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -257,6 +274,15 @@ export default function RecommendationSpecsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // First visit: auto-start the spotlight tour once loading settles.
+  useEffect(() => {
+    if (tourAutoStarted.current || loading) return;
+    if (!shouldAutoStartTour(RECOMMENDATION_SPECS_TOUR_STORAGE_KEY)) return;
+    tourAutoStarted.current = true;
+    const t = window.setTimeout(() => setTourOpen(true), 450);
+    return () => window.clearTimeout(t);
+  }, [loading]);
 
   useEffect(() => {
     if (!exportMenuOpen) return;
@@ -329,6 +355,32 @@ export default function RecommendationSpecsPage() {
     setEditing(true);
   }
 
+  const tourSteps = useMemo(() => getRecommendationSpecsTourSteps(write), [write]);
+
+  const handleTourStepChange = useCallback(
+    (step: TourStep | null) => {
+      const needsForm = Boolean(step?.id?.startsWith("specs-form"));
+      if (needsForm) {
+        if (!active) return;
+        if (!tourOpenedForm.current) {
+          setForm(formFromSpec(active));
+          setSaveError(null);
+          tourOpenedForm.current = true;
+        }
+        setEditing(true);
+        return;
+      }
+      if (tourOpenedForm.current) {
+        if (!saving) {
+          setEditing(false);
+          setForm(null);
+        }
+        tourOpenedForm.current = false;
+      }
+    },
+    [active, saving],
+  );
+
   async function handleSave() {
     if (!active || !form) return;
     const validation = validateSpecForm(form);
@@ -356,33 +408,41 @@ export default function RecommendationSpecsPage() {
         <Header
           title="Recommendation Specs"
           subtitle="Standard equipment specs for laptop and desktop procurement"
+          onHowItWorks={startTour}
+          howItWorksPulse={showPulse}
         />
       </div>
       <div className="page-content flex-1 space-y-4 overflow-y-auto">
+        <TourNudge show={showHint} onDismiss={dismissHint} onStart={startTour} />
         <div className="flex flex-col gap-3 rounded-xl border border-slate-700/60 bg-[#1E293B]/60 p-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:p-4 print:hidden">
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-            <PillGroup
-              label="Audience"
-              value={audience}
-              onChange={setAudience}
-              options={[
-                { value: "NON_ENGINEER", label: "Non-Engineer" },
-                { value: "ENGINEER", label: "Engineer" },
-              ]}
-            />
-            <PillGroup
-              label="Device type"
-              value={deviceType}
-              onChange={setDeviceType}
-              options={[
-                { value: "LAPTOP", label: "Laptop" },
-                { value: "DESKTOP", label: "Desktop" },
-              ]}
-            />
+            <div data-tour="specs-audience">
+              <PillGroup
+                label="Audience"
+                value={audience}
+                onChange={setAudience}
+                options={[
+                  { value: "NON_ENGINEER", label: "Non-Engineer" },
+                  { value: "ENGINEER", label: "Engineer" },
+                ]}
+              />
+            </div>
+            <div data-tour="specs-device">
+              <PillGroup
+                label="Device type"
+                value={deviceType}
+                onChange={setDeviceType}
+                options={[
+                  { value: "LAPTOP", label: "Laptop" },
+                  { value: "DESKTOP", label: "Desktop" },
+                ]}
+              />
+            </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <button
               type="button"
+              data-tour="specs-print"
               onClick={handlePrint}
               disabled={loading || !active || comparisonRows.length === 0}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
@@ -390,7 +450,7 @@ export default function RecommendationSpecsPage() {
               <Printer className="h-4 w-4" />
               Print
             </button>
-            <div className="relative" ref={exportMenuRef}>
+            <div className="relative" ref={exportMenuRef} data-tour="specs-export">
               <button
                 type="button"
                 onClick={() => setExportMenuOpen((o) => !o)}
@@ -430,6 +490,7 @@ export default function RecommendationSpecsPage() {
             {write && active && (
               <button
                 type="button"
+                data-tour="specs-edit"
                 onClick={openEdit}
                 className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2 text-sm font-medium text-white hover:bg-[#256b85]"
               >
@@ -447,13 +508,19 @@ export default function RecommendationSpecsPage() {
             {error}
           </div>
         ) : !active ? (
-          <div className="rounded-xl border border-dashed border-slate-700 px-4 py-12 text-center text-sm text-slate-500 print:hidden">
-            No catalog found for {audienceLabel(audience)} · {deviceLabel(deviceType)}. Run the
-            backend seed to populate default specs.
+          <div className="flex flex-col items-center rounded-xl border border-dashed border-slate-700 px-4 py-12 text-center text-sm text-slate-500 print:hidden">
+            <p>
+              No catalog found for {audienceLabel(audience)} · {deviceLabel(deviceType)}. Run the
+              backend seed to populate default specs.
+            </p>
+            <TourEmptyCta onStart={startTour} />
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="rounded-xl border border-slate-700/60 bg-[#1E293B]/60 px-4 py-4 sm:px-5 print:border-slate-300 print:bg-white">
+            <div
+              data-tour="specs-summary"
+              className="rounded-xl border border-slate-700/60 bg-[#1E293B]/60 px-4 py-4 sm:px-5 print:border-slate-300 print:bg-white"
+            >
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-[#2E7D9A]/15 px-2.5 py-0.5 text-[11px] font-medium text-[#4FB0CE] ring-1 ring-[#2E7D9A]/30 print:bg-slate-100 print:text-slate-700 print:ring-slate-300">
                   {audienceLabel(active.audience)}
@@ -477,6 +544,7 @@ export default function RecommendationSpecsPage() {
 
       <Drawer
         open={editing && !!form}
+        dataTour={editing && form ? "specs-form-drawer" : undefined}
         title="Edit recommendation specs"
         subtitle={active ? `${audienceLabel(active.audience)} · ${deviceLabel(active.device_type)}` : undefined}
         onClose={() => {
@@ -503,6 +571,7 @@ export default function RecommendationSpecsPage() {
             </button>
             <button
               type="button"
+              data-tour="specs-form-save"
               disabled={saving}
               onClick={() => void handleSave()}
               className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2 text-sm font-medium text-white hover:bg-[#256b85] disabled:opacity-60"
@@ -515,6 +584,16 @@ export default function RecommendationSpecsPage() {
       >
         {form && <RecommendationSpecForm form={form} onChange={setForm} />}
       </Drawer>
+
+      <div className="print:hidden">
+        <SpotlightTour
+          open={tourOpen}
+          steps={tourSteps}
+          storageKey={RECOMMENDATION_SPECS_TOUR_STORAGE_KEY}
+          onStepChange={handleTourStepChange}
+          onClose={() => setTourOpen(false)}
+        />
+      </div>
     </div>
   );
 }

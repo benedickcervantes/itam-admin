@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRightLeft,
   ChevronDown,
@@ -27,6 +27,8 @@ import { ActiveFilters } from "@/components/ActiveFilters";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { Pagination } from "@/components/Pagination";
+import { SpotlightTour, shouldAutoStartTour, type TourStep } from "@/components/SpotlightTour";
+import { TourEmptyCta, TourNudge, useTourHint } from "@/components/TourNudge";
 import { CardGridSkeleton, TableSkeleton } from "@/components/TableSkeleton";
 import { createAsset, deleteAsset, fetchAllAssets, fetchAsset, fetchAssets, updateAsset } from "@/lib/api/assets";
 import { verifyPassword } from "@/lib/api/auth";
@@ -41,6 +43,7 @@ import { fetchDepartments } from "@/lib/api/departments";
 import { canWrite } from "@/lib/auth/permissions";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 import { labelEnum } from "@/lib/labels";
+import { ASSETS_TOUR_STORAGE_KEY, getAssetsTourSteps } from "@/lib/tours/assets";
 import { useSessionUser } from "@/components/SessionContext";
 import { emptyForm, emptyFormForCategory, formStateFromAsset, isComponentItemType, isSparePeripheralCategory, prepareAssetPayload, ramSlotDefaults, showsInfraNetworkSpecs, showsInfraServerSpecs, showsInfraStorageSpecs, sparePeripheralTag, validateAssetForm, type AssetCategory } from "@/lib/device-form";
 import type { Asset, Department } from "@/lib/types";
@@ -103,9 +106,18 @@ export default function AssetsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Asset | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [tourOpen, setTourOpen] = useState(false);
+  const { showHint, showPulse, dismissHint } = useTourHint(ASSETS_TOUR_STORAGE_KEY, tourOpen, user.id);
+  const startTour = () => {
+    dismissHint();
+    setTourOpen(true);
+  };
   const exportMenuRef = useRef<HTMLDivElement>(null);
   /** Ignores out-of-order filter/page responses (e.g. page 7 finishing after page 1). */
   const loadSeq = useRef(0);
+  const tourAutoStarted = useRef(false);
+  /** Tracks whether the create drawer was opened by the tour (so we can close it cleanly). */
+  const tourOpenedForm = useRef(false);
 
   const changeViewMode = (mode: ViewMode) => {
     setViewMode(mode);
@@ -248,6 +260,15 @@ export default function AssetsPage() {
     fetchDepartments().then(setDepartments).catch(() => {});
   }, []);
 
+  // First visit: auto-start the spotlight tour once loading settles.
+  useEffect(() => {
+    if (tourAutoStarted.current || loading) return;
+    if (!shouldAutoStartTour(ASSETS_TOUR_STORAGE_KEY)) return;
+    tourAutoStarted.current = true;
+    const t = window.setTimeout(() => setTourOpen(true), 450);
+    return () => window.clearTimeout(t);
+  }, [loading]);
+
   const openCreate = () => {
     setEditing(null);
     setForm(emptyForm());
@@ -263,6 +284,32 @@ export default function AssetsPage() {
     setDrawerMode("create");
     setError("");
   };
+
+  const tourSteps = useMemo(() => getAssetsTourSteps(write), [write]);
+
+  const handleTourStepChange = useCallback((step: TourStep | null) => {
+    const needsForm = Boolean(step?.id?.startsWith("assets-form"));
+    if (needsForm) {
+      // Open create form once so spotlight targets exist; don't reset on every form step.
+      if (!tourOpenedForm.current) {
+        setEditing(null);
+        setForm(emptyForm());
+        setSaving(false);
+        setError("");
+        tourOpenedForm.current = true;
+      }
+      setDrawerMode("create");
+      setDrawerOpen(true);
+      return;
+    }
+    if (tourOpenedForm.current) {
+      setDrawerOpen(false);
+      setSaving(false);
+      setDrawerMode("create");
+      setError("");
+      tourOpenedForm.current = false;
+    }
+  }, []);
 
   const loadAssetDetail = async (row: Asset) => {
     setEditing(row);
@@ -337,8 +384,8 @@ export default function AssetsPage() {
     }
   };
 
-  const renderRowActions = (row: Asset) => (
-    <div className="flex items-center gap-1">
+  const renderRowActions = (row: Asset, tourTarget = false) => (
+    <div className="flex items-center gap-1" {...(tourTarget ? { "data-tour": "assets-actions" } : {})}>
       <button
         type="button"
         onClick={(e) => {
@@ -469,18 +516,31 @@ export default function AssetsPage() {
 
   return (
     <>
-      <Header title="Assets" subtitle="Long-term hardware inventory linked to audits" />
+      <Header
+        title="Assets"
+        subtitle="Long-term hardware inventory linked to audits"
+        onHowItWorks={startTour}
+        howItWorksPulse={showPulse}
+      />
       <div className="page-content flex-1 overflow-y-auto">
+        <TourNudge show={showHint} onDismiss={dismissHint} onStart={startTour} />
         <div className="mb-4 space-y-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-            <FilterSearch
-              value={searchInput}
-              onChange={setSearchInput}
-              placeholder="Search code, assignee, brand, serial..."
-              className="min-w-0 w-full lg:flex-1"
-            />
+            <div data-tour="assets-search" className="min-w-0 w-full lg:flex-1">
+              <FilterSearch
+                value={searchInput}
+                onChange={setSearchInput}
+                placeholder="Search code, assignee, brand, serial..."
+                className="w-full"
+              />
+            </div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="View mode">
+              <div
+                data-tour="assets-view-mode"
+                className="inline-flex rounded-lg border border-slate-600 p-0.5"
+                role="group"
+                aria-label="View mode"
+              >
                 <button
                   type="button"
                   onClick={() => changeViewMode("table")}
@@ -506,7 +566,7 @@ export default function AssetsPage() {
                   <span className="hidden sm:inline">Grid</span>
                 </button>
               </div>
-              <div className="relative" ref={exportMenuRef}>
+              <div className="relative" ref={exportMenuRef} data-tour="assets-export">
                 <button
                   type="button"
                   onClick={() => setExportMenuOpen((o) => !o)}
@@ -562,6 +622,7 @@ export default function AssetsPage() {
               {write && (
                 <button
                   type="button"
+                  data-tour="assets-new"
                   onClick={openCreate}
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2 text-sm font-medium text-white"
                 >
@@ -571,7 +632,7 @@ export default function AssetsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div data-tour="assets-filters" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <FilterSelect
               label="Department"
               value={departmentId}
@@ -697,7 +758,7 @@ export default function AssetsPage() {
         {success && <p className="mb-3 text-sm text-emerald-400">{success}</p>}
 
         {viewMode === "table" ? (
-          <div className="card overflow-hidden">
+          <div className="card overflow-hidden" data-tour="assets-list">
             <div className="table-scroll">
               <table className="data-table data-table--fixed" style={{ minWidth: "76rem" }}>
                 <colgroup>
@@ -730,11 +791,14 @@ export default function AssetsPage() {
                   ) : items.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="text-slate-400">
-                        No assets found.
+                        <div className="flex flex-col items-start gap-1 py-1">
+                          <span>No assets found.</span>
+                          <TourEmptyCta onStart={startTour} />
+                        </div>
                       </td>
                     </tr>
                   ) : (
-                    items.map((row) => (
+                    items.map((row, rowIndex) => (
                       <tr key={row.id} className="cursor-pointer" onClick={() => void openView(row)}>
                         <td className="font-mono text-[#2E7D9A]">{row.asset_code}</td>
                         <td>
@@ -760,7 +824,7 @@ export default function AssetsPage() {
                           <Badge value={row.condition} compact />
                         </td>
                         <td onClick={(e) => e.stopPropagation()}>
-                          {renderRowActions(row)}
+                          {renderRowActions(row, rowIndex === 0)}
                         </td>
                       </tr>
                     ))
@@ -770,14 +834,17 @@ export default function AssetsPage() {
             </div>
           </div>
         ) : (
-          <div>
+          <div data-tour="assets-list">
             {loading ? (
               <CardGridSkeleton />
             ) : items.length === 0 ? (
-              <p className="py-8 text-center text-sm text-slate-400">No assets found.</p>
+              <div className="flex flex-col items-center py-8">
+                <p className="text-center text-sm text-slate-400">No assets found.</p>
+                <TourEmptyCta onStart={startTour} />
+              </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {items.map((row) => (
+                {items.map((row, rowIndex) => (
                   <article
                     key={row.id}
                     className="card cursor-pointer p-4 transition hover:border-[#2E7D9A]/50 hover:bg-slate-800/40"
@@ -789,7 +856,9 @@ export default function AssetsPage() {
                         <p className="mt-1 truncate text-base font-medium text-white">{row.computer_name}</p>
                         <p className="truncate text-sm text-slate-400">{row.assigned_to ?? "—"}</p>
                       </div>
-                      <div onClick={(e) => e.stopPropagation()}>{renderRowActions(row)}</div>
+                      <div onClick={(e) => e.stopPropagation()}>
+                        {renderRowActions(row, rowIndex === 0)}
+                      </div>
                     </div>
                     <dl className="space-y-2 text-sm">
                       <div className="flex items-center justify-between gap-2">
@@ -826,6 +895,7 @@ export default function AssetsPage() {
 
       <Drawer
         open={drawerOpen}
+        dataTour={drawerMode === "create" && !editing ? "assets-form-drawer" : undefined}
         title={
           !editing
             ? isSparePeripheralCategory(String(form.assetCategory))
@@ -922,6 +992,7 @@ export default function AssetsPage() {
               </button>
               <button
                 type="button"
+                data-tour={!editing ? "assets-form-save" : undefined}
                 disabled={saving}
                 onClick={() => void save()}
                 className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center gap-1.5 rounded-lg border border-transparent bg-[#2E7D9A] px-3 text-sm font-medium leading-none text-white hover:bg-[#256b85] disabled:cursor-not-allowed disabled:opacity-60"
@@ -1006,6 +1077,14 @@ export default function AssetsPage() {
           }
         }}
         onConfirm={(password) => void confirmDelete(password)}
+      />
+
+      <SpotlightTour
+        open={tourOpen}
+        steps={tourSteps}
+        storageKey={ASSETS_TOUR_STORAGE_KEY}
+        onStepChange={handleTourStepChange}
+        onClose={() => setTourOpen(false)}
       />
     </>
   );

@@ -17,15 +17,21 @@ function FormSection({
   description,
   icon: Icon,
   children,
+  dataTour,
 }: {
   id: string;
   title: string;
   description?: string;
   icon: LucideIcon;
   children: React.ReactNode;
+  dataTour?: string;
 }) {
   return (
-    <section id={id} className="scroll-mt-4 rounded-xl border border-slate-700/60 bg-slate-900/30">
+    <section
+      id={id}
+      data-tour={dataTour}
+      className="scroll-mt-4 rounded-xl border border-slate-700/60 bg-slate-900/30"
+    >
       <div className="flex items-start gap-3 border-b border-slate-700/60 px-4 py-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#2E7D9A]/15 text-[#2E7D9A]">
           <Icon className="h-4 w-4" />
@@ -71,6 +77,7 @@ export function SupplierForm({
     <div className="space-y-4">
       <FormSection
         id="supplier-company"
+        dataTour="proc-form-company"
         title="Company"
         description="Basic supplier identity used across IT procurement."
         icon={Building2}
@@ -117,6 +124,7 @@ export function SupplierForm({
 
       <FormSection
         id="supplier-contact"
+        dataTour="proc-form-contact"
         title="Contact"
         description="Primary person and channels for quotes and support."
         icon={Contact}
@@ -165,6 +173,7 @@ export function SupplierForm({
 
       <FormSection
         id="supplier-categories"
+        dataTour="proc-form-categories"
         title="Supply Categories"
         description="What IT assets this supplier can provide."
         icon={Tags}
