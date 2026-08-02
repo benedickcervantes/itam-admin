@@ -8,11 +8,13 @@ import { fetchProfile } from "@/lib/api/auth";
 import {
   clearSession,
   consumeSkipSessionOverlay,
+  forceSessionExpiredLogout,
   getAccessToken,
   getStoredUser,
   persistSession,
 } from "@/lib/auth/session";
 import type { ItamUser } from "@/lib/auth/session";
+import IdleSessionWatcher from "@/components/IdleSessionWatcher";
 
 export default function AdminSessionGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -35,6 +37,12 @@ export default function AdminSessionGuard({ children }: { children: React.ReactN
       setShowOverlay(true);
     }
 
+    // Manual test only: /dashboard?forceExpire=1
+    if (new URLSearchParams(window.location.search).get("forceExpire") === "1") {
+      forceSessionExpiredLogout();
+      return;
+    }
+
     fetchProfile()
       .then((profile) => {
         persistSession(token, profile);
@@ -42,6 +50,9 @@ export default function AdminSessionGuard({ children }: { children: React.ReactN
         setReady(true);
       })
       .catch(() => {
+        // 401 is handled by apiJson (session-expired modal).
+        // Other failures: clear leftover credentials and hand off to login quietly.
+        if (!getAccessToken()) return;
         clearSession();
         router.replace("/");
       });
@@ -68,5 +79,10 @@ export default function AdminSessionGuard({ children }: { children: React.ReactN
     return <div className="min-h-dvh w-full bg-[#0F172A]" />;
   }
 
-  return <SessionProvider user={user}>{children}</SessionProvider>;
+  return (
+    <SessionProvider user={user}>
+      <IdleSessionWatcher />
+      {children}
+    </SessionProvider>
+  );
 }

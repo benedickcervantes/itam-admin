@@ -396,7 +396,10 @@ export function DeviceInventoryForm({
   return (
     <div className="space-y-5">
       {mode === "asset" && (
-        <div className="rounded-xl border border-slate-700/60 bg-slate-900/40 p-4">
+        <div
+          data-tour="assets-form-category"
+          className="rounded-xl border border-slate-700/60 bg-slate-900/40 p-4"
+        >
           <Field label="Asset Category">
             <Select
               value={assetCategory}
@@ -418,6 +421,9 @@ export function DeviceInventoryForm({
 
       <FormSection
         id="audit-section-employee"
+        dataTour={
+          mode === "asset" ? "assets-form-employee" : mode === "audit" ? "audit-form-employee" : undefined
+        }
         title={infra ? "Ownership" : "Employee"}
         icon={User}
       >
@@ -542,7 +548,14 @@ export function DeviceInventoryForm({
         </div>
       </FormSection>
 
-      <FormSection id="audit-section-device" title="Device" icon={Monitor}>
+      <FormSection
+        id="audit-section-device"
+        dataTour={
+          mode === "asset" ? "assets-form-device" : mode === "audit" ? "audit-form-device" : undefined
+        }
+        title="Device"
+        icon={Monitor}
+      >
         <div className="grid gap-3 md:grid-cols-2">
           <Field label={infra ? "Asset Name / Hostname" : "Computer Name"} required>
             <input
@@ -1359,7 +1372,12 @@ export function DeviceInventoryForm({
       )}
 
       {mode === "audit" && (
-        <FormSection id="audit-section-audit" title="Audit" icon={ClipboardCheck}>
+        <FormSection
+          id="audit-section-audit"
+          dataTour="audit-form-assessment"
+          title="Audit"
+          icon={ClipboardCheck}
+        >
           <div className="grid gap-3 md:grid-cols-2">
             <Field label="Audit Date">
               <input
