@@ -94,7 +94,7 @@ function buildPrintHtml(
       </tbody>
     </table>
   </div>
-  <div class="foot">Use Minimum for budget-conscious purchases. Prefer Recommended when workload and longevity matter.</div>
+  <div class="foot">Use Minimum for budget-conscious purchases. Prefer Recommended when workload and longevity matter. Tip: turn off Headers and footers in the print dialog for a clean PDF.</div>
 </body>
 </html>`;
 }
