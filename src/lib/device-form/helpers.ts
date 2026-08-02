@@ -20,6 +20,51 @@ export function hasBuiltInScreen(deviceType: string) {
   return deviceType === "LAPTOP" || deviceType === "ALL_IN_ONE";
 }
 
+/**
+ * Webcam is always available on end-user Peripherals forms (IT Audit + Asset),
+ * including blank forms before Device Type is selected.
+ */
+export function showsWebcamPeripheral(_deviceType?: string) {
+  return true;
+}
+
+type WebcamLinkedAsset = {
+  item_type?: string | null;
+  brand_model?: string | null;
+  condition?: string | null;
+  notes?: string | null;
+  webcam_condition?: string | null;
+};
+
+/** Audit webcam column, or fall back to the linked WEBCAM asset row. */
+export function resolveAuditWebcam(row: {
+  webcam?: string | null;
+  webcam_condition?: string | null;
+  assets?: WebcamLinkedAsset[] | null;
+}): { model: string; condition: string } {
+  const directModel = (row.webcam ?? "").trim();
+  if (directModel) {
+    return { model: directModel, condition: (row.webcam_condition ?? "").trim() };
+  }
+
+  const linked = row.assets?.find((a) => a.item_type === "WEBCAM");
+  if (!linked) return { model: "", condition: "" };
+
+  const model = (linked.brand_model ?? "").trim();
+  const notes = (linked.notes ?? "").trim();
+  const looksLikeEnum =
+    notes && /^[A-Z][A-Z0-9_ ]*$/.test(notes) && notes.length < 40;
+  const condition = (
+    linked.webcam_condition ??
+    linked.condition ??
+    (looksLikeEnum ? notes : "")
+  )
+    ?.toString()
+    .trim();
+
+  return { model, condition };
+}
+
 export function isDesktopDevice(deviceType: string) {
   return deviceType === "DESKTOP";
 }
@@ -53,6 +98,7 @@ export const isSharedPrinterCategory = isSparePeripheralCategory;
 export const SPARE_PERIPHERAL_ITEM_TYPES = [
   "PRINTER",
   "PROJECTOR",
+  "WEBCAM",
   "KEYBOARD",
   "MOUSE",
   "MONITOR",
@@ -74,6 +120,7 @@ export const COMPONENT_ITEM_TYPES = [
   "MONITOR",
   "PRINTER",
   "PROJECTOR",
+  "WEBCAM",
   "UPS",
   "AVR",
 ] as const;

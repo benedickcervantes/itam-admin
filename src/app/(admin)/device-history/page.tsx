@@ -122,6 +122,7 @@ export default function DeviceHistoryPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const loadSeq = useRef(0);
 
   const changeViewMode = (mode: ViewMode) => {
     setViewMode(mode);
@@ -203,6 +204,7 @@ export default function DeviceHistoryPage() {
   };
 
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     try {
       const res = await fetchDeviceHistory({
@@ -211,13 +213,19 @@ export default function DeviceHistoryPage() {
         departmentId: departmentId || undefined,
         status: statusFilter,
       });
+      if (seq !== loadSeq.current) return;
+      if (res.totalPages > 0 && page > res.totalPages) {
+        setPage(1);
+        return;
+      }
       setItems(res.items);
-      setTotalPages(res.totalPages);
+      setTotalPages(Math.max(1, res.totalPages || 1));
       setError("");
     } catch (e) {
+      if (seq !== loadSeq.current) return;
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [page, search, departmentId, statusFilter]);
 
@@ -392,7 +400,15 @@ export default function DeviceHistoryPage() {
             placeholder="Search record, asset, employee, brand, serial..."
             className="w-full sm:flex-1"
           />
-          <FilterSelect label="Department" value={departmentId} onChange={setDepartmentId} className="w-full sm:w-auto">
+          <FilterSelect
+            label="Department"
+            value={departmentId}
+            onChange={(v) => {
+              setPage(1);
+              setDepartmentId(v);
+            }}
+            className="w-full sm:w-auto"
+          >
             <option value="">All departments</option>
             {departments.map((d) => (
               <option key={d.id} value={d.id}>
@@ -403,7 +419,10 @@ export default function DeviceHistoryPage() {
           <FilterSelect
             label="Show"
             value={statusFilter}
-            onChange={(v) => setStatusFilter(v as "active" | "returned" | "all")}
+            onChange={(v) => {
+              setPage(1);
+              setStatusFilter(v as "active" | "returned" | "all");
+            }}
             className="w-full sm:w-auto"
           >
             <option value="all">All records</option>

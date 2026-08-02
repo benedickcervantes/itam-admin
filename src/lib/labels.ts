@@ -31,6 +31,7 @@ const LABELS: Record<string, string> = {
   MONITOR: "Monitor",
   PRINTER: "Printer",
   PROJECTOR: "Projector",
+  WEBCAM: "Webcam",
   UPS: "UPS",
   AVR: "AVR",
   STORAGE: "Storage",
@@ -119,6 +120,8 @@ const COMPACT_LABELS: Record<string, string> = {
   IMMEDIATE_REPAIR: "Repair",
   SOFTWARE_REFRESH: "Refresh",
   REPLACE_UNIT: "Replace",
+  NON_FUNCTIONAL: "Non-func",
+  UNDER_REPAIR: "Repair",
 };
 
 export function labelEnum(value: string | null | undefined): string {

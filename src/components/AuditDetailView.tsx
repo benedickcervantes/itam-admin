@@ -3,13 +3,19 @@
 import { ClipboardCheck, Monitor, Mouse, User } from "lucide-react";
 import { Badge } from "@/components/Badge";
 import { DetailNotes, DetailRow, DetailSection, fmtLabel } from "@/components/DetailViewParts";
-import { formatCondition } from "@/lib/device-form";
+import { formatCondition, resolveAuditWebcam } from "@/lib/device-form";
 import { upgradeChecklistLabel } from "@/lib/labels";
 import type { AuditRegister } from "@/lib/types";
 
 export function AuditDetailView({ audit }: { audit: AuditRegister }) {
   const department = audit.department?.name ?? null;
-  const hasPeripherals = [audit.keyboard, audit.mouse, audit.printer].some((v) => v?.trim());
+  const resolvedWebcam = resolveAuditWebcam(audit);
+  const hasPeripherals = [
+    audit.keyboard,
+    audit.mouse,
+    audit.printer,
+    resolvedWebcam.model,
+  ].some((v) => v?.trim());
   const hasDeviceSpecs = [
     audit.processor,
     audit.ram,
@@ -99,6 +105,11 @@ export function AuditDetailView({ audit }: { audit: AuditRegister }) {
           <DetailRow label="Mouse" value={audit.mouse} />
           <DetailRow label="Mouse Type" value={fmtLabel(audit.mouse_type)} />
           <DetailRow label="Mouse Condition" value={fmtLabel(audit.mouse_condition)} />
+          <DetailRow label="Webcam" value={resolvedWebcam.model || null} />
+          <DetailRow
+            label="Webcam Condition"
+            value={resolvedWebcam.condition ? fmtLabel(resolvedWebcam.condition) : null}
+          />
           <DetailRow label="Printer" value={audit.printer} />
         </DetailSection>
       )}

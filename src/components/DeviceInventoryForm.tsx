@@ -262,6 +262,16 @@ export function DeviceInventoryForm({
     ],
   );
 
+  const webcamPreview = useMemo(() => {
+    const model = String(form.desktopWebcamModel).trim();
+    const condition = String(form.webcamCondition).trim();
+    if (!model) return "—";
+    if (condition && condition !== "N_A") {
+      return `${model} — ${formatCondition(condition)}`;
+    }
+    return model;
+  }, [form.desktopWebcamModel, form.webcamCondition]);
+
   const screenPreview = useMemo(() => {
     const dt = String(form.deviceType);
     const category = String(form.assetCategory || "end_user");
@@ -1260,6 +1270,35 @@ export function DeviceInventoryForm({
             </Field>
           </div>
         )}
+
+        <Subsection title="Webcam">
+          <div className="grid gap-3 md:grid-cols-2">
+            <Field
+              label={
+                hasBuiltInScreen(String(form.deviceType))
+                  ? "Webcam — Brand / Model (built-in or external USB)"
+                  : "Webcam — Brand / Model"
+              }
+            >
+              <input
+                className={inputClass}
+                value={String(form.desktopWebcamModel)}
+                onChange={(e) => set("desktopWebcamModel", e.target.value)}
+                placeholder="e.g. Logitech C920, Logitech PK-910H"
+                readOnly={!write}
+              />
+            </Field>
+            <Field label="Webcam Condition">
+              <Select
+                value={String(form.webcamCondition)}
+                onChange={(v) => set("webcamCondition", v)}
+                options={mouseConditionOptions}
+                disabled={!write}
+              />
+            </Field>
+          </div>
+          <RecordedPreview label="Recorded webcam" value={webcamPreview} />
+        </Subsection>
 
         <div className="space-y-4">
           <Subsection title="Printer">

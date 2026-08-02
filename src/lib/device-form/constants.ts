@@ -139,6 +139,7 @@ export const UI_ONLY_KEYS = [
   "mouseExternalModel",
   "mouseExternalCondition",
   "desktopMouseModel",
+  "desktopWebcamModel",
   "monitorPrimary",
   "monitorPrimaryCondition",
   "hasSecondaryMonitor",

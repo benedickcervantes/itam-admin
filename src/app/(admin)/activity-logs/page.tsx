@@ -156,6 +156,7 @@ export default function ActivityLogsPage() {
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const loadSeq = useRef(0);
 
   const hasActiveFilters = Boolean(
     searchInput || search || actionFilter || entityFilter || actorFilter || fromDate || toDate,
@@ -229,6 +230,7 @@ export default function ActivityLogsPage() {
 
   const load = useCallback(async () => {
     if (!allowed || !queryParams) return;
+    const seq = ++loadSeq.current;
     setLoading(true);
     try {
       const res = await fetchActivityLogs({
@@ -236,14 +238,20 @@ export default function ActivityLogsPage() {
         page,
         limit: pageSize,
       });
+      if (seq !== loadSeq.current) return;
+      if ((res.totalPages || 0) > 0 && page > (res.totalPages || 1)) {
+        setPage(1);
+        return;
+      }
       setItems(res.items);
-      setTotalPages(res.totalPages || 1);
+      setTotalPages(Math.max(1, res.totalPages || 1));
       setTotal(res.total);
       setError("");
     } catch (e) {
+      if (seq !== loadSeq.current) return;
       setError(e instanceof Error ? e.message : "Failed to load activity logs");
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [allowed, queryParams, page, pageSize]);
 
@@ -364,7 +372,15 @@ export default function ActivityLogsPage() {
             className="w-full"
           />
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-          <FilterSelect label="Action" value={actionFilter} onChange={setActionFilter} className="w-full sm:w-auto">
+          <FilterSelect
+            label="Action"
+            value={actionFilter}
+            onChange={(v) => {
+              setPage(1);
+              setActionFilter(v);
+            }}
+            className="w-full sm:w-auto"
+          >
             <option value="">All actions</option>
             {ACTIVITY_ACTIONS.map((action) => (
               <option key={action} value={action}>
@@ -372,7 +388,15 @@ export default function ActivityLogsPage() {
               </option>
             ))}
           </FilterSelect>
-          <FilterSelect label="Entity" value={entityFilter} onChange={setEntityFilter} className="w-full sm:w-auto">
+          <FilterSelect
+            label="Entity"
+            value={entityFilter}
+            onChange={(v) => {
+              setPage(1);
+              setEntityFilter(v);
+            }}
+            className="w-full sm:w-auto"
+          >
             <option value="">All entities</option>
             {ACTIVITY_ENTITY_TYPES.map((type) => (
               <option key={type} value={type}>
@@ -380,7 +404,15 @@ export default function ActivityLogsPage() {
               </option>
             ))}
           </FilterSelect>
-          <FilterSelect label="Actor" value={actorFilter} onChange={setActorFilter} className="w-full sm:w-auto">
+          <FilterSelect
+            label="Actor"
+            value={actorFilter}
+            onChange={(v) => {
+              setPage(1);
+              setActorFilter(v);
+            }}
+            className="w-full sm:w-auto"
+          >
             <option value="">All actors</option>
             {actors.map((actor) => (
               <option key={actor.id} value={actor.id}>
@@ -394,7 +426,10 @@ export default function ActivityLogsPage() {
               type="date"
               value={fromDate}
               max={toDate || undefined}
-              onChange={(e) => setFromDate(e.target.value)}
+              onChange={(e) => {
+                setPage(1);
+                setFromDate(e.target.value);
+              }}
               className={`rounded-lg border bg-slate-900/80 px-3 py-2 text-sm text-white outline-none focus:border-[#2E7D9A] focus:ring-1 focus:ring-[#2E7D9A]/40 ${
                 dateError ? "border-red-500/60" : "border-slate-600"
               }`}
@@ -406,7 +441,10 @@ export default function ActivityLogsPage() {
               type="date"
               value={toDate}
               min={fromDate || undefined}
-              onChange={(e) => setToDate(e.target.value)}
+              onChange={(e) => {
+                setPage(1);
+                setToDate(e.target.value);
+              }}
               className={`rounded-lg border bg-slate-900/80 px-3 py-2 text-sm text-white outline-none focus:border-[#2E7D9A] focus:ring-1 focus:ring-[#2E7D9A]/40 ${
                 dateError ? "border-red-500/60" : "border-slate-600"
               }`}
