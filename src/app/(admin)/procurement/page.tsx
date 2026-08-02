@@ -115,6 +115,7 @@ export default function ProcurementPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const loadSeq = useRef(0);
 
   const changeViewMode = (mode: ViewMode) => {
     setViewMode(mode);
@@ -191,6 +192,7 @@ export default function ProcurementPage() {
   };
 
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     try {
       const res = await fetchSuppliers({
@@ -199,13 +201,19 @@ export default function ProcurementPage() {
         status: statusFilter || undefined,
         category: categoryFilter || undefined,
       });
+      if (seq !== loadSeq.current) return;
+      if (res.totalPages > 0 && page > res.totalPages) {
+        setPage(1);
+        return;
+      }
       setItems(res.items);
-      setTotalPages(res.totalPages);
+      setTotalPages(Math.max(1, res.totalPages || 1));
       setError("");
     } catch (e) {
+      if (seq !== loadSeq.current) return;
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [page, search, statusFilter, categoryFilter]);
 
@@ -376,7 +384,15 @@ export default function ProcurementPage() {
             placeholder="Search code, name, contact, email, phone, address..."
             className="w-full sm:flex-1"
           />
-          <FilterSelect label="Status" value={statusFilter} onChange={setStatusFilter} className="w-full sm:w-auto">
+          <FilterSelect
+            label="Status"
+            value={statusFilter}
+            onChange={(v) => {
+              setPage(1);
+              setStatusFilter(v);
+            }}
+            className="w-full sm:w-auto"
+          >
             <option value="">All statuses</option>
             {REFERENCE_DATA.supplierStatuses.map((s) => (
               <option key={s} value={s}>
@@ -387,7 +403,10 @@ export default function ProcurementPage() {
           <FilterSelect
             label="Category"
             value={categoryFilter}
-            onChange={setCategoryFilter}
+            onChange={(v) => {
+              setPage(1);
+              setCategoryFilter(v);
+            }}
             className="w-full sm:w-auto"
           >
             <option value="">All categories</option>

@@ -20,6 +20,8 @@ function assetWithAuditFallback(asset: Asset): Asset {
     mouse: asset.mouse ?? audit.mouse,
     mouse_type: asset.mouse_type ?? audit.mouse_type,
     mouse_condition: asset.mouse_condition ?? audit.mouse_condition,
+    webcam: asset.webcam ?? audit.webcam,
+    webcam_condition: asset.webcam_condition ?? audit.webcam_condition,
     gpu: asset.gpu ?? audit.graphics_gpu,
     network: asset.network ?? audit.network,
   };
@@ -43,7 +45,9 @@ export function AssetDetailView({ asset: rawAsset }: { asset: Asset }) {
     .filter(Boolean)
     .join(" — ");
   const hasPeripherals =
-    !infra && !isComponent && [asset.keyboard, asset.mouse, asset.printer].some((v) => v?.trim());
+    !infra &&
+    !isComponent &&
+    [asset.keyboard, asset.mouse, asset.printer, asset.webcam].some((v) => v?.trim());
   const hasInfraFields = [asset.location, asset.management_ip, asset.rack_slot, asset.port_count].some(
     (v) => v != null && v !== "",
   );
@@ -164,6 +168,11 @@ export function AssetDetailView({ asset: rawAsset }: { asset: Asset }) {
               />
             </>
           )}
+          <DetailRow label="Webcam" value={asset.webcam} />
+          <DetailRow
+            label="Webcam Condition"
+            value={asset.webcam_condition ? formatCondition(asset.webcam_condition) : null}
+          />
           <DetailRow label="Printer" value={asset.printer} />
         </DetailSection>
       )}

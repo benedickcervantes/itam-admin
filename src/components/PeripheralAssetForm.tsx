@@ -10,6 +10,7 @@ import {
   Printer,
   Projector,
   User,
+  Webcam,
   type LucideIcon,
 } from "lucide-react";
 import { Field, inputClass } from "@/components/Drawer";
@@ -18,6 +19,7 @@ import { optionsFromStrings, Select } from "@/components/Select";
 import { labelEnum } from "@/lib/labels";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 import {
+  COMPONENT_ITEM_TYPES,
   SPARE_PERIPHERAL_ITEM_TYPES,
   type AssetCategory,
 } from "@/lib/device-form";
@@ -26,6 +28,7 @@ import type { Department } from "@/lib/types";
 const ITEM_TYPE_ICONS: Record<string, LucideIcon> = {
   PRINTER: Printer,
   PROJECTOR: Projector,
+  WEBCAM: Webcam,
   MONITOR: Monitor,
   KEYBOARD: Keyboard,
   MOUSE: Mouse,
@@ -36,6 +39,7 @@ const ITEM_TYPE_ICONS: Record<string, LucideIcon> = {
 const NAME_PLACEHOLDERS: Record<string, string> = {
   PRINTER: "e.g. FLOOR2-SHARED-PRN",
   PROJECTOR: "e.g. CONF-ROOM-A-PRJ",
+  WEBCAM: "e.g. SPARE-WC-01",
   KEYBOARD: "e.g. SPARE-KB-01",
   MOUSE: "e.g. SPARE-MS-01",
   MONITOR: "e.g. SPARE-MON-01",
@@ -44,6 +48,7 @@ const NAME_PLACEHOLDERS: Record<string, string> = {
 const BRAND_PLACEHOLDERS: Record<string, string> = {
   PRINTER: "e.g. HP 115 Ink Tank Printer",
   PROJECTOR: "e.g. Epson EB-X41",
+  WEBCAM: "e.g. Logitech C920",
   KEYBOARD: "e.g. Logitech K120",
   MOUSE: "e.g. Logitech M90",
   MONITOR: "e.g. Dell P2422H",
@@ -100,6 +105,15 @@ export function PeripheralAssetForm({
       })),
     [],
   );
+  const componentItemTypeOptions = useMemo(
+    () =>
+      COMPONENT_ITEM_TYPES.map((t) => ({
+        value: t,
+        label: labelEnum(t),
+      })),
+    [],
+  );
+  const itemTypeOptions = createMode ? spareItemTypeOptions : componentItemTypeOptions;
 
   const assignedTo = String(form.employeeName).trim();
   const isSpareStock =
@@ -196,11 +210,11 @@ export function PeripheralAssetForm({
       <FormSection id="peripheral-section-item" title={typeLabel} icon={ItemIcon}>
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="Item Type" required={createMode}>
-            {createMode && write ? (
+            {write ? (
               <Select
                 value={itemType}
                 onChange={(v) => set("itemType", v)}
-                options={spareItemTypeOptions}
+                options={itemTypeOptions}
               />
             ) : (
               <div className={`${inputClass} flex items-center gap-2 text-slate-300`} aria-readonly>

@@ -20,6 +20,7 @@ import {
   showsInfraMonitorSpecs,
   showsInfraNetworkSpecs,
   isLaptopDevice,
+  resolveAuditWebcam,
   sparePeripheralTag,
   parseLaptopKeyboard,
   parseLaptopPointer,
@@ -54,6 +55,8 @@ type AssetHardwareFields = Asset & {
   mouse?: string | null;
   mouse_type?: string | null;
   mouse_condition?: string | null;
+  webcam?: string | null;
+  webcam_condition?: string | null;
   power_avr_charger_battery?: string | null;
   screen?: string | null;
   screen_condition?: string | null;
@@ -76,6 +79,8 @@ function normalizeAssetRecord(row: Asset): AssetHardwareFields {
     mouse_type: row.mouse_type ?? (raw.mouseType as string | null | undefined) ?? null,
     mouse_condition:
       row.mouse_condition ?? (raw.mouseCondition as string | null | undefined) ?? null,
+    webcam_condition:
+      row.webcam_condition ?? (raw.webcamCondition as string | null | undefined) ?? null,
   };
 }
 
@@ -95,6 +100,8 @@ function assetHardwareWithAuditFallback(row: Asset): AssetHardwareFields {
     mouse: hardware.mouse ?? audit.mouse,
     mouse_type: hardware.mouse_type ?? audit.mouse_type,
     mouse_condition: hardware.mouse_condition ?? audit.mouse_condition,
+    webcam: hardware.webcam ?? audit.webcam,
+    webcam_condition: hardware.webcam_condition ?? audit.webcam_condition,
     gpu: hardware.gpu ?? audit.graphics_gpu,
     network: hardware.network ?? audit.network,
   };
@@ -170,6 +177,9 @@ export function emptyForm(): DeviceFormState {
     mouse: "",
     mouseType: "",
     desktopMouseModel: "",
+    desktopWebcamModel: "",
+    webcam: "",
+    webcamCondition: "",
     powerChargerStatus: "",
     powerBatteryStatus: "",
     powerDesktopConnectionType: "",
@@ -215,6 +225,7 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
   const gpuParsed = parseGpuPair(row.graphics_gpu ?? "");
   const osParsed = parseOperatingSystem(row.operating_system ?? "");
   const savedKeyboardCondition = row.keyboard_condition ?? "";
+  const resolvedWebcam = resolveAuditWebcam(row);
 
   return {
     employeeName: row.employee_name,
@@ -297,6 +308,9 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
     mouse: row.mouse ?? "",
     mouseType: "",
     desktopMouseModel: isLaptopDevice(deviceType) ? "" : (row.mouse ?? ""),
+    desktopWebcamModel: resolvedWebcam.model,
+    webcam: resolvedWebcam.model,
+    webcamCondition: resolvedWebcam.condition,
     powerChargerStatus: powerParsed.charger,
     powerBatteryStatus: powerParsed.battery,
     powerDesktopConnectionType: powerParsed.desktopConnectionType,
@@ -341,6 +355,10 @@ export function formStateFromAsset(row: Asset): DeviceFormState {
   const gpuParsed = parseGpuPair(hardware.gpu ?? "");
   const osParsed = parseOperatingSystem(hardware.os ?? "");
   const savedKeyboardCondition = hardware.keyboard_condition ?? "";
+  const resolvedWebcam = resolveAuditWebcam({
+    webcam: hardware.webcam,
+    webcam_condition: hardware.webcam_condition,
+  });
 
   return {
     ...emptyForm(),
@@ -427,6 +445,9 @@ export function formStateFromAsset(row: Asset): DeviceFormState {
     mouse: hardware.mouse ?? "",
     mouseType: "",
     desktopMouseModel: isLaptopDevice(deviceType) ? "" : (hardware.mouse ?? ""),
+    desktopWebcamModel: resolvedWebcam.model,
+    webcam: resolvedWebcam.model,
+    webcamCondition: resolvedWebcam.condition,
     powerChargerStatus: powerParsed.charger,
     powerBatteryStatus: powerParsed.battery,
     powerDesktopConnectionType: powerParsed.desktopConnectionType,
@@ -506,6 +527,8 @@ export function prepareComposedForm(form: DeviceFormState): DeviceFormState {
     body.mouse = String(body.desktopMouseModel);
     body.mouseType = "";
   }
+
+  body.webcam = String(body.desktopWebcamModel);
 
   body.monitor = composeMonitorRecord(
     String(body.deviceType),
@@ -794,6 +817,8 @@ export function prepareAssetPayload(form: DeviceFormState): Record<string, strin
     if (composed.keyboardCondition) payload.keyboardCondition = composed.keyboardCondition;
     if (composed.mouseType) payload.mouseType = composed.mouseType;
     if (composed.mouseCondition) payload.mouseCondition = composed.mouseCondition;
+    if (composed.webcam) payload.webcam = composed.webcam;
+    if (composed.webcamCondition) payload.webcamCondition = composed.webcamCondition;
   }
 
   Object.keys(payload).forEach((k) => {
