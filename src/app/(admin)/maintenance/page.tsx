@@ -17,6 +17,7 @@ import {
 import { Badge } from "@/components/Badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Drawer } from "@/components/Drawer";
+import { ActiveFilters } from "@/components/ActiveFilters";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { Pagination } from "@/components/Pagination";
@@ -390,7 +391,8 @@ export default function MaintenancePage() {
         subtitle="Hands-on repair and service history for assets — not a helpdesk ticket queue"
       />
       <div className="page-content flex-1 overflow-y-auto">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="mb-4 space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           <FilterSearch
             value={searchInput}
             onChange={setSearchInput}
@@ -501,6 +503,44 @@ export default function MaintenancePage() {
               <Plus className="h-4 w-4" /> New Service Log
             </button>
           )}
+        </div>
+          <ActiveFilters
+            filters={[
+              ...(search
+                ? [
+                    {
+                      key: "search",
+                      label: "Search",
+                      value: search,
+                      onRemove: () => {
+                        setSearchInput("");
+                        setSearch("");
+                        setPage(1);
+                      },
+                    },
+                  ]
+                : []),
+              ...(status
+                ? [
+                    {
+                      key: "status",
+                      label: "Status",
+                      value: labelEnum(status),
+                      onRemove: () => {
+                        setStatus("");
+                        setPage(1);
+                      },
+                    },
+                  ]
+                : []),
+            ]}
+            onClearAll={() => {
+              setSearchInput("");
+              setSearch("");
+              setStatus("");
+              setPage(1);
+            }}
+          />
         </div>
 
         {error && <p className="mb-3 text-sm text-red-400">{error}</p>}

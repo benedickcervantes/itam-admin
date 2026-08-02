@@ -18,6 +18,7 @@ import { AssignmentDetailView } from "@/components/AssignmentDetailView";
 import { AssignmentForm } from "@/components/AssignmentForm";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Drawer } from "@/components/Drawer";
+import { ActiveFilters } from "@/components/ActiveFilters";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { Pagination } from "@/components/Pagination";
@@ -393,7 +394,8 @@ export default function DeviceHistoryPage() {
         subtitle="When someone resigns or changes, transfer all their assets to the new user"
       />
       <div className="page-content flex-1 overflow-y-auto">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="mb-4 space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           <FilterSearch
             value={searchInput}
             onChange={setSearchInput}
@@ -517,6 +519,59 @@ export default function DeviceHistoryPage() {
               <ArrowRightLeft className="h-4 w-4" /> Transfer to new user
             </button>
           )}
+        </div>
+          <ActiveFilters
+            filters={[
+              ...(search
+                ? [
+                    {
+                      key: "search",
+                      label: "Search",
+                      value: search,
+                      onRemove: () => {
+                        setSearchInput("");
+                        setSearch("");
+                        setPage(1);
+                      },
+                    },
+                  ]
+                : []),
+              ...(departmentId
+                ? [
+                    {
+                      key: "department",
+                      label: "Department",
+                      value: departments.find((d) => d.id === departmentId)?.name ?? "Department",
+                      onRemove: () => {
+                        setDepartmentId("");
+                        setPage(1);
+                      },
+                    },
+                  ]
+                : []),
+              ...(statusFilter !== "all"
+                ? [
+                    {
+                      key: "show",
+                      label: "Show",
+                      value:
+                        statusFilter === "active" ? "Current only" : "Previous / Available",
+                      onRemove: () => {
+                        setStatusFilter("all");
+                        setPage(1);
+                      },
+                    },
+                  ]
+                : []),
+            ]}
+            onClearAll={() => {
+              setSearchInput("");
+              setSearch("");
+              setDepartmentId("");
+              setStatusFilter("all");
+              setPage(1);
+            }}
+          />
         </div>
 
         {error && <p className="mb-3 text-sm text-red-400">{error}</p>}

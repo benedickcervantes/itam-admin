@@ -20,6 +20,7 @@ import { AuditDetailView } from "@/components/AuditDetailView";
 import { DeviceFormToolbar } from "@/components/DeviceFormToolbar";
 import { DeviceInventoryForm } from "@/components/DeviceInventoryForm";
 import { Drawer, inputClass, selectClass } from "@/components/Drawer";
+import { ActiveFilters } from "@/components/ActiveFilters";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { Pagination } from "@/components/Pagination";
@@ -414,7 +415,8 @@ export default function AuditRegisterPage() {
     <>
       <Header title="IT Audit Register" subtitle="Employee device audits with peripherals and assessment" />
       <div className="page-content flex-1 overflow-y-auto">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+        <div className="mb-4 space-y-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           <FilterSearch
             value={searchInput}
             onChange={setSearchInput}
@@ -548,6 +550,64 @@ export default function AuditRegisterPage() {
               <Plus className="h-4 w-4" /> New Audit
             </button>
           )}
+        </div>
+          <ActiveFilters
+            filters={[
+              ...(search
+                ? [
+                    {
+                      key: "search",
+                      label: "Search",
+                      value: search,
+                      onRemove: () =>
+                        setFilterAndResetPage(() => {
+                          setSearchInput("");
+                          setSearch("");
+                        }),
+                    },
+                  ]
+                : []),
+              ...(itemNeeded
+                ? [
+                    {
+                      key: "itemNeeded",
+                      label: "Items needed",
+                      value: labelEnum(itemNeeded),
+                      onRemove: () => setFilterAndResetPage(() => setItemNeeded("")),
+                    },
+                  ]
+                : []),
+              ...(auditStatus
+                ? [
+                    {
+                      key: "status",
+                      label: "Status",
+                      value: labelEnum(auditStatus),
+                      onRemove: () => setFilterAndResetPage(() => setAuditStatus("")),
+                    },
+                  ]
+                : []),
+              ...(priority
+                ? [
+                    {
+                      key: "priority",
+                      label: "Priority",
+                      value: labelEnum(priority),
+                      onRemove: () => setFilterAndResetPage(() => setPriority("")),
+                    },
+                  ]
+                : []),
+            ]}
+            onClearAll={() => {
+              setFilterAndResetPage(() => {
+                setSearchInput("");
+                setSearch("");
+                setItemNeeded("");
+                setAuditStatus("");
+                setPriority("");
+              });
+            }}
+          />
         </div>
 
         {error && <p className="mb-3 text-sm text-red-400">{error}</p>}

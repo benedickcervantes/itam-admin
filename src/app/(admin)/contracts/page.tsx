@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Drawer } from "@/components/Drawer";
+import { ActiveFilters } from "@/components/ActiveFilters";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { GenerateContractForm } from "@/components/GenerateContractForm";
 import { Header } from "@/components/Header";
@@ -569,32 +570,38 @@ export default function ContractsPage() {
             </FilterSelect>
           </div>
 
-          {(employeeFilter || search) && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-slate-500">Active filters:</span>
-              {search && (
-                <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-300 ring-1 ring-slate-700">
-                  Search: {search}
-                </span>
-              )}
-              {employeeFilter && (
-                <span className="rounded-md bg-slate-800 px-2 py-0.5 text-xs text-slate-300 ring-1 ring-slate-700">
-                  {employeeFilter}
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={() => {
-                  setSearchInput("");
-                  setSearch("");
-                  setEmployeeFilter("");
-                }}
-                className="text-xs font-medium text-[#2E7D9A] hover:text-[#4a9bb8]"
-              >
-                Clear all
-              </button>
-            </div>
-          )}
+          <ActiveFilters
+            filters={[
+              ...(search
+                ? [
+                    {
+                      key: "search",
+                      label: "Search",
+                      value: search,
+                      onRemove: () => {
+                        setSearchInput("");
+                        setSearch("");
+                      },
+                    },
+                  ]
+                : []),
+              ...(employeeFilter
+                ? [
+                    {
+                      key: "employee",
+                      label: "Employee",
+                      value: employeeFilter,
+                      onRemove: () => setEmployeeFilter(""),
+                    },
+                  ]
+                : []),
+            ]}
+            onClearAll={() => {
+              setSearchInput("");
+              setSearch("");
+              setEmployeeFilter("");
+            }}
+          />
         </div>
 
         {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
