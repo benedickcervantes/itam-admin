@@ -98,6 +98,7 @@ export default function AuditRegisterPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const loadSeq = useRef(0);
 
   const changeViewMode = (mode: ViewMode) => {
     setViewMode(mode);
@@ -176,6 +177,7 @@ export default function AuditRegisterPage() {
   };
 
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     try {
       const res = await fetchAuditRegisters({
@@ -185,15 +187,28 @@ export default function AuditRegisterPage() {
         auditStatus: auditStatus || undefined,
         priority: priority || undefined,
       });
+      if (seq !== loadSeq.current) return;
+
+      if (res.totalPages > 0 && page > res.totalPages) {
+        setPage(1);
+        return;
+      }
+
       setItems(res.items);
-      setTotalPages(res.totalPages);
+      setTotalPages(Math.max(1, res.totalPages || 1));
       setError("");
     } catch (e) {
+      if (seq !== loadSeq.current) return;
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [page, search, itemNeeded, auditStatus, priority]);
+
+  const setFilterAndResetPage = useCallback((apply: () => void) => {
+    setPage(1);
+    apply();
+  }, []);
 
   useEffect(() => {
     if (!success) return;
@@ -406,7 +421,12 @@ export default function AuditRegisterPage() {
             placeholder="Search code, employee, computer, brand, job title..."
             className="w-full sm:flex-1"
           />
-          <FilterSelect label="Items needed" value={itemNeeded} onChange={setItemNeeded} className="w-full sm:w-auto">
+          <FilterSelect
+            label="Items needed"
+            value={itemNeeded}
+            onChange={(v) => setFilterAndResetPage(() => setItemNeeded(v))}
+            className="w-full sm:w-auto"
+          >
             <option value="">All items needed</option>
             {ITEMS_NEEDED_FILTER_OPTIONS.map((item) => (
               <option key={item} value={item}>
@@ -414,7 +434,12 @@ export default function AuditRegisterPage() {
               </option>
             ))}
           </FilterSelect>
-          <FilterSelect label="Status" value={auditStatus} onChange={setAuditStatus} className="w-full sm:w-auto">
+          <FilterSelect
+            label="Status"
+            value={auditStatus}
+            onChange={(v) => setFilterAndResetPage(() => setAuditStatus(v))}
+            className="w-full sm:w-auto"
+          >
             <option value="">All statuses</option>
             {REFERENCE_DATA.auditStatuses.map((s) => (
               <option key={s} value={s}>
@@ -422,7 +447,12 @@ export default function AuditRegisterPage() {
               </option>
             ))}
           </FilterSelect>
-          <FilterSelect label="Priority" value={priority} onChange={setPriority} className="w-full sm:w-auto">
+          <FilterSelect
+            label="Priority"
+            value={priority}
+            onChange={(v) => setFilterAndResetPage(() => setPriority(v))}
+            className="w-full sm:w-auto"
+          >
             <option value="">All priorities</option>
             {REFERENCE_DATA.priorities.map((p) => (
               <option key={p} value={p}>

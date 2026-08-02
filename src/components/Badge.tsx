@@ -61,11 +61,12 @@ export function Badge({
 }) {
   if (!value) return <span className="text-slate-500">—</span>;
   const style = STYLES[value] ?? "bg-slate-700/50 text-slate-200 ring-slate-600/40";
-  const label = compact ? labelEnumCompact(value) : labelEnum(value);
+  const fullLabel = labelEnum(value);
+  const label = compact ? labelEnumCompact(value) : fullLabel;
   return (
     <span
-      title={title ?? (compact ? labelEnum(value) : undefined)}
-      className={`inline-flex max-w-full truncate rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${style} ${className}`}
+      title={title ?? (label !== fullLabel ? fullLabel : undefined)}
+      className={`inline-flex items-center justify-center whitespace-nowrap rounded-full px-2.5 py-1 text-center text-xs font-medium leading-none ring-1 ${style} ${className}`}
     >
       {label}
     </span>

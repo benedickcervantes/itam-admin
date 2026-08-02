@@ -60,6 +60,7 @@ const ITEM_TYPES = Array.from(
     "MOUSE",
     "PRINTER",
     "PROJECTOR",
+    "WEBCAM",
     "UPS",
     "AVR",
     "OTHER",
@@ -102,6 +103,8 @@ export default function AssetsPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  /** Ignores out-of-order filter/page responses (e.g. page 7 finishing after page 1). */
+  const loadSeq = useRef(0);
 
   const changeViewMode = (mode: ViewMode) => {
     setViewMode(mode);
@@ -182,6 +185,7 @@ export default function AssetsPage() {
   };
 
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     try {
       const res = await fetchAssets({
@@ -192,15 +196,29 @@ export default function AssetsPage() {
         employeeStatus: employeeStatus || undefined,
         itemType: itemType || undefined,
       });
+      if (seq !== loadSeq.current) return;
+
+      // Filter shrank the result set while we were still on a high page.
+      if (res.totalPages > 0 && page > res.totalPages) {
+        setPage(1);
+        return;
+      }
+
       setItems(res.items);
-      setTotalPages(res.totalPages);
+      setTotalPages(Math.max(1, res.totalPages || 1));
       setError("");
     } catch (e) {
+      if (seq !== loadSeq.current) return;
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [page, search, departmentId, status, employeeStatus, itemType]);
+
+  const setFilterAndResetPage = useCallback((apply: () => void) => {
+    setPage(1);
+    apply();
+  }, []);
 
   // Deep links from activity logs: /assets?search=AST-0001
   useEffect(() => {
@@ -208,6 +226,7 @@ export default function AssetsPage() {
     if (!q) return;
     setSearchInput(q);
     setSearch(q);
+    setPage(1);
   }, []);
 
   useEffect(() => {
@@ -215,6 +234,7 @@ export default function AssetsPage() {
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
+  // Keep page in range when filters/search change (loadSeq ignores stale high-page responses).
   useEffect(() => {
     setPage(1);
   }, [search, departmentId, status, employeeStatus, itemType]);
@@ -551,7 +571,11 @@ export default function AssetsPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <FilterSelect label="Department" value={departmentId} onChange={setDepartmentId}>
+            <FilterSelect
+              label="Department"
+              value={departmentId}
+              onChange={(v) => setFilterAndResetPage(() => setDepartmentId(v))}
+            >
               <option value="">All departments</option>
               {departments.map((d) => (
                 <option key={d.id} value={d.id}>
@@ -559,7 +583,11 @@ export default function AssetsPage() {
                 </option>
               ))}
             </FilterSelect>
-            <FilterSelect label="Asset status" value={status} onChange={setStatus}>
+            <FilterSelect
+              label="Asset status"
+              value={status}
+              onChange={(v) => setFilterAndResetPage(() => setStatus(v))}
+            >
               <option value="">All statuses</option>
               {REFERENCE_DATA.assetStatuses.map((s) => (
                 <option key={s} value={s}>
@@ -567,7 +595,11 @@ export default function AssetsPage() {
                 </option>
               ))}
             </FilterSelect>
-            <FilterSelect label="Employee status" value={employeeStatus} onChange={setEmployeeStatus}>
+            <FilterSelect
+              label="Employee status"
+              value={employeeStatus}
+              onChange={(v) => setFilterAndResetPage(() => setEmployeeStatus(v))}
+            >
               <option value="">All employee statuses</option>
               {REFERENCE_DATA.employeeStatuses.map((s) => (
                 <option key={s} value={s}>
@@ -575,7 +607,11 @@ export default function AssetsPage() {
                 </option>
               ))}
             </FilterSelect>
-            <FilterSelect label="Item type" value={itemType} onChange={setItemType}>
+            <FilterSelect
+              label="Item type"
+              value={itemType}
+              onChange={(v) => setFilterAndResetPage(() => setItemType(v))}
+            >
               <option value="">All types</option>
               {ITEM_TYPES.map((t) => (
                 <option key={t} value={t}>
@@ -616,12 +652,14 @@ export default function AssetsPage() {
               <button
                 type="button"
                 onClick={() => {
-                  setSearchInput("");
-                  setSearch("");
-                  setDepartmentId("");
-                  setStatus("");
-                  setEmployeeStatus("");
-                  setItemType("");
+                  setFilterAndResetPage(() => {
+                    setSearchInput("");
+                    setSearch("");
+                    setDepartmentId("");
+                    setStatus("");
+                    setEmployeeStatus("");
+                    setItemType("");
+                  });
                 }}
                 className="text-xs font-medium text-[#2E7D9A] hover:text-[#4a9bb8]"
               >
@@ -646,8 +684,8 @@ export default function AssetsPage() {
                   <col style={{ width: "12%" }} />
                   <col style={{ width: "11%" }} />
                   <col style={{ width: "9%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "8%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -695,7 +733,7 @@ export default function AssetsPage() {
                           <Badge value={row.status} />
                         </td>
                         <td>
-                          <Badge value={row.condition} />
+                          <Badge value={row.condition} compact />
                         </td>
                         <td onClick={(e) => e.stopPropagation()}>
                           {renderRowActions(row)}
@@ -743,7 +781,7 @@ export default function AssetsPage() {
                     </dl>
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       <Badge value={row.status} />
-                      <Badge value={row.condition} />
+                      <Badge value={row.condition} compact />
                       {row.status !== "AVAILABLE" &&
                         row.status !== "RESERVED" &&
                         row.assigned_to &&

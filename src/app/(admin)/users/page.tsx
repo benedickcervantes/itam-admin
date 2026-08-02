@@ -187,10 +187,16 @@ export default function UsersPage() {
   }, [items, search, roleFilter, departmentFilter, activeFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // Client-side paging: never read past the last page after filters shrink the list.
+  const safePage = Math.min(page, totalPages);
+  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const hasActiveFilters = Boolean(searchInput || search || roleFilter || departmentFilter || activeFilter);
-  const rangeStart = filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(page * PAGE_SIZE, filtered.length);
+  const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safePage * PAGE_SIZE, filtered.length);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const clearFilters = () => {
     setSearchInput("");
@@ -487,19 +493,43 @@ export default function UsersPage() {
             placeholder="Search name or email..."
             className="w-full sm:flex-1"
           />
-          <FilterSelect label="Role" value={roleFilter} onChange={setRoleFilter} className="w-full sm:w-auto">
+          <FilterSelect
+            label="Role"
+            value={roleFilter}
+            onChange={(v) => {
+              setPage(1);
+              setRoleFilter(v);
+            }}
+            className="w-full sm:w-auto"
+          >
             <option value="">All roles</option>
             {ROLES.map((role) => (
               <option key={role} value={role}>{labelEnum(role)}</option>
             ))}
           </FilterSelect>
-          <FilterSelect label="Department" value={departmentFilter} onChange={setDepartmentFilter} className="w-full sm:w-auto">
+          <FilterSelect
+            label="Department"
+            value={departmentFilter}
+            onChange={(v) => {
+              setPage(1);
+              setDepartmentFilter(v);
+            }}
+            className="w-full sm:w-auto"
+          >
             <option value="">All departments</option>
             {departments.map((d) => (
               <option key={d.id} value={d.id}>{d.name}</option>
             ))}
           </FilterSelect>
-          <FilterSelect label="Status" value={activeFilter} onChange={setActiveFilter} className="w-full sm:w-auto">
+          <FilterSelect
+            label="Status"
+            value={activeFilter}
+            onChange={(v) => {
+              setPage(1);
+              setActiveFilter(v);
+            }}
+            className="w-full sm:w-auto"
+          >
             <option value="">All statuses</option>
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
@@ -736,7 +766,7 @@ export default function UsersPage() {
                 </>
               )}
             </p>
-            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+            <Pagination page={safePage} totalPages={totalPages} onPageChange={setPage} />
           </>
         )}
       </div>

@@ -38,6 +38,8 @@ export type AuditRegister = {
   mouse?: string | null;
   mouse_type?: string | null;
   mouse_condition?: string | null;
+  webcam?: string | null;
+  webcam_condition?: string | null;
   power_avr_charger_battery?: string | null;
   audit_date?: string | null;
   audit_status?: string;
@@ -85,6 +87,8 @@ export type Asset = {
   mouse?: string | null;
   mouse_type?: string | null;
   mouse_condition?: string | null;
+  webcam?: string | null;
+  webcam_condition?: string | null;
   screen?: string | null;
   screen_condition?: string | null;
   ram_slots_used?: string | null;
@@ -111,6 +115,8 @@ export type Asset = {
     mouse?: string | null;
     mouse_type?: string | null;
     mouse_condition?: string | null;
+    webcam?: string | null;
+    webcam_condition?: string | null;
   } | null;
 };
 

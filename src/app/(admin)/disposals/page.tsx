@@ -103,6 +103,7 @@ export default function DisposalsPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const loadSeq = useRef(0);
 
   const changeViewMode = (mode: ViewMode) => {
     setViewMode(mode);
@@ -177,6 +178,7 @@ export default function DisposalsPage() {
   };
 
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     try {
       const res = await fetchDisposals({
@@ -184,13 +186,19 @@ export default function DisposalsPage() {
         search: search || undefined,
         disposalMethod: methodFilter || undefined,
       });
+      if (seq !== loadSeq.current) return;
+      if (res.totalPages > 0 && page > res.totalPages) {
+        setPage(1);
+        return;
+      }
       setItems(res.items);
-      setTotalPages(res.totalPages);
+      setTotalPages(Math.max(1, res.totalPages || 1));
       setError("");
     } catch (e) {
+      if (seq !== loadSeq.current) return;
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [page, search, methodFilter]);
 
@@ -376,7 +384,15 @@ export default function DisposalsPage() {
             placeholder="Search record, asset, computer, brand, serial, reason..."
             className="w-full sm:flex-1"
           />
-          <FilterSelect label="Method" value={methodFilter} onChange={setMethodFilter} className="w-full sm:w-auto">
+          <FilterSelect
+            label="Method"
+            value={methodFilter}
+            onChange={(v) => {
+              setPage(1);
+              setMethodFilter(v);
+            }}
+            className="w-full sm:w-auto"
+          >
             <option value="">All methods</option>
             {REFERENCE_DATA.disposalMethods.map((s) => (
               <option key={s} value={s}>

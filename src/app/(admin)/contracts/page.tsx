@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
   Download,
@@ -120,7 +120,10 @@ export default function ContractsPage() {
     return [...set].sort((a, b) => a.localeCompare(b));
   }, [assignees, items]);
 
+  const loadSeq = useRef(0);
+
   const load = useCallback(async () => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     setError("");
     try {
@@ -130,13 +133,19 @@ export default function ContractsPage() {
         search: search || undefined,
         employeeName: employeeFilter || undefined,
       });
+      if (seq !== loadSeq.current) return;
+      if ((res.totalPages || 0) > 0 && page > (res.totalPages || 1)) {
+        setPage(1);
+        return;
+      }
       setItems(res.items);
-      setTotalPages(res.totalPages || 1);
+      setTotalPages(Math.max(1, res.totalPages || 1));
       setTotal(res.total || 0);
     } catch (err) {
+      if (seq !== loadSeq.current) return;
       setError(err instanceof Error ? err.message : "Failed to load contracts");
     } finally {
-      setLoading(false);
+      if (seq === loadSeq.current) setLoading(false);
     }
   }, [page, search, employeeFilter]);
 
@@ -543,7 +552,14 @@ export default function ContractsPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <FilterSelect label="Employee" value={employeeFilter} onChange={setEmployeeFilter}>
+            <FilterSelect
+              label="Employee"
+              value={employeeFilter}
+              onChange={(v) => {
+                setPage(1);
+                setEmployeeFilter(v);
+              }}
+            >
               <option value="">All employees</option>
               {employeeOptions.map((name) => (
                 <option key={name} value={name}>

@@ -29,6 +29,7 @@ export type AssetExportColumnKey =
   | "monitor"
   | "keyboard"
   | "mouse"
+  | "webcam"
   | "printer"
   | "location"
   | "managementIp"
@@ -112,6 +113,7 @@ const COLUMN_SECTIONS: ColumnSection[] = [
       { key: "monitor", header: "Monitor", width: 26, value: (r) => r.monitor ?? "" },
       { key: "keyboard", header: "Keyboard", width: 18, value: (r) => r.keyboard ?? "" },
       { key: "mouse", header: "Mouse", width: 16, value: (r) => r.mouse ?? "" },
+      { key: "webcam", header: "Webcam", width: 18, value: (r) => r.webcam ?? "" },
       { key: "printer", header: "Printer", width: 24, value: (r) => r.printer ?? "" },
     ],
   },
