@@ -220,12 +220,16 @@ export default function DashboardPage() {
       <div className="page-content flex-1 overflow-y-auto" style={{ paddingTop: 0 }}>
         <DashboardSectionNav sections={SECTIONS} toolbar={toolbar} />
         {readOnly && (
-          <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-200 sm:text-sm">
-            <Eye className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-            <p>
-              Your account has <span className="font-semibold">view-only</span> permissions. You may review and
-              monitor all dashboards and records; modifications are restricted to administrators.
-            </p>
+          <div className="mb-4 flex items-start gap-3 rounded-lg border border-slate-600/60 bg-slate-800/40 px-3.5 py-3">
+            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-slate-700/70 ring-1 ring-slate-600/70">
+              <Eye className="h-4 w-4 text-[#7EC8DC]" aria-hidden />
+            </span>
+            <div className="min-w-0 pt-0.5">
+              <p className="text-sm font-medium text-slate-100">View-only access</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-slate-400 sm:text-[13px]">
+                You can browse dashboards and records. Creating, editing, and deleting are limited to administrators.
+              </p>
+            </div>
           </div>
         )}
         {error && <p className="mb-4 text-red-400">{error}</p>}

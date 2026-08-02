@@ -226,8 +226,9 @@ export function exportAssetsPdf(
   th.opt { background: #3E8EAD; color: #fff; font-weight: 600; }
   tbody tr:nth-child(even) td { background: #EFF5F8; }
   .note { font-size: 8px; color: #64748b; font-style: italic; padding: 8px 14px 0; }
+  thead { display: table-header-group; }
   @media print {
-    @page { size: landscape; margin: 8mm; }
+    @page { size: A4 landscape; margin: 8mm; }
     body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     th.section, th.sec-a, th.sec-b, th.req, th.opt, .banner { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     tbody tr:nth-child(even) td { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -239,7 +240,7 @@ export function exportAssetsPdf(
   <div class="meta">
     <span><strong>Total records:</strong> ${rows.length}</span>
     <span><strong>Generated:</strong> ${escapeHtml(generatedAt)}</span>
-    ${filterSummary ? `<span><strong>Filters:</strong> ${escapeHtml(filterSummary)}</span>` : ""}
+    ${filterSummary ? `<span><strong>Filters:</strong> ${escapeHtml(filterSummary)}</span>` : "<span><strong>Filters:</strong> None (all records)</span>"}
   </div>
   <div class="table-wrap">
     <table>
@@ -250,7 +251,7 @@ export function exportAssetsPdf(
       <tbody>${bodyRows || `<tr><td colspan="${totalCols}">No records</td></tr>`}</tbody>
     </table>
   </div>
-  <div class="note">Blue headers ( * ) = required fields  |  Linked to IT Audit Register via Linked Audit</div>
+  <div class="note">Blue headers ( * ) = required fields  |  Linked to IT Audit Register via Linked Audit  |  Tip: turn off Headers and footers in the print dialog for a clean PDF.</div>
 </body>
 </html>`;
 
