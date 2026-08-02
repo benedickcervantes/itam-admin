@@ -29,15 +29,21 @@ function FormSection({
   description,
   icon: Icon,
   children,
+  dataTour,
 }: {
   id: string;
   title: string;
   description?: string;
   icon: LucideIcon;
   children: React.ReactNode;
+  dataTour?: string;
 }) {
   return (
-    <section id={id} className="scroll-mt-4 rounded-xl border border-slate-700/60 bg-slate-900/30">
+    <section
+      id={id}
+      data-tour={dataTour}
+      className="scroll-mt-4 rounded-xl border border-slate-700/60 bg-slate-900/30"
+    >
       <div className="flex items-start gap-3 border-b border-slate-700/60 px-4 py-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#2E7D9A]/15 text-[#2E7D9A]">
           <Icon className="h-4 w-4" />
@@ -275,6 +281,7 @@ export function MaintenanceForm({
 
       <FormSection
         id="maintenance-device"
+        dataTour="service-form-device"
         title="Asset & User"
         description="Search inventory, then confirm who the device belongs to."
         icon={User}
@@ -388,6 +395,7 @@ export function MaintenanceForm({
 
       <FormSection
         id="maintenance-issue"
+        dataTour="service-form-issue"
         title="Fault & Work Done"
         description="What was wrong with the asset, and what IT physically did."
         icon={Wrench}
@@ -442,6 +450,7 @@ export function MaintenanceForm({
 
       <FormSection
         id="maintenance-status"
+        dataTour="service-form-status"
         title="Status & Timeline"
         description="Track service progress and who performed the work."
         icon={Calendar}

@@ -24,15 +24,20 @@ function FormSection({
   icon: Icon,
   children,
   aside,
+  dataTour,
 }: {
   title: string;
   description?: string;
   icon: LucideIcon;
   children: React.ReactNode;
   aside?: React.ReactNode;
+  dataTour?: string;
 }) {
   return (
-    <section className="rounded-xl border border-slate-700/60 bg-slate-900/30">
+    <section
+      data-tour={dataTour}
+      className="rounded-xl border border-slate-700/60 bg-slate-900/30"
+    >
       <div className="flex items-start justify-between gap-3 border-b border-slate-700/60 px-4 py-3">
         <div className="flex min-w-0 items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#2E7D9A]/15 text-[#2E7D9A]">
@@ -167,6 +172,7 @@ export function GenerateContractForm({
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-4">
           <FormSection
+            dataTour="dca-form-employee"
             title="Employee"
             description="Pulled from ITAM assignees with assigned assets"
             icon={UserRound}
@@ -210,6 +216,7 @@ export function GenerateContractForm({
           </FormSection>
 
           <FormSection
+            dataTour="dca-form-details"
             title="Agreement details"
             description="Shown on the employee box of the PDF"
             icon={CalendarDays}
@@ -238,6 +245,7 @@ export function GenerateContractForm({
         </div>
 
         <FormSection
+          dataTour="dca-form-assets"
           title="Assets to include"
           description="Section IX will list these from the live inventory"
           icon={HardDrive}

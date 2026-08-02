@@ -9,18 +9,22 @@ export function FormSection({
   icon: Icon,
   children,
   defaultOpen = true,
+  dataTour,
 }: {
   id?: string;
   title: string;
   icon?: LucideIcon;
   children: ReactNode;
   defaultOpen?: boolean;
+  /** Optional spotlight-tour target attribute. */
+  dataTour?: string;
 }) {
   const [open, setOpen] = useState(defaultOpen);
 
   return (
     <section
       id={id}
+      data-tour={dataTour}
       className={`overflow-hidden rounded-xl border border-slate-700/70 bg-slate-900/25 ${id ? "scroll-mt-3" : ""}`}
     >
       <button

@@ -19,10 +19,18 @@ export function resolveBackendFetchUrl(path: string): string {
   return pathPart;
 }
 
-import { clearSession, getAccessToken } from "../auth/session";
+import { forceSessionExpiredLogout, getAccessToken } from "../auth/session";
 
 export function getStoredAccessToken(): string | null {
   return getAccessToken();
+}
+
+/** Password-check endpoints return 401 for wrong password — do not treat as session expiry. */
+function isSessionAuthFailure(path: string, options: { auth?: boolean }): boolean {
+  if (!options.auth) return false;
+  const normalized = path.split("?")[0] ?? path;
+  if (normalized.includes("/auth/verify-password")) return false;
+  return true;
 }
 
 const STATUS_MESSAGES: Record<number, string> = {
@@ -134,14 +142,21 @@ export async function apiJson<T>(path: string, options: ApiFetchOptions = {}): P
     res = await apiFetch(path, options);
   } catch (err) {
     if (err instanceof Error && /authentication required/i.test(err.message)) {
+      if (typeof window !== "undefined" && isSessionAuthFailure(path, options)) {
+        forceSessionExpiredLogout();
+      }
       throw new Error(STATUS_MESSAGES[401]);
     }
     throw new Error("Unable to reach the server. Check your connection and try again.");
   }
   const payload = await res.json().catch(() => ({}));
   if (!res.ok) {
-    if (res.status === 401 && options.auth && typeof window !== "undefined") {
-      clearSession();
+    if (
+      res.status === 401 &&
+      typeof window !== "undefined" &&
+      isSessionAuthFailure(path, options)
+    ) {
+      forceSessionExpiredLogout();
     }
     throw new Error(
       normalizeErrorMessage(payload, STATUS_MESSAGES[res.status] ?? `Request failed (${res.status})`, res.status),

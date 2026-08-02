@@ -25,7 +25,9 @@ import { UserExportColumnDialog } from "@/components/UserExportColumnDialog";
 import { ActiveFilters } from "@/components/ActiveFilters";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
+import { TourEmptyCta, TourNudge, useTourHint } from "@/components/TourNudge";
 import { Pagination } from "@/components/Pagination";
+import { SpotlightTour, shouldAutoStartTour, type TourStep } from "@/components/SpotlightTour";
 import { CardGridSkeleton, TableSkeleton } from "@/components/TableSkeleton";
 import { useSessionUser } from "@/components/SessionContext";
 import { fetchDepartments } from "@/lib/api/departments";
@@ -40,6 +42,7 @@ import {
 } from "@/lib/export-users";
 import { labelEnum } from "@/lib/labels";
 import { matchesSearchTokens } from "@/lib/search";
+import { USERS_TOUR_STORAGE_KEY, getUsersTourSteps } from "@/lib/tours/users";
 import { validateUserForm } from "@/lib/user-form";
 import type { AdminUser, Department } from "@/lib/types";
 
@@ -117,7 +120,15 @@ export default function UsersPage() {
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [tourOpen, setTourOpen] = useState(false);
+  const { showHint, showPulse, dismissHint } = useTourHint(USERS_TOUR_STORAGE_KEY, tourOpen, sessionUser.id);
+  const startTour = () => {
+    dismissHint();
+    setTourOpen(true);
+  };
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const tourAutoStarted = useRef(false);
+  const tourOpenedForm = useRef(false);
 
   const changeViewMode = (mode: ViewMode) => {
     setViewMode(mode);
@@ -175,6 +186,15 @@ export default function UsersPage() {
     const timer = window.setTimeout(() => setSuccess(""), 5000);
     return () => window.clearTimeout(timer);
   }, [success]);
+
+  // First visit: auto-start the spotlight tour once loading settles.
+  useEffect(() => {
+    if (!allowed || tourAutoStarted.current || loading) return;
+    if (!shouldAutoStartTour(USERS_TOUR_STORAGE_KEY)) return;
+    tourAutoStarted.current = true;
+    const t = window.setTimeout(() => setTourOpen(true), 450);
+    return () => window.clearTimeout(t);
+  }, [allowed, loading]);
 
   const filtered = useMemo(() => {
     return items.filter((row) => {
@@ -290,6 +310,33 @@ export default function UsersPage() {
     setFieldErrors({});
   };
 
+  const tourSteps = useMemo(() => getUsersTourSteps(write), [write]);
+
+  const handleTourStepChange = useCallback((step: TourStep | null) => {
+    const needsForm = Boolean(step?.id?.startsWith("users-form"));
+    if (needsForm) {
+      if (!tourOpenedForm.current) {
+        setEditing(null);
+        setForm(emptyForm());
+        setSaving(false);
+        setError("");
+        setFieldErrors({});
+        tourOpenedForm.current = true;
+      }
+      setDrawerMode("create");
+      setDrawerOpen(true);
+      return;
+    }
+    if (tourOpenedForm.current) {
+      setDrawerOpen(false);
+      setSaving(false);
+      setDrawerMode("create");
+      setError("");
+      setFieldErrors({});
+      tourOpenedForm.current = false;
+    }
+  }, []);
+
   const openView = (row: AdminUser) => {
     setEditing(row);
     setForm(formFromUser(row));
@@ -382,8 +429,8 @@ export default function UsersPage() {
     return true;
   };
 
-  const renderRowActions = (row: AdminUser) => (
-    <div className="flex items-center gap-1">
+  const renderRowActions = (row: AdminUser, tourTarget = false) => (
+    <div className="flex items-center gap-1" {...(tourTarget ? { "data-tour": "users-actions" } : {})}>
       <button
         type="button"
         onClick={(e) => {
@@ -466,9 +513,12 @@ export default function UsersPage() {
       <Header
         title="User Management"
         subtitle={write ? "Create and manage IT admin and viewer accounts" : "View user accounts (read-only)"}
+        onHowItWorks={startTour}
+        howItWorksPulse={showPulse}
       />
       <div className="page-content flex-1 overflow-y-auto">
-        <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <TourNudge show={showHint} onDismiss={dismissHint} onStart={startTour} />
+        <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" data-tour="users-kpis">
           <div className="card px-4 py-3">
             <p className="text-xs uppercase tracking-wide text-slate-500">Total Users</p>
             <p className="mt-1 text-2xl font-semibold text-white">{stats.total}</p>
@@ -489,54 +539,63 @@ export default function UsersPage() {
 
         <div className="mb-4 space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-          <FilterSearch
-            value={searchInput}
-            onChange={setSearchInput}
-            placeholder="Search name or email..."
-            className="w-full sm:flex-1"
-          />
-          <FilterSelect
-            label="Role"
-            value={roleFilter}
-            onChange={(v) => {
-              setPage(1);
-              setRoleFilter(v);
-            }}
-            className="w-full sm:w-auto"
+          <div data-tour="users-search" className="w-full sm:flex-1">
+            <FilterSearch
+              value={searchInput}
+              onChange={setSearchInput}
+              placeholder="Search name or email..."
+              className="w-full"
+            />
+          </div>
+          <div data-tour="users-filters" className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-end">
+            <FilterSelect
+              label="Role"
+              value={roleFilter}
+              onChange={(v) => {
+                setPage(1);
+                setRoleFilter(v);
+              }}
+              className="w-full sm:w-auto"
+            >
+              <option value="">All roles</option>
+              {ROLES.map((role) => (
+                <option key={role} value={role}>{labelEnum(role)}</option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              label="Department"
+              value={departmentFilter}
+              onChange={(v) => {
+                setPage(1);
+                setDepartmentFilter(v);
+              }}
+              className="w-full sm:w-auto"
+            >
+              <option value="">All departments</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              label="Status"
+              value={activeFilter}
+              onChange={(v) => {
+                setPage(1);
+                setActiveFilter(v);
+              }}
+              className="w-full sm:w-auto"
+            >
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </FilterSelect>
+          </div>
+          <div
+            data-tour="users-view-mode"
+            className="inline-flex rounded-lg border border-slate-600 p-0.5"
+            role="group"
+            aria-label="View mode"
           >
-            <option value="">All roles</option>
-            {ROLES.map((role) => (
-              <option key={role} value={role}>{labelEnum(role)}</option>
-            ))}
-          </FilterSelect>
-          <FilterSelect
-            label="Department"
-            value={departmentFilter}
-            onChange={(v) => {
-              setPage(1);
-              setDepartmentFilter(v);
-            }}
-            className="w-full sm:w-auto"
-          >
-            <option value="">All departments</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>{d.name}</option>
-            ))}
-          </FilterSelect>
-          <FilterSelect
-            label="Status"
-            value={activeFilter}
-            onChange={(v) => {
-              setPage(1);
-              setActiveFilter(v);
-            }}
-            className="w-full sm:w-auto"
-          >
-            <option value="">All statuses</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </FilterSelect>
-          <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="View mode">
             <button
               type="button"
               onClick={() => changeViewMode("table")}
@@ -562,7 +621,7 @@ export default function UsersPage() {
               <span className="hidden sm:inline">Grid</span>
             </button>
           </div>
-          <div className="relative w-full sm:w-auto" ref={exportMenuRef}>
+          <div className="relative w-full sm:w-auto" ref={exportMenuRef} data-tour="users-export">
             <button
               type="button"
               onClick={() => setExportMenuOpen((o) => !o)}
@@ -618,6 +677,7 @@ export default function UsersPage() {
           {write && (
             <button
               type="button"
+              data-tour="users-new"
               onClick={openCreate}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2 text-sm font-medium text-white sm:w-auto"
             >
@@ -688,6 +748,7 @@ export default function UsersPage() {
         {success && <p className="mb-3 text-sm text-emerald-400">{success}</p>}
         {error && !drawerOpen && <p className="mb-3 text-sm text-red-400">{error}</p>}
 
+        <div data-tour="users-list">
         {loading ? (
           viewMode === "grid" ? (
             <CardGridSkeleton count={8} />
@@ -719,6 +780,7 @@ export default function UsersPage() {
             <p className="mt-1 text-sm text-slate-500">
               {items.length === 0 ? "Create the first user account to get started." : "Try adjusting your search or filters."}
             </p>
+            <TourEmptyCta onStart={startTour} />
             {write && items.length === 0 && (
               <button type="button" onClick={openCreate} className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2 text-sm text-white">
                 <Plus className="h-4 w-4" /> New User
@@ -736,7 +798,7 @@ export default function UsersPage() {
           </div>
         ) : viewMode === "grid" ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {paged.map((row) => (
+            {paged.map((row, rowIndex) => (
               <div
                 key={row.id}
                 className="card cursor-pointer p-4 transition hover:border-[#2E7D9A]/50 hover:bg-slate-800/40"
@@ -759,7 +821,7 @@ export default function UsersPage() {
                   </div>
                 </div>
                 <div className="mt-3 flex justify-end border-t border-slate-700/60 pt-3" onClick={(e) => e.stopPropagation()}>
-                  {renderRowActions(row)}
+                  {renderRowActions(row, rowIndex === 0)}
                 </div>
               </div>
             ))}
@@ -780,7 +842,7 @@ export default function UsersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {paged.map((row) => (
+                  {paged.map((row, rowIndex) => (
                     <tr
                       key={row.id}
                       className="cursor-pointer"
@@ -792,7 +854,9 @@ export default function UsersPage() {
                       <td>{row.department?.name ?? "—"}</td>
                       <td><Badge value={row.is_active ? "ACTIVE" : "INACTIVE"} /></td>
                       <td className="text-slate-400">{formatDate(row.created_at)}</td>
-                      <td onClick={(e) => e.stopPropagation()}>{renderRowActions(row)}</td>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        {renderRowActions(row, rowIndex === 0)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -800,6 +864,7 @@ export default function UsersPage() {
             </div>
           </div>
         )}
+        </div>
 
         {!loading && filtered.length > 0 && (
           <>
@@ -837,6 +902,7 @@ export default function UsersPage() {
               : "Account summary"
         }
         onClose={closeDrawer}
+        dataTour={drawerMode === "create" && !editing ? "users-form-drawer" : undefined}
         banner={
           error && drawerOpen ? (
             <p className="rounded-lg border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-400">
@@ -875,6 +941,7 @@ export default function UsersPage() {
               <button
                 type="button"
                 disabled={saving}
+                data-tour={!editing ? "users-form-save" : undefined}
                 onClick={() => void save()}
                 className="inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 text-sm font-medium leading-none text-white hover:bg-[#256b85] disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -937,6 +1004,14 @@ export default function UsersPage() {
           }
         }}
         onConfirm={(password) => void confirmStatusChange(password)}
+      />
+
+      <SpotlightTour
+        open={tourOpen}
+        steps={tourSteps}
+        storageKey={USERS_TOUR_STORAGE_KEY}
+        onStepChange={handleTourStepChange}
+        onClose={() => setTourOpen(false)}
       />
     </>
   );
