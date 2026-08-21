@@ -14,6 +14,7 @@ export function ConfirmDialog({
   error,
   requirePassword = false,
   passwordLabel = "Enter your password to confirm",
+  tone = "danger",
   onConfirm,
   onCancel,
 }: {
@@ -27,6 +28,8 @@ export function ConfirmDialog({
   error?: string;
   requirePassword?: boolean;
   passwordLabel?: string;
+  /** danger = red (delete); primary = teal (non-destructive confirm) */
+  tone?: "danger" | "primary";
   onConfirm: (password: string) => void;
   onCancel: () => void;
 }) {
@@ -79,7 +82,13 @@ export function ConfirmDialog({
         </button>
 
         <div className="flex gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-red-950/50 text-red-400">
+          <div
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
+              tone === "primary"
+                ? "bg-[#2E7D9A]/20 text-[#2E7D9A]"
+                : "bg-red-950/50 text-red-400"
+            }`}
+          >
             <AlertTriangle className="h-5 w-5" />
           </div>
           <div className="min-w-0 pr-6">
@@ -135,7 +144,11 @@ export function ConfirmDialog({
             type="button"
             onClick={submit}
             disabled={!canConfirm}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 text-sm font-medium text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+            className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60 ${
+              tone === "primary"
+                ? "bg-[#2E7D9A] hover:bg-[#256b85]"
+                : "bg-red-600 hover:bg-red-500"
+            }`}
           >
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {loading ? loadingLabel : confirmLabel}

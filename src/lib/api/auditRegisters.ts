@@ -11,6 +11,8 @@ export type AuditQuery = {
   auditStatus?: string;
   overallAssessment?: string;
   priority?: string;
+  /** AVAILABLE = Unassigned spare device; ASSIGNED = named employee. */
+  deviceAvailability?: "AVAILABLE" | "ASSIGNED";
 };
 
 export function fetchAuditRegisters(query: AuditQuery = {}) {

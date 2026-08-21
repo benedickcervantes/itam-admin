@@ -11,6 +11,7 @@ import {
   List,
   Loader2,
   Pencil,
+  PackageOpen,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -73,6 +74,11 @@ const ITEMS_NEEDED_FILTER_OPTIONS = [
   ...REFERENCE_DATA.replacementOnlyComponents,
 ] as const;
 
+function isUnassignedEmployee(name?: string | null) {
+  const trimmed = name?.trim() ?? "";
+  return !trimmed || /^unassigned$/i.test(trimmed);
+}
+
 export default function AuditRegisterPage() {
   const user = useSessionUser();
   const write = canWrite(user);
@@ -83,6 +89,7 @@ export default function AuditRegisterPage() {
   const [itemNeeded, setItemNeeded] = useState("");
   const [auditStatus, setAuditStatus] = useState("");
   const [priority, setPriority] = useState("");
+  const [deviceAvailability, setDeviceAvailability] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -101,6 +108,9 @@ export default function AuditRegisterPage() {
   const [deleteTarget, setDeleteTarget] = useState<AuditRegister | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [availableTarget, setAvailableTarget] = useState<AuditRegister | null>(null);
+  const [markingAvailable, setMarkingAvailable] = useState(false);
+  const [availableError, setAvailableError] = useState("");
   const [tourOpen, setTourOpen] = useState(false);
   const { showHint, showPulse, dismissHint } = useTourHint(AUDIT_TOUR_STORAGE_KEY, tourOpen, user.id);
   const startTour = () => {
@@ -134,6 +144,8 @@ export default function AuditRegisterPage() {
     if (itemNeeded) parts.push(`Items needed: ${labelEnum(itemNeeded)}`);
     if (auditStatus) parts.push(`Status: ${auditStatus}`);
     if (priority) parts.push(`Priority: ${labelEnum(priority)}`);
+    if (deviceAvailability === "AVAILABLE") parts.push("Device: Available");
+    if (deviceAvailability === "ASSIGNED") parts.push("Device: Assigned");
     return parts.length ? parts.join(" · ") : "None (all records)";
   };
 
@@ -165,6 +177,10 @@ export default function AuditRegisterPage() {
         upgradeComponent: itemNeeded || undefined,
         auditStatus: auditStatus || undefined,
         priority: priority || undefined,
+        deviceAvailability:
+          deviceAvailability === "AVAILABLE" || deviceAvailability === "ASSIGNED"
+            ? deviceAvailability
+            : undefined,
       });
       if (rows.length === 0) {
         setError("No audit records match the current filters to export.");
@@ -198,6 +214,10 @@ export default function AuditRegisterPage() {
         upgradeComponent: itemNeeded || undefined,
         auditStatus: auditStatus || undefined,
         priority: priority || undefined,
+        deviceAvailability:
+          deviceAvailability === "AVAILABLE" || deviceAvailability === "ASSIGNED"
+            ? deviceAvailability
+            : undefined,
       });
       if (seq !== loadSeq.current) return;
 
@@ -215,7 +235,7 @@ export default function AuditRegisterPage() {
     } finally {
       if (seq === loadSeq.current) setLoading(false);
     }
-  }, [page, search, itemNeeded, auditStatus, priority]);
+  }, [page, search, itemNeeded, auditStatus, priority, deviceAvailability]);
 
   const setFilterAndResetPage = useCallback((apply: () => void) => {
     setPage(1);
@@ -381,6 +401,41 @@ export default function AuditRegisterPage() {
     }
   };
 
+  const confirmMarkAvailable = async () => {
+    if (!availableTarget || markingAvailable) return;
+    setMarkingAvailable(true);
+    setAvailableError("");
+    try {
+      // Load full audit so linked PC-set peripherals stay intact on sync.
+      const full = await fetchAuditRegister(availableTarget.id);
+      const updated = await updateAuditRegister(full.id, {
+        employeeName: "Unassigned",
+        computerName: full.computer_name,
+        departmentId: null,
+        jobTitle: null,
+        employeeStatus: null,
+        assetStatus: "AVAILABLE",
+      });
+      setAvailableTarget(null);
+      setError("");
+      const assetCount = updated.assets?.length ?? updated.assets_created ?? 0;
+      setSuccess(
+        assetCount > 0
+          ? `${updated.audit_code} held as Available — ${assetCount} asset${assetCount === 1 ? "" : "s"} in the PC set are spare on Assets. Check Device History (Previous / Available) for the last user. When a replacement is hired, use Device History → Transfer to new user.`
+          : `${updated.audit_code} held as Available. Check Device History for the last user. When a replacement is hired, use Transfer to new user.`,
+      );
+      if (editing?.id === updated.id) {
+        setEditing(updated);
+        if (drawerMode === "edit") setForm(formStateFromAudit(updated));
+      }
+      await load();
+    } catch (e) {
+      setAvailableError(e instanceof Error ? e.message : "Failed to mark as available");
+    } finally {
+      setMarkingAvailable(false);
+    }
+  };
+
   const renderRowActions = (row: AuditRegister, tourTarget = false) => (
     <div className="flex items-center gap-1" {...(tourTarget ? { "data-tour": "audit-actions" } : {})}>
       <button
@@ -443,6 +498,9 @@ export default function AuditRegisterPage() {
           next.jobTitle = "";
           next.departmentId = "";
           next.employeeStatus = "";
+          if (String(next.status) === "IN_USE") next.status = "AVAILABLE";
+        } else if (String(next.status) === "AVAILABLE") {
+          next.status = "IN_USE";
         }
       }
       return next;
@@ -469,24 +527,118 @@ export default function AuditRegisterPage() {
       <div className="page-content flex-1 overflow-y-auto">
         <TourNudge show={showHint} onDismiss={dismissHint} onStart={startTour} />
         <div className="mb-4 space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-          <div data-tour="audit-search" className="w-full sm:flex-1">
-            <FilterSearch
-              value={searchInput}
-              onChange={setSearchInput}
-              placeholder="Search code, employee, computer, brand, job title..."
-              className="w-full"
-            />
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+            <div data-tour="audit-search" className="min-w-0 w-full lg:flex-1">
+              <FilterSearch
+                value={searchInput}
+                onChange={setSearchInput}
+                placeholder="Search code, employee, computer, brand, job title..."
+                className="w-full"
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div
+                data-tour="audit-view-mode"
+                className="inline-flex rounded-lg border border-slate-600 p-0.5"
+                role="group"
+                aria-label="View mode"
+              >
+                <button
+                  type="button"
+                  onClick={() => changeViewMode("table")}
+                  aria-pressed={viewMode === "table"}
+                  title="Table view"
+                  className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition ${
+                    viewMode === "table" ? "bg-[#2E7D9A] text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                  }`}
+                >
+                  <List className="h-4 w-4" />
+                  <span className="hidden sm:inline">Table</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => changeViewMode("grid")}
+                  aria-pressed={viewMode === "grid"}
+                  title="Grid view"
+                  className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition ${
+                    viewMode === "grid" ? "bg-[#2E7D9A] text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                  }`}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                  <span className="hidden sm:inline">Grid</span>
+                </button>
+              </div>
+              <div className="relative" ref={exportMenuRef} data-tour="audit-export">
+                <button
+                  type="button"
+                  onClick={() => setExportMenuOpen((o) => !o)}
+                  disabled={exporting}
+                  aria-haspopup="menu"
+                  aria-expanded={exportMenuOpen}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  {exporting ? "Exporting..." : "Export"}
+                  {!exporting && <ChevronDown className="h-4 w-4" />}
+                </button>
+                {exportMenuOpen && !exporting && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 z-20 mt-1 w-full min-w-[14rem] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-lg sm:w-auto"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setExportMenuOpen(false);
+                        setExportDialogOpen(true);
+                      }}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                    >
+                      <Download className="h-4 w-4 text-[#2E7D9A]" />
+                      Customize columns...
+                      <span className="ml-auto text-xs text-slate-500">
+                        {ALL_AUDIT_EXPORT_COLUMN_KEYS.length} columns
+                      </span>
+                    </button>
+                    <div className="border-t border-slate-800" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => void runExport("excel")}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                    >
+                      <FileSpreadsheet className="h-4 w-4 text-emerald-400" /> Export as Excel
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => void runExport("pdf")}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                    >
+                      <FileText className="h-4 w-4 text-red-400" /> Export as PDF
+                    </button>
+                  </div>
+                )}
+              </div>
+              {write && (
+                <button
+                  type="button"
+                  data-tour="audit-new"
+                  onClick={openCreate}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2 text-sm font-medium text-white"
+                >
+                  <Plus className="h-4 w-4" /> New Audit
+                </button>
+              )}
+            </div>
           </div>
-          <div
-            data-tour="audit-filters"
-            className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-end"
-          >
+
+          <div data-tour="audit-filters" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <FilterSelect
               label="Items needed"
               value={itemNeeded}
               onChange={(v) => setFilterAndResetPage(() => setItemNeeded(v))}
-              className="w-full sm:w-auto"
             >
               <option value="">All items needed</option>
               {ITEMS_NEEDED_FILTER_OPTIONS.map((item) => (
@@ -499,7 +651,6 @@ export default function AuditRegisterPage() {
               label="Status"
               value={auditStatus}
               onChange={(v) => setFilterAndResetPage(() => setAuditStatus(v))}
-              className="w-full sm:w-auto"
             >
               <option value="">All statuses</option>
               {REFERENCE_DATA.auditStatuses.map((s) => (
@@ -512,7 +663,6 @@ export default function AuditRegisterPage() {
               label="Priority"
               value={priority}
               onChange={(v) => setFilterAndResetPage(() => setPriority(v))}
-              className="w-full sm:w-auto"
             >
               <option value="">All priorities</option>
               {REFERENCE_DATA.priorities.map((p) => (
@@ -521,102 +671,17 @@ export default function AuditRegisterPage() {
                 </option>
               ))}
             </FilterSelect>
+            <FilterSelect
+              label="Device status"
+              value={deviceAvailability}
+              onChange={(v) => setFilterAndResetPage(() => setDeviceAvailability(v))}
+            >
+              <option value="">All devices</option>
+              <option value="AVAILABLE">Available</option>
+              <option value="ASSIGNED">Assigned</option>
+            </FilterSelect>
           </div>
-          <div
-            data-tour="audit-view-mode"
-            className="inline-flex rounded-lg border border-slate-600 p-0.5"
-            role="group"
-            aria-label="View mode"
-          >
-            <button
-              type="button"
-              onClick={() => changeViewMode("table")}
-              aria-pressed={viewMode === "table"}
-              title="Table view"
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition ${
-                viewMode === "table" ? "bg-[#2E7D9A] text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
-              }`}
-            >
-              <List className="h-4 w-4" />
-              <span className="hidden sm:inline">Table</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => changeViewMode("grid")}
-              aria-pressed={viewMode === "grid"}
-              title="Grid view"
-              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition ${
-                viewMode === "grid" ? "bg-[#2E7D9A] text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
-              }`}
-            >
-              <LayoutGrid className="h-4 w-4" />
-              <span className="hidden sm:inline">Grid</span>
-            </button>
-          </div>
-          <div className="relative w-full sm:w-auto" ref={exportMenuRef} data-tour="audit-export">
-            <button
-              type="button"
-              onClick={() => setExportMenuOpen((o) => !o)}
-              disabled={exporting}
-              aria-haspopup="menu"
-              aria-expanded={exportMenuOpen}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
-            >
-              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              {exporting ? "Exporting..." : "Export"}
-              {!exporting && <ChevronDown className="h-4 w-4" />}
-            </button>
-            {exportMenuOpen && !exporting && (
-              <div
-                role="menu"
-                className="absolute right-0 z-20 mt-1 w-full min-w-[14rem] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-lg sm:w-auto"
-              >
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setExportMenuOpen(false);
-                    setExportDialogOpen(true);
-                  }}
-                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
-                >
-                  <Download className="h-4 w-4 text-[#2E7D9A]" />
-                  Customize columns...
-                  <span className="ml-auto text-xs text-slate-500">
-                    {ALL_AUDIT_EXPORT_COLUMN_KEYS.length} columns
-                  </span>
-                </button>
-                <div className="border-t border-slate-800" />
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => void runExport("excel")}
-                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
-                >
-                  <FileSpreadsheet className="h-4 w-4 text-emerald-400" /> Export as Excel
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => void runExport("pdf")}
-                  className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
-                >
-                  <FileText className="h-4 w-4 text-red-400" /> Export as PDF
-                </button>
-              </div>
-            )}
-          </div>
-          {write && (
-            <button
-              type="button"
-              data-tour="audit-new"
-              onClick={openCreate}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 py-2 text-sm font-medium text-white sm:w-auto"
-            >
-              <Plus className="h-4 w-4" /> New Audit
-            </button>
-          )}
-        </div>
+
           <ActiveFilters
             filters={[
               ...(search
@@ -663,6 +728,16 @@ export default function AuditRegisterPage() {
                     },
                   ]
                 : []),
+              ...(deviceAvailability === "AVAILABLE" || deviceAvailability === "ASSIGNED"
+                ? [
+                    {
+                      key: "deviceAvailability",
+                      label: "Device",
+                      value: deviceAvailability === "AVAILABLE" ? "Available" : "Assigned",
+                      onRemove: () => setFilterAndResetPage(() => setDeviceAvailability("")),
+                    },
+                  ]
+                : []),
             ]}
             onClearAll={() => {
               setFilterAndResetPage(() => {
@@ -671,6 +746,7 @@ export default function AuditRegisterPage() {
                 setItemNeeded("");
                 setAuditStatus("");
                 setPriority("");
+                setDeviceAvailability("");
               });
             }}
           />
@@ -847,23 +923,70 @@ export default function AuditRegisterPage() {
         }
         footer={
           drawerMode === "view" && editing && write ? (
-            <div className="ml-auto flex items-center justify-end gap-2">
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={closeDrawer}
-                className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center rounded-lg border border-slate-600 px-3 text-sm font-medium leading-none text-slate-200 hover:bg-slate-800"
+                className="inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-center rounded-lg border border-slate-600 px-4 text-sm font-medium leading-none text-slate-200 transition hover:border-slate-500 hover:bg-slate-800"
               >
                 Close
               </button>
+              {!isUnassignedEmployee(editing.employee_name) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAvailableError("");
+                    setAvailableTarget(editing);
+                  }}
+                  className="inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/40 px-4 text-sm font-medium leading-none text-emerald-300 transition hover:border-emerald-600/50 hover:bg-emerald-950/35"
+                >
+                  <PackageOpen className="h-4 w-4 shrink-0" />
+                  Hold as Available
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {
                   if (editing) setForm(formStateFromAudit(editing));
                   setDrawerMode("edit");
                 }}
-                className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center rounded-lg bg-[#2E7D9A] px-3 text-sm font-medium leading-none text-white hover:bg-[#256b85]"
+                className="inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-center rounded-lg bg-[#2E7D9A] px-4 text-sm font-medium leading-none text-white transition hover:bg-[#256b85]"
               >
                 Edit
+              </button>
+            </div>
+          ) : drawerMode === "edit" && editing && write ? (
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                disabled={saving || markingAvailable}
+                onClick={closeDrawer}
+                className="inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-center rounded-lg border border-slate-600 px-4 text-sm font-medium leading-none text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              {!isUnassignedEmployee(editing.employee_name) && (
+                <button
+                  type="button"
+                  disabled={saving || markingAvailable}
+                  onClick={() => {
+                    setAvailableError("");
+                    setAvailableTarget(editing);
+                  }}
+                  className="inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/40 px-4 text-sm font-medium leading-none text-emerald-300 transition hover:border-emerald-600/50 hover:bg-emerald-950/35 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <PackageOpen className="h-4 w-4 shrink-0" />
+                  Hold as Available
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void save()}
+                className="inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 text-sm font-medium leading-none text-white transition hover:bg-[#256b85] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving && <Loader2 className="h-4 w-4 shrink-0 animate-spin" />}
+                {saving ? "Saving..." : "Save Record"}
               </button>
             </div>
           ) : drawerMode !== "view" && write ? (
@@ -872,7 +995,7 @@ export default function AuditRegisterPage() {
                 type="button"
                 disabled={saving}
                 onClick={closeDrawer}
-                className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center rounded-lg border border-slate-600 px-3 text-sm font-medium leading-none text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-center rounded-lg border border-slate-600 px-4 text-sm font-medium leading-none text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel
               </button>
@@ -881,7 +1004,7 @@ export default function AuditRegisterPage() {
                 data-tour={!editing ? "audit-form-save" : undefined}
                 disabled={saving}
                 onClick={() => void save()}
-                className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center gap-1.5 rounded-lg border border-transparent bg-[#2E7D9A] px-3 text-sm font-medium leading-none text-white hover:bg-[#256b85] disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-center gap-2 rounded-lg bg-[#2E7D9A] px-4 text-sm font-medium leading-none text-white transition hover:bg-[#256b85] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving && <Loader2 className="h-4 w-4 shrink-0 animate-spin" />}
                 {saving ? "Saving..." : "Save Record"}
@@ -934,6 +1057,28 @@ export default function AuditRegisterPage() {
           }
         }}
         onConfirm={(password) => void confirmDelete(password)}
+      />
+
+      <ConfirmDialog
+        open={availableTarget !== null}
+        title="Hold as Available — no replacement yet?"
+        message={
+          availableTarget
+            ? `Park the full PC set for ${availableTarget.computer_name || "this device"} from ${availableTarget.employee_name}? Use this when someone resigned and there is no new hire yet. Specs stay; the set becomes Available together. Last user is recorded in Device History. If a replacement is already known, cancel and use Device History → Transfer to new user instead.`
+            : ""
+        }
+        confirmLabel="Hold as Available"
+        loadingLabel="Updating..."
+        tone="primary"
+        error={availableError}
+        loading={markingAvailable}
+        onCancel={() => {
+          if (!markingAvailable) {
+            setAvailableTarget(null);
+            setAvailableError("");
+          }
+        }}
+        onConfirm={() => void confirmMarkAvailable()}
       />
 
       <SpotlightTour
