@@ -118,7 +118,7 @@ export function getAssetsTourSteps(canCreate: boolean): TourStep[] {
       target: '[data-tour="assets-actions"]',
       title: "Row actions",
       content: canCreate
-        ? "Use View to inspect, Edit to update details, or Delete (password required) to remove a record. Viewers only see View."
+        ? "Use View to inspect, Edit to update details, or Delete (password required) to remove a record. On peripherals, open View then use Move in the drawer to reassign. Viewers only see View."
         : "Use View to open the full asset detail panel. Create, edit, and delete are disabled for view-only accounts.",
       placement: "auto",
     },

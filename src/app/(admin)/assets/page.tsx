@@ -760,17 +760,17 @@ export default function AssetsPage() {
         {viewMode === "table" ? (
           <div className="card overflow-hidden" data-tour="assets-list">
             <div className="table-scroll">
-              <table className="data-table data-table--fixed" style={{ minWidth: "76rem" }}>
+              <table className="data-table data-table--fixed" style={{ minWidth: "72rem" }}>
                 <colgroup>
                   <col style={{ width: "8%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "16%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "12%" }} />
-                  <col style={{ width: "11%" }} />
                   <col style={{ width: "9%" }} />
-                  <col style={{ width: "12%" }} />
-                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "18%" }} />
+                  <col style={{ width: "14%" }} />
+                  <col style={{ width: "13%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "9%" }} />
+                  <col style={{ width: "10%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -782,7 +782,7 @@ export default function AssetsPage() {
                     <th>Employee</th>
                     <th>Status</th>
                     <th>Condition</th>
-                    <th>{write ? "Actions" : "View"}</th>
+                    <th className="w-[6.5rem]">{write ? "Actions" : "View"}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -823,7 +823,7 @@ export default function AssetsPage() {
                         <td>
                           <Badge value={row.condition} compact />
                         </td>
-                        <td onClick={(e) => e.stopPropagation()}>
+                        <td className="align-middle" onClick={(e) => e.stopPropagation()}>
                           {renderRowActions(row, rowIndex === 0)}
                         </td>
                       </tr>
@@ -941,11 +941,11 @@ export default function AssetsPage() {
         }
         footer={
           drawerMode === "view" && editing && write ? (
-            <div className="ml-auto flex items-center justify-end gap-2">
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
                 onClick={closeDrawer}
-                className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center rounded-lg border border-slate-600 px-3 text-sm font-medium leading-none text-slate-200 hover:bg-slate-800"
+                className="inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-center rounded-lg border border-slate-600 px-4 text-sm font-medium leading-none text-slate-200 transition hover:border-slate-500 hover:bg-slate-800"
               >
                 Close
               </button>
@@ -953,9 +953,9 @@ export default function AssetsPage() {
                 <button
                   type="button"
                   onClick={() => setDrawerMode("move")}
-                  className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center gap-1.5 rounded-lg border border-slate-600 px-3 text-sm font-medium leading-none text-slate-200 hover:bg-slate-800"
+                  className="inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/40 px-4 text-sm font-medium leading-none text-sky-300 transition hover:border-sky-600/50 hover:bg-sky-950/35"
                 >
-                  <ArrowRightLeft className="h-4 w-4" />
+                  <ArrowRightLeft className="h-4 w-4 shrink-0" />
                   Move
                 </button>
               )}
@@ -965,7 +965,7 @@ export default function AssetsPage() {
                   if (editing) setForm(formStateFromAsset(editing));
                   setDrawerMode("edit");
                 }}
-                className="inline-flex h-10 w-[9rem] shrink-0 items-center justify-center rounded-lg bg-[#2E7D9A] px-3 text-sm font-medium leading-none text-white hover:bg-[#256b85]"
+                className="inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-center rounded-lg bg-[#2E7D9A] px-4 text-sm font-medium leading-none text-white transition hover:bg-[#256b85]"
               >
                 Edit
               </button>

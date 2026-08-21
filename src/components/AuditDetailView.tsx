@@ -127,7 +127,9 @@ export function AuditDetailView({ audit }: { audit: AuditRegister }) {
                   <span className="font-mono text-sm text-[#2E7D9A]">{a.asset_code}</span>
                   {a.brand_model && <span className="text-sm text-slate-400">{a.brand_model}</span>}
                 </div>
-                <span className="text-sm text-slate-400">{a.assigned_to ?? "—"}</span>
+                <span className="text-sm text-slate-400">
+                  {a.assigned_to?.trim() || "Unassigned"}
+                </span>
               </div>
             ))}
           </div>

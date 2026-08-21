@@ -82,12 +82,7 @@ function historyStatusBadge(row: DeviceHistory): { label: string; className: str
       className: "text-emerald-400/90",
     };
   }
-  const notes = (row.notes ?? "").toLowerCase();
-  const releasedToStock =
-    /released to available|released to reserved|moved to spare|spare stock|available from/i.test(
-      notes,
-    );
-  if (releasedToStock) {
+  if (isReleasedToStock(row)) {
     return {
       label: "Available",
       className: "text-sky-400/90",
@@ -97,6 +92,29 @@ function historyStatusBadge(row: DeviceHistory): { label: string; className: str
     label: "Previous",
     className: "text-amber-400/90",
   };
+}
+
+/** Hold as Available / spare release — closed history, device is free stock. */
+function isReleasedToStock(row: DeviceHistory): boolean {
+  if (!row.returned_date) return false;
+  const notes = (row.notes ?? "").toLowerCase();
+  return /released to available|released to reserved|moved to spare|spare stock|available from/i.test(
+    notes,
+  );
+}
+
+/** Who has it now — for Available rows show spare, not the old name. */
+function displayAssignee(row: DeviceHistory): string {
+  if (isReleasedToStock(row)) return "Available (spare)";
+  return row.assigned_to?.trim() || "—";
+}
+
+/** Who had it before — for Available rows, the closed assignee is the last user. */
+function displayLastUser(row: DeviceHistory): string {
+  if (isReleasedToStock(row)) {
+    return row.assigned_to?.trim() || row.last_user?.trim() || "—";
+  }
+  return row.last_user?.trim() || "—";
 }
 
 export default function DeviceHistoryPage() {
@@ -440,7 +458,7 @@ export default function DeviceHistoryPage() {
     <>
       <Header
         title="Device History"
-        subtitle="When someone resigns or changes, transfer all their assets to the new user"
+        subtitle="Transfer when a replacement is known — or check Previous / Available for who last used a spare PC"
         onHowItWorks={startTour}
         howItWorksPulse={showPulse}
       />
@@ -486,8 +504,8 @@ export default function DeviceHistoryPage() {
               className="w-full sm:w-auto"
             >
               <option value="all">All records</option>
-              <option value="active">Current only</option>
-              <option value="returned">Previous / Available</option>
+              <option value="active">Current only (in use)</option>
+              <option value="returned">Previous / Available (spare)</option>
             </FilterSelect>
           </div>
           <div
@@ -691,13 +709,19 @@ export default function DeviceHistoryPage() {
                         <td className="font-mono text-slate-300">{row.asset?.asset_code ?? "—"}</td>
                         <td className="cell-wrap font-medium text-white">{row.asset?.brand_model?.trim() || "—"}</td>
                         <td className="cell-wrap text-slate-300">{row.computer_name ?? row.asset?.computer_name ?? "—"}</td>
-                        <td className="cell-wrap text-slate-300">{row.assigned_to ?? "—"}</td>
-                        <td className="cell-wrap text-slate-300">{row.last_user ?? "—"}</td>
+                        <td className="cell-wrap text-slate-300">{displayAssignee(row)}</td>
+                        <td className="cell-wrap text-slate-300">{displayLastUser(row)}</td>
                         <td className="cell-wrap">{row.department?.name ?? "—"}</td>
                         <td className="text-slate-300">
                           <span className="block">{row.assigned_date.slice(0, 10)}</span>
                           <span
-                            className={`mt-0.5 block text-[10px] font-medium uppercase tracking-wide ${status.className}`}
+                            className={`mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                              status.label === "Available"
+                                ? "bg-sky-950/60 text-sky-300"
+                                : status.label === "Current"
+                                  ? "bg-emerald-950/50 text-emerald-300"
+                                  : "bg-amber-950/40 text-amber-300"
+                            }`}
                           >
                             {status.label}
                           </span>
@@ -744,9 +768,15 @@ export default function DeviceHistoryPage() {
                             ? ` · ${row.computer_name || row.asset?.computer_name}`
                             : ""}
                         </p>
-                        <p className="truncate text-sm text-slate-400">{row.assigned_to}</p>
+                        <p className="truncate text-sm text-slate-400">{displayAssignee(row)}</p>
                         <p
-                          className={`mt-1 text-[10px] font-medium uppercase tracking-wide ${status.className}`}
+                          className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                            status.label === "Available"
+                              ? "bg-sky-950/60 text-sky-300"
+                              : status.label === "Current"
+                                ? "bg-emerald-950/50 text-emerald-300"
+                                : "bg-amber-950/40 text-amber-300"
+                          }`}
                         >
                           {status.label}
                         </p>
@@ -761,7 +791,7 @@ export default function DeviceHistoryPage() {
                     <dl className="space-y-2 text-sm">
                       <div className="flex items-center justify-between gap-2">
                         <dt className="text-slate-500">Last User</dt>
-                        <dd className="truncate text-slate-300">{row.last_user ?? "-"}</dd>
+                        <dd className="truncate text-slate-300">{displayLastUser(row)}</dd>
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <dt className="text-slate-500">Department</dt>

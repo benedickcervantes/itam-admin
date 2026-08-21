@@ -653,9 +653,11 @@ export function prepareAuditPayload(form: DeviceFormState): Record<string, strin
   }
 
   // Asset status is applied to generated assets; not stored on the audit row itself.
+  // Unassigned audits default to AVAILABLE so resigned releases show in spare stock.
   const assetStatus = String(form.status ?? "").trim();
   delete result.status;
   if (assetStatus) result.assetStatus = assetStatus;
+  else if (unassigned) result.assetStatus = "AVAILABLE";
 
   return result;
 }
