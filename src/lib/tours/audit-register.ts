@@ -26,7 +26,7 @@ export function getAuditTourSteps(canCreate: boolean): TourStep[] {
       target: '[data-tour="audit-filters"]',
       title: "Filter by need & urgency",
       content:
-        "Narrow by Items needed (e.g. RAM, SSD), Audit Status (Open, In Progress…), and Priority. These filters help you work the upgrade/replacement queue — not by department or asset stock status.",
+        "Narrow by Items needed, Audit Status, Priority, and Device status (Available = held spare with no assignee, Assigned = named employee). Same filter layout as Assets — filters sit on their own row so the toolbar stays readable.",
       placement: "bottom",
     },
     {
@@ -123,7 +123,7 @@ export function getAuditTourSteps(canCreate: boolean): TourStep[] {
       target: '[data-tour="audit-actions"]',
       title: "Row actions",
       content: canCreate
-        ? "View opens the summary. Edit updates the audit. Delete requires your password. Viewers only get View."
+        ? "View opens the summary. Edit updates the audit. In View or Edit, use Hold as Available when someone resigned and there is no replacement yet (PC set becomes spare; last user goes to Device History). If a replacement is already known, use Device History → Transfer instead. Delete requires your password. Viewers only get View."
         : "Use View to open the full audit summary. Create, edit, and delete are disabled for view-only accounts.",
       placement: "auto",
     },

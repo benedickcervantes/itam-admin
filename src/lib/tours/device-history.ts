@@ -13,7 +13,7 @@ export function getDeviceHistoryTourSteps(canWrite: boolean): TourStep[] {
     {
       title: "Welcome to Device History",
       content:
-        "This page is the movement log — who was assigned a device, when, and who had it before. Use it when someone resigns or changes role and their assets must move to a replacement (or to a new PC for the same person).",
+        "This page is the movement log — who was assigned a device, when, and who had it before. Use Transfer when a replacement is already known. If someone resigned and there is no new hire yet, hold the PC set from IT Audit with Hold as Available, then check Previous / Available here for the last user.",
     },
     {
       target: '[data-tour="history-search"]',
@@ -26,7 +26,7 @@ export function getDeviceHistoryTourSteps(canWrite: boolean): TourStep[] {
       target: '[data-tour="history-filters"]',
       title: "Filter the trail",
       content:
-        "Department narrows by org unit. Show switches between All, Current only (still assigned), or Previous / Available (closed moves and stock releases).",
+        "Department narrows by org unit. Show: Current only = in use now; Previous / Available (spare) = closed moves and Hold as Available releases. On Available rows, Assigned To shows Available (spare) and Last User shows who had it before.",
       placement: "bottom",
     },
     {
@@ -51,7 +51,7 @@ export function getDeviceHistoryTourSteps(canWrite: boolean): TourStep[] {
         target: '[data-tour="history-transfer"]',
         title: "Transfer to a new user",
         content:
-          "This is the main action — not “create inventory.” Click Transfer to new user when devices must move in bulk. Next we’ll open the transfer form.",
+          "This is the main action when a replacement is already known — not “create inventory.” Click Transfer to new user to move devices in bulk. If there is no replacement yet, use IT Audit → Hold as Available instead.",
         placement: "bottom",
       },
       {
