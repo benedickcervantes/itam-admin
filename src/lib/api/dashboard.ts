@@ -44,7 +44,7 @@ export type DashboardSummary = {
   byRecommendedAction: { action: string; count: number }[];
 };
 
-export function fetchDashboardSummary(period: DashboardPeriod = "month") {
+export function fetchDashboardSummary(period: DashboardPeriod = "year") {
   const query = period && period !== "all" ? `?period=${period}` : "";
   return apiJson<DashboardSummary>(`/api/v1/dashboard/summary${query}`, { auth: true });
 }
