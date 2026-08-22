@@ -122,7 +122,7 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-  const [period, setPeriod] = useState<DashboardPeriod>("month");
+  const [period, setPeriod] = useState<DashboardPeriod>("year");
 
   const load = useCallback(async (selected: DashboardPeriod) => {
     setLoading(true);
