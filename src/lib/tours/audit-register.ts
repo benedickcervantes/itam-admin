@@ -26,7 +26,7 @@ export function getAuditTourSteps(canCreate: boolean): TourStep[] {
       target: '[data-tour="audit-filters"]',
       title: "Filter by need & urgency",
       content:
-        "Narrow by Items needed, Audit Status, Priority, Device status (Available = held spare with no assignee, Assigned = named employee), and Item type (Desktop or Laptop only). Same filter layout as Assets — filters sit on their own row so the toolbar stays readable.",
+        "Narrow by Items needed, Audit Status, Priority, Device status, Item type (Desktop or Laptop), and Assessment. Use OK - No Issues for units that never needed work, and Upgraded for units that were already upgraded.",
       placement: "bottom",
     },
     {

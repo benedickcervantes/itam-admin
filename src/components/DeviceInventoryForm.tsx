@@ -103,7 +103,9 @@ export function DeviceInventoryForm({
 
   const overallAssessment = String(form.overallAssessment);
   const showsComponentChecklist =
-    overallAssessment === "NEEDS_UPGRADE" || overallAssessment === "NEEDS_REPLACEMENT";
+    overallAssessment === "NEEDS_UPGRADE" ||
+    overallAssessment === "NEEDS_REPLACEMENT" ||
+    overallAssessment === "UPGRADED";
   const componentChecklistOptions = useMemo(
     () =>
       overallAssessment === "NEEDS_REPLACEMENT"
@@ -115,7 +117,9 @@ export function DeviceInventoryForm({
   const componentNotesLabel =
     overallAssessment === "NEEDS_REPLACEMENT"
       ? "Replacement Notes (specify other components or details)"
-      : "Upgrade Notes (specify other components or details)";
+      : overallAssessment === "UPGRADED"
+        ? "Upgrade Notes (what was done)"
+        : "Upgrade Notes (specify other components or details)";
 
   const ramPreview = useMemo(() => composeRam(form), [form]);
   const ramSlotsPreview = useMemo(() => composeRamSlots(form), [form]);
@@ -1399,17 +1403,20 @@ export function DeviceInventoryForm({
             <Field label="Overall Assessment">
               <Select
                 value={String(form.overallAssessment)}
-                onChange={(v) => set("overallAssessment", v)}
+                onChange={(v) => {
+                  set("overallAssessment", v);
+                  if (v === "UPGRADED") set("priority", "LOW");
+                }}
                 options={assessmentOptions}
                 disabled={!write}
               />
             </Field>
             <Field label="Priority">
               <Select
-                value={String(form.priority)}
+                value={overallAssessment === "UPGRADED" ? "LOW" : String(form.priority)}
                 onChange={(v) => set("priority", v)}
                 options={priorityOptions}
-                disabled={!write}
+                disabled={!write || overallAssessment === "UPGRADED"}
               />
             </Field>
             <Field label="Findings Summary">

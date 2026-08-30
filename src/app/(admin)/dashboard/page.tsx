@@ -7,6 +7,7 @@ import {
   PieChart,
   Clock,
   CircleCheck,
+  BadgeCheck,
   CircleArrowUp,
   RefreshCw,
   TriangleAlert,
@@ -285,14 +286,48 @@ export default function DashboardPage() {
             <section id="health" className="grid scroll-mt-[var(--dashboard-nav-offset,4rem)] gap-6 lg:grid-cols-2">
               <div className="card p-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <h3 className="font-medium text-white">Audit Health</h3>
+                  <div>
+                    <h3 className="font-medium text-white">Audit Health</h3>
+                    <p className="text-xs font-normal text-slate-500">Click a card to see who</p>
+                  </div>
                   <SectionAlert count={data.auditHealth.critical} label="Critical" />
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <MiniStat icon={CircleCheck} color="emerald" label="OK - No Issues" value={data.auditHealth.okNoIssues} />
-                  <MiniStat icon={CircleArrowUp} color="amber" label="Needs Upgrade" value={data.auditHealth.needsUpgrade} />
-                  <MiniStat icon={RefreshCw} color="orange" label="Needs Replacement" value={data.auditHealth.needsReplacement} />
-                  <MiniStat icon={TriangleAlert} color="red" label="Critical" value={data.auditHealth.critical} />
+                  <MiniStat
+                    icon={CircleCheck}
+                    color="emerald"
+                    label="OK - No Issues"
+                    value={data.auditHealth.okNoIssues}
+                    href="/audit-register?overallAssessment=OK_NO_ISSUES"
+                  />
+                  <MiniStat
+                    icon={BadgeCheck}
+                    color="teal"
+                    label="Upgraded"
+                    value={data.auditHealth.upgraded}
+                    href="/audit-register?overallAssessment=UPGRADED"
+                  />
+                  <MiniStat
+                    icon={CircleArrowUp}
+                    color="amber"
+                    label="Needs Upgrade"
+                    value={data.auditHealth.needsUpgrade}
+                    href="/audit-register?overallAssessment=NEEDS_UPGRADE"
+                  />
+                  <MiniStat
+                    icon={RefreshCw}
+                    color="orange"
+                    label="Needs Replacement"
+                    value={data.auditHealth.needsReplacement}
+                    href="/audit-register?overallAssessment=NEEDS_REPLACEMENT"
+                  />
+                  <MiniStat
+                    icon={TriangleAlert}
+                    color="red"
+                    label="Critical"
+                    value={data.auditHealth.critical}
+                    href="/audit-register?overallAssessment=CRITICAL_IMMEDIATE_ACTION"
+                  />
                 </div>
               </div>
               <div className="card p-4">
