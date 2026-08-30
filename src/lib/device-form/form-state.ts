@@ -633,7 +633,9 @@ export function prepareAuditPayload(form: DeviceFormState): Record<string, strin
     .filter(Boolean);
 
   Object.keys(result).forEach((k) => {
-    if (result[k] === "") delete result[k];
+    // Keep secondaryStorage: "" so unchecking the extra drive actually clears it.
+    // Dropping the key left the old HDD in the DB and it came back on reload.
+    if (result[k] === "" && k !== "secondaryStorage") delete result[k];
   });
 
   result.employeeName = String(form.employeeName ?? "").trim();
@@ -825,7 +827,8 @@ export function prepareAssetPayload(form: DeviceFormState): Record<string, strin
 
   Object.keys(payload).forEach((k) => {
     // Keep assignedTo: "" so Available release clears the assignee on update.
-    if (payload[k] === "" && k !== "assignedTo") delete payload[k];
+    // Keep secondaryStorage: "" so unchecking the extra drive actually clears it.
+    if (payload[k] === "" && k !== "assignedTo" && k !== "secondaryStorage") delete payload[k];
   });
 
   return payload;
