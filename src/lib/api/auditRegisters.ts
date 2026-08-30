@@ -13,6 +13,8 @@ export type AuditQuery = {
   priority?: string;
   /** AVAILABLE = Unassigned spare device; ASSIGNED = named employee. */
   deviceAvailability?: "AVAILABLE" | "ASSIGNED";
+  /** IT Audit item type — Desktop (PC) or Laptop only. */
+  deviceType?: "DESKTOP" | "LAPTOP";
 };
 
 export function fetchAuditRegisters(query: AuditQuery = {}) {
