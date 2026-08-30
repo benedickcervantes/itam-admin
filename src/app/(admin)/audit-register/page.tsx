@@ -74,6 +74,9 @@ const ITEMS_NEEDED_FILTER_OPTIONS = [
   ...REFERENCE_DATA.replacementOnlyComponents,
 ] as const;
 
+/** IT Audit is workstation records only — no peripheral item types. */
+const AUDIT_ITEM_TYPES = ["DESKTOP", "LAPTOP"] as const;
+
 function isUnassignedEmployee(name?: string | null) {
   const trimmed = name?.trim() ?? "";
   return !trimmed || /^unassigned$/i.test(trimmed);
@@ -90,6 +93,7 @@ export default function AuditRegisterPage() {
   const [auditStatus, setAuditStatus] = useState("");
   const [priority, setPriority] = useState("");
   const [deviceAvailability, setDeviceAvailability] = useState("");
+  const [deviceType, setDeviceType] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -146,6 +150,7 @@ export default function AuditRegisterPage() {
     if (priority) parts.push(`Priority: ${labelEnum(priority)}`);
     if (deviceAvailability === "AVAILABLE") parts.push("Device: Available");
     if (deviceAvailability === "ASSIGNED") parts.push("Device: Assigned");
+    if (deviceType) parts.push(`Type: ${labelEnum(deviceType)}`);
     return parts.length ? parts.join(" · ") : "None (all records)";
   };
 
@@ -181,6 +186,7 @@ export default function AuditRegisterPage() {
           deviceAvailability === "AVAILABLE" || deviceAvailability === "ASSIGNED"
             ? deviceAvailability
             : undefined,
+        deviceType: deviceType === "DESKTOP" || deviceType === "LAPTOP" ? deviceType : undefined,
       });
       if (rows.length === 0) {
         setError("No audit records match the current filters to export.");
@@ -218,6 +224,7 @@ export default function AuditRegisterPage() {
           deviceAvailability === "AVAILABLE" || deviceAvailability === "ASSIGNED"
             ? deviceAvailability
             : undefined,
+        deviceType: deviceType === "DESKTOP" || deviceType === "LAPTOP" ? deviceType : undefined,
       });
       if (seq !== loadSeq.current) return;
 
@@ -235,7 +242,7 @@ export default function AuditRegisterPage() {
     } finally {
       if (seq === loadSeq.current) setLoading(false);
     }
-  }, [page, search, itemNeeded, auditStatus, priority, deviceAvailability]);
+  }, [page, search, itemNeeded, auditStatus, priority, deviceAvailability, deviceType]);
 
   const setFilterAndResetPage = useCallback((apply: () => void) => {
     setPage(1);
@@ -255,7 +262,7 @@ export default function AuditRegisterPage() {
 
   useEffect(() => {
     setPage(1);
-  }, [search, itemNeeded, auditStatus, priority]);
+  }, [search, itemNeeded, auditStatus, priority, deviceAvailability, deviceType]);
 
   useEffect(() => {
     void load();
@@ -634,7 +641,7 @@ export default function AuditRegisterPage() {
             </div>
           </div>
 
-          <div data-tour="audit-filters" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div data-tour="audit-filters" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <FilterSelect
               label="Items needed"
               value={itemNeeded}
@@ -679,6 +686,18 @@ export default function AuditRegisterPage() {
               <option value="">All devices</option>
               <option value="AVAILABLE">Available</option>
               <option value="ASSIGNED">Assigned</option>
+            </FilterSelect>
+            <FilterSelect
+              label="Item type"
+              value={deviceType}
+              onChange={(v) => setFilterAndResetPage(() => setDeviceType(v))}
+            >
+              <option value="">All types</option>
+              {AUDIT_ITEM_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {labelEnum(t)}
+                </option>
+              ))}
             </FilterSelect>
           </div>
 
@@ -738,6 +757,16 @@ export default function AuditRegisterPage() {
                     },
                   ]
                 : []),
+              ...(deviceType
+                ? [
+                    {
+                      key: "deviceType",
+                      label: "Type",
+                      value: labelEnum(deviceType),
+                      onRemove: () => setFilterAndResetPage(() => setDeviceType("")),
+                    },
+                  ]
+                : []),
             ]}
             onClearAll={() => {
               setFilterAndResetPage(() => {
@@ -747,6 +776,7 @@ export default function AuditRegisterPage() {
                 setAuditStatus("");
                 setPriority("");
                 setDeviceAvailability("");
+                setDeviceType("");
               });
             }}
           />
