@@ -37,7 +37,7 @@ export const REFERENCE_DATA = {
   infrastructureDeviceTypes: [...INFRASTRUCTURE_DEVICE_TYPES],
   osLicenseStatuses: ["LICENSED", "CRACKED", "NOT_ACTIVATED", "UNKNOWN"],
   auditStatuses: ["COMPLETE", "PENDING", "INCOMPLETE"],
-  assessments: ["OK_NO_ISSUES", "NEEDS_UPGRADE", "NEEDS_REPLACEMENT", "CRITICAL_IMMEDIATE_ACTION"],
+  assessments: ["OK_NO_ISSUES", "UPGRADED", "NEEDS_UPGRADE", "NEEDS_REPLACEMENT", "CRITICAL_IMMEDIATE_ACTION"],
   priorities: ["LOW", "MEDIUM", "HIGH", "IMMEDIATE"],
   recommendedActions: ["NO_ACTION", "UPGRADE", "REPLACE_UNIT", "SOFTWARE_REFRESH", "IMMEDIATE_REPAIR"],
   upgradeComponents: [

@@ -14,6 +14,7 @@ export type DashboardSummary = {
   deviceTypeBreakdown: { deviceType: string; count: number }[];
   auditHealth: {
     okNoIssues: number;
+    upgraded: number;
     needsUpgrade: number;
     needsReplacement: number;
     critical: number;
