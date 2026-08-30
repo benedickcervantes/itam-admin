@@ -661,6 +661,10 @@ export function prepareAuditPayload(form: DeviceFormState): Record<string, strin
   if (assetStatus) result.assetStatus = assetStatus;
   else if (unassigned) result.assetStatus = "AVAILABLE";
 
+  if (String(result.overallAssessment) === "UPGRADED") {
+    result.priority = "LOW";
+  }
+
   return result;
 }
 

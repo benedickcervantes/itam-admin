@@ -52,6 +52,7 @@ const LABELS: Record<string, string> = {
   PENDING: "Pending",
   INCOMPLETE: "Incomplete",
   OK_NO_ISSUES: "OK - No Issues",
+  UPGRADED: "Upgraded",
   NEEDS_UPGRADE: "Needs Upgrade",
   NEEDS_REPLACEMENT: "Needs Replacement",
   CRITICAL_IMMEDIATE_ACTION: "Critical - Immediate Action",
@@ -113,6 +114,7 @@ const LABELS: Record<string, string> = {
 
 const COMPACT_LABELS: Record<string, string> = {
   OK_NO_ISSUES: "OK",
+  UPGRADED: "Upgraded",
   NEEDS_UPGRADE: "Upgrade",
   NEEDS_REPLACEMENT: "Replace",
   CRITICAL_IMMEDIATE_ACTION: "Critical",
@@ -146,6 +148,7 @@ export const ITEMS_NEEDED_TABLE_LABEL = "Items Needed";
 /** Form / detail heading — depends on overall assessment. */
 export function upgradeChecklistLabel(assessment?: string | null): string {
   if (assessment === "NEEDS_REPLACEMENT") return "Items to Replace";
+  if (assessment === "UPGRADED") return "Parts Upgraded";
   return "Parts to Upgrade";
 }
 

@@ -2,6 +2,7 @@ import { labelEnum, labelEnumCompact } from "@/lib/labels";
 
 const STYLES: Record<string, string> = {
   OK_NO_ISSUES: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+  UPGRADED: "bg-sky-500/15 text-sky-300 ring-sky-500/30",
   NEEDS_UPGRADE: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
   NEEDS_REPLACEMENT: "bg-orange-500/15 text-orange-300 ring-orange-500/30",
   CRITICAL_IMMEDIATE_ACTION: "bg-red-500/15 text-red-300 ring-red-500/30",

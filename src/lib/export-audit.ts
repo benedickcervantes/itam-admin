@@ -40,6 +40,7 @@ export type AuditExportColumnKey =
   | "assessment"
   | "priority"
   | "itemsNeeded"
+  | "upgradeNotes"
   | "recommendedAction"
   | "immediateAction";
 
@@ -148,7 +149,8 @@ const COLUMN_SECTIONS: ColumnSection[] = [
       { key: "status", header: "Status", width: 14, value: (r) => labelEnumOrBlank(r.audit_status) },
       { key: "assessment", header: "Assessment", width: 16, value: (r) => labelEnumOrBlank(r.overall_assessment) },
       { key: "priority", header: "Priority", width: 12, value: (r) => labelEnumOrBlank(r.priority) },
-      { key: "itemsNeeded", header: "Items Needed", width: 28, value: (r) => formatItemsNeededList(r.upgrade_components) },
+      { key: "itemsNeeded", header: "Items Needed / Upgraded", width: 28, value: (r) => formatItemsNeededList(r.upgrade_components) },
+      { key: "upgradeNotes", header: "Upgrade Notes", width: 32, value: (r) => r.upgrade_notes ?? "" },
       { key: "recommendedAction", header: "Recommended Action", width: 28, value: (r) => formatItemsNeededList(r.recommended_actions) },
       { key: "immediateAction", header: "Immediate Action", width: 12, value: (r) => (r.immediate_action ? "Yes" : "No") },
     ],

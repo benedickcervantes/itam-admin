@@ -77,6 +77,10 @@ const ITEMS_NEEDED_FILTER_OPTIONS = [
 /** IT Audit is workstation records only — no peripheral item types. */
 const AUDIT_ITEM_TYPES = ["DESKTOP", "LAPTOP"] as const;
 
+function isAuditAssessment(value: string): boolean {
+  return (REFERENCE_DATA.assessments as readonly string[]).includes(value);
+}
+
 function isUnassignedEmployee(name?: string | null) {
   const trimmed = name?.trim() ?? "";
   return !trimmed || /^unassigned$/i.test(trimmed);
@@ -94,6 +98,7 @@ export default function AuditRegisterPage() {
   const [priority, setPriority] = useState("");
   const [deviceAvailability, setDeviceAvailability] = useState("");
   const [deviceType, setDeviceType] = useState("");
+  const [overallAssessment, setOverallAssessment] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -151,6 +156,7 @@ export default function AuditRegisterPage() {
     if (deviceAvailability === "AVAILABLE") parts.push("Device: Available");
     if (deviceAvailability === "ASSIGNED") parts.push("Device: Assigned");
     if (deviceType) parts.push(`Type: ${labelEnum(deviceType)}`);
+    if (overallAssessment) parts.push(`Assessment: ${labelEnum(overallAssessment)}`);
     return parts.length ? parts.join(" · ") : "None (all records)";
   };
 
@@ -187,6 +193,7 @@ export default function AuditRegisterPage() {
             ? deviceAvailability
             : undefined,
         deviceType: deviceType === "DESKTOP" || deviceType === "LAPTOP" ? deviceType : undefined,
+        overallAssessment: isAuditAssessment(overallAssessment) ? overallAssessment : undefined,
       });
       if (rows.length === 0) {
         setError("No audit records match the current filters to export.");
@@ -225,6 +232,7 @@ export default function AuditRegisterPage() {
             ? deviceAvailability
             : undefined,
         deviceType: deviceType === "DESKTOP" || deviceType === "LAPTOP" ? deviceType : undefined,
+        overallAssessment: isAuditAssessment(overallAssessment) ? overallAssessment : undefined,
       });
       if (seq !== loadSeq.current) return;
 
@@ -242,7 +250,7 @@ export default function AuditRegisterPage() {
     } finally {
       if (seq === loadSeq.current) setLoading(false);
     }
-  }, [page, search, itemNeeded, auditStatus, priority, deviceAvailability, deviceType]);
+  }, [page, search, itemNeeded, auditStatus, priority, deviceAvailability, deviceType, overallAssessment]);
 
   const setFilterAndResetPage = useCallback((apply: () => void) => {
     setPage(1);
@@ -260,9 +268,17 @@ export default function AuditRegisterPage() {
     return () => window.clearTimeout(timer);
   }, [searchInput]);
 
+  // Deep links from Dashboard Audit Health: /audit-register?overallAssessment=OK_NO_ISSUES
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("overallAssessment")?.trim();
+    if (!q || !isAuditAssessment(q)) return;
+    setOverallAssessment(q);
+    setPage(1);
+  }, []);
+
   useEffect(() => {
     setPage(1);
-  }, [search, itemNeeded, auditStatus, priority, deviceAvailability, deviceType]);
+  }, [search, itemNeeded, auditStatus, priority, deviceAvailability, deviceType, overallAssessment]);
 
   useEffect(() => {
     void load();
@@ -641,7 +657,7 @@ export default function AuditRegisterPage() {
             </div>
           </div>
 
-          <div data-tour="audit-filters" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div data-tour="audit-filters" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <FilterSelect
               label="Items needed"
               value={itemNeeded}
@@ -696,6 +712,18 @@ export default function AuditRegisterPage() {
               {AUDIT_ITEM_TYPES.map((t) => (
                 <option key={t} value={t}>
                   {labelEnum(t)}
+                </option>
+              ))}
+            </FilterSelect>
+            <FilterSelect
+              label="Assessment"
+              value={overallAssessment}
+              onChange={(v) => setFilterAndResetPage(() => setOverallAssessment(v))}
+            >
+              <option value="">All assessments</option>
+              {REFERENCE_DATA.assessments.map((a) => (
+                <option key={a} value={a}>
+                  {labelEnum(a)}
                 </option>
               ))}
             </FilterSelect>
@@ -767,6 +795,16 @@ export default function AuditRegisterPage() {
                     },
                   ]
                 : []),
+              ...(overallAssessment
+                ? [
+                    {
+                      key: "overallAssessment",
+                      label: "Assessment",
+                      value: labelEnum(overallAssessment),
+                      onRemove: () => setFilterAndResetPage(() => setOverallAssessment("")),
+                    },
+                  ]
+                : []),
             ]}
             onClearAll={() => {
               setFilterAndResetPage(() => {
@@ -777,6 +815,7 @@ export default function AuditRegisterPage() {
                 setPriority("");
                 setDeviceAvailability("");
                 setDeviceType("");
+                setOverallAssessment("");
               });
             }}
           />
