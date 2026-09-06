@@ -19,6 +19,7 @@ import { ActiveFilters } from "@/components/ActiveFilters";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { GenerateContractForm } from "@/components/GenerateContractForm";
 import { Header } from "@/components/Header";
+import { PdfPreviewFrame } from "@/components/PdfPreviewFrame";
 import { TourEmptyCta, TourNudge, useTourHint } from "@/components/TourNudge";
 import { Pagination } from "@/components/Pagination";
 import { SpotlightTour, shouldAutoStartTour, type TourStep } from "@/components/SpotlightTour";
@@ -566,7 +567,7 @@ export default function ContractsPage() {
                   </div>
                 )}
                 {!templateLoading && templateUrl && (
-                  <iframe
+                  <PdfPreviewFrame
                     title="Company Device Agreement template"
                     src={pdfEmbedSrc(templateUrl)}
                     className="h-[380px] w-full bg-white"
@@ -904,10 +905,11 @@ export default function ContractsPage() {
                 </div>
               )}
               {!previewLoading && previewUrl && (
-                <iframe
+                <PdfPreviewFrame
                   title={`${viewing.contract_code} preview`}
                   src={pdfEmbedSrc(previewUrl)}
                   className="h-[480px] w-full bg-white"
+                  zIndex={55}
                 />
               )}
             </div>
