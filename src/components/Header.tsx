@@ -1,6 +1,7 @@
 "use client";
 
 import { CircleHelp, Eye, Menu } from "lucide-react";
+import { HeaderDisplayScaleButton } from "@/components/DisplayScaleControl";
 import { useMobileNav } from "@/components/MobileNavContext";
 import { getStoredUser } from "@/lib/auth/session";
 import { isViewer } from "@/lib/auth/permissions";
@@ -41,6 +42,7 @@ export function Header({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <HeaderDisplayScaleButton />
           {onHowItWorks && (
             <button
               key={howItWorksPulse ? "how-it-works-pulse" : "how-it-works"}
