@@ -212,8 +212,6 @@ export default function UsersPage() {
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
   const hasActiveFilters = Boolean(searchInput || search || roleFilter || departmentFilter || activeFilter);
-  const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(safePage * PAGE_SIZE, filtered.length);
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -866,25 +864,15 @@ export default function UsersPage() {
         )}
         </div>
 
-        {!loading && filtered.length > 0 && (
-          <>
-            <p className="mt-3 text-sm text-slate-400">
-              Showing{" "}
-              <span className="font-semibold text-slate-200">
-                {rangeStart}–{rangeEnd}
-              </span>{" "}
-              of{" "}
-              <span className="font-semibold text-slate-200">{filtered.length}</span>
-              {filtered.length !== items.length && (
-                <>
-                  {" "}
-                  <span className="text-slate-500">(filtered from {items.length})</span>
-                </>
-              )}
-            </p>
-            <Pagination page={safePage} totalPages={totalPages} onPageChange={setPage} />
-          </>
-        )}
+        <Pagination
+          page={safePage}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          total={filtered.length}
+          pageSize={PAGE_SIZE}
+          itemLabel="user"
+          filteredFrom={filtered.length !== items.length ? items.length : undefined}
+        />
       </div>
 
       <Drawer
