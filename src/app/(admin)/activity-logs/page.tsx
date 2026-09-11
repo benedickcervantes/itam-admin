@@ -176,9 +176,6 @@ export default function ActivityLogsPage() {
     searchInput || search || actionFilter || entityFilter || actorFilter || fromDate || toDate,
   );
 
-  const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
-  const rangeEnd = Math.min(page * pageSize, total);
-
   const dateRangeInvalid = Boolean(fromDate && toDate && fromDate > toDate);
 
   useEffect(() => {
@@ -853,18 +850,14 @@ export default function ActivityLogsPage() {
         )}
         </div>
 
-        {!loading && total > 0 && (
-          <>
-            <p className="mt-3 text-sm text-slate-400">
-              Showing{" "}
-              <span className="font-semibold text-slate-200">
-                {rangeStart}–{rangeEnd}
-              </span>{" "}
-              of <span className="font-semibold text-slate-200">{total}</span>
-            </p>
-            <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-          </>
-        )}
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          total={total}
+          pageSize={pageSize}
+          itemLabel="log"
+        />
       </div>
 
       <ActivityLogExportColumnDialog

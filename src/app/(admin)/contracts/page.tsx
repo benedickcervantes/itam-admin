@@ -748,7 +748,7 @@ export default function ContractsPage() {
           </div>
         </div>
 
-        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} total={total} itemLabel="contract" />
       </div>
 
       <Drawer

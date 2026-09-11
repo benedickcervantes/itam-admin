@@ -102,6 +102,7 @@ export default function ProcurementPage() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>("create");
@@ -220,6 +221,7 @@ export default function ProcurementPage() {
       }
       setItems(res.items);
       setTotalPages(Math.max(1, res.totalPages || 1));
+      setTotal(res.total || 0);
       setError("");
     } catch (e) {
       if (seq !== loadSeq.current) return;
@@ -755,7 +757,7 @@ export default function ProcurementPage() {
           </div>
         )}
 
-        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} total={total} itemLabel="supplier" />
       </div>
 
       <Drawer
