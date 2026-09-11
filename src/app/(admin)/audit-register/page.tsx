@@ -101,6 +101,7 @@ export default function AuditRegisterPage() {
   const [overallAssessment, setOverallAssessment] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerMode, setDrawerMode] = useState<DrawerMode>("create");
@@ -243,6 +244,7 @@ export default function AuditRegisterPage() {
 
       setItems(res.items);
       setTotalPages(Math.max(1, res.totalPages || 1));
+      setTotal(res.total || 0);
       setError("");
     } catch (e) {
       if (seq !== loadSeq.current) return;
@@ -954,7 +956,7 @@ export default function AuditRegisterPage() {
           </div>
         )}
 
-        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} total={total} itemLabel="audit" />
       </div>
 
       <Drawer
