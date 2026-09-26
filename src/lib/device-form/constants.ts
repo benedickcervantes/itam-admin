@@ -1,7 +1,7 @@
 import { ClipboardCheck, Monitor, Mouse, User } from "lucide-react";
 import { isInfrastructureDevice, type AssetCategory } from "./helpers";
 
-export const RAM_SIZES = ["4GB", "8GB", "12GB", "16GB", "24GB", "32GB", "64GB"];
+export const RAM_SIZES = ["4GB", "8GB", "12GB", "16GB", "20GB", "24GB", "32GB", "64GB"];
 export const RAM_TYPES = ["DDR3", "DDR4", "DDR5"];
 export const RAM_SPEEDS = ["1066MHz", "1333MHz", "1600MHz", "1866MHz", "2133MHz", "2400MHz", "2666MHz", "3200MHz", "4800MHz", "5600MHz", "6400MHz"];
 export const STORAGE_TYPES = ["HDD", "SATA SSD", "NVMe SSD"];
