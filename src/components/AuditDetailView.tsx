@@ -3,7 +3,7 @@
 import { ClipboardCheck, Monitor, Mouse, User } from "lucide-react";
 import { Badge } from "@/components/Badge";
 import { DetailNotes, DetailRow, DetailSection, fmtLabel } from "@/components/DetailViewParts";
-import { formatCondition, resolveAuditWebcam } from "@/lib/device-form";
+import { formatCondition, isPersonalPeripheralLabel, resolveAuditWebcam } from "@/lib/device-form";
 import { upgradeChecklistLabel } from "@/lib/labels";
 import type { AuditRegister } from "@/lib/types";
 
@@ -101,14 +101,24 @@ export function AuditDetailView({ audit }: { audit: AuditRegister }) {
       {hasPeripherals && (
         <DetailSection title="Peripherals" icon={Mouse}>
           <DetailRow label="Keyboard" value={audit.keyboard} />
-          <DetailRow label="Keyboard Condition" value={fmtLabel(audit.keyboard_condition)} />
+          <DetailRow
+            label="Keyboard Condition"
+            value={isPersonalPeripheralLabel(audit.keyboard) ? null : fmtLabel(audit.keyboard_condition)}
+          />
           <DetailRow label="Mouse" value={audit.mouse} />
           <DetailRow label="Mouse Type" value={fmtLabel(audit.mouse_type)} />
-          <DetailRow label="Mouse Condition" value={fmtLabel(audit.mouse_condition)} />
+          <DetailRow
+            label="Mouse Condition"
+            value={isPersonalPeripheralLabel(audit.mouse) ? null : fmtLabel(audit.mouse_condition)}
+          />
           <DetailRow label="Webcam" value={resolvedWebcam.model || null} />
           <DetailRow
             label="Webcam Condition"
-            value={resolvedWebcam.condition ? fmtLabel(resolvedWebcam.condition) : null}
+            value={
+              isPersonalPeripheralLabel(resolvedWebcam.model) || !resolvedWebcam.condition
+                ? null
+                : fmtLabel(resolvedWebcam.condition)
+            }
           />
           <DetailRow label="Printer" value={audit.printer} />
         </DetailSection>

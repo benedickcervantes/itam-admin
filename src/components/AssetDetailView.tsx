@@ -5,7 +5,7 @@ import { History, Monitor, Mouse, User } from "lucide-react";
 import { Badge } from "@/components/Badge";
 import { DetailNotes, DetailRow, DetailSection, fmtLabel } from "@/components/DetailViewParts";
 import { fetchAllDeviceHistory } from "@/lib/api/device-history";
-import { assetCategoryFromAsset, formatCondition, isComponentItemType, isLaptopDevice, isInfrastructureDevice, showsInfraNetworkSpecs, showsInfraServerSpecs, showsInfraStorageSpecs, showsInfraMonitorSpecs } from "@/lib/device-form";
+import { assetCategoryFromAsset, formatCondition, hasPersonalPeripheral, isComponentItemType, isLaptopDevice, isInfrastructureDevice, isPersonalPeripheralLabel, printerUseBadge, showsInfraNetworkSpecs, showsInfraServerSpecs, showsInfraStorageSpecs, showsInfraMonitorSpecs } from "@/lib/device-form";
 import type { Asset, DeviceHistory } from "@/lib/types";
 
 function assetWithAuditFallback(asset: Asset): Asset {
@@ -88,6 +88,7 @@ export function AssetDetailView({ asset: rawAsset }: { asset: Asset }) {
           {(asset.item_type || asset.device_type) && (
             <Badge value={asset.item_type ?? asset.device_type} />
           )}
+          {printerUseBadge(asset) && <Badge value={printerUseBadge(asset)} />}
         </div>
         {asset.audit_register?.audit_code && (
           <p className="mt-3 text-xs text-slate-500">
@@ -110,6 +111,12 @@ export function AssetDetailView({ asset: rawAsset }: { asset: Asset }) {
         <DetailSection title="Device" icon={Monitor}>
           <DetailRow label={infra ? "Asset Name / Hostname" : "Computer"} value={asset.computer_name} />
           {asset.item_type && <DetailRow label="Type" value={fmtLabel(asset.item_type)} />}
+          {asset.item_type === "PRINTER" && (
+            <>
+              <DetailRow label="Printer Use" value={fmtLabel(printerUseBadge(asset))} />
+              <DetailRow label="Location" value={asset.location} />
+            </>
+          )}
           {asset.device_type && <DetailRow label="Device Type" value={fmtLabel(asset.device_type)} />}
           <DetailRow label="Brand / Model" value={asset.brand_model} />
           {screenDisplay && <DetailRow label={infraMonitor ? "Display" : "Built-in Display"} value={screenDisplay} />}
@@ -153,27 +160,45 @@ export function AssetDetailView({ asset: rawAsset }: { asset: Asset }) {
         <DetailSection title="Peripherals" icon={Mouse}>
           {isLaptop ? (
             <>
-              <DetailRow label="Built-in Keyboard" value={asset.keyboard} />
-              <DetailRow label="Built-in Trackpad" value={asset.mouse} />
+              <DetailRow
+                label={hasPersonalPeripheral(asset.keyboard) ? "Keyboard" : "Built-in Keyboard"}
+                value={asset.keyboard}
+              />
+              <DetailRow
+                label={hasPersonalPeripheral(asset.mouse) ? "Mouse / Trackpad" : "Built-in Trackpad"}
+                value={asset.mouse}
+              />
             </>
           ) : (
             <>
               <DetailRow label="Keyboard" value={asset.keyboard} />
               <DetailRow
                 label="Keyboard Condition"
-                value={asset.keyboard_condition ? formatCondition(asset.keyboard_condition) : null}
+                value={
+                  isPersonalPeripheralLabel(asset.keyboard) || !asset.keyboard_condition
+                    ? null
+                    : formatCondition(asset.keyboard_condition)
+                }
               />
               <DetailRow label="Mouse" value={asset.mouse} />
               <DetailRow
                 label="Mouse Condition"
-                value={asset.mouse_condition ? formatCondition(asset.mouse_condition) : null}
+                value={
+                  isPersonalPeripheralLabel(asset.mouse) || !asset.mouse_condition
+                    ? null
+                    : formatCondition(asset.mouse_condition)
+                }
               />
             </>
           )}
           <DetailRow label="Webcam" value={asset.webcam} />
           <DetailRow
             label="Webcam Condition"
-            value={asset.webcam_condition ? formatCondition(asset.webcam_condition) : null}
+            value={
+              isPersonalPeripheralLabel(asset.webcam) || !asset.webcam_condition
+                ? null
+                : formatCondition(asset.webcam_condition)
+            }
           />
           <DetailRow label="Printer" value={asset.printer} />
         </DetailSection>

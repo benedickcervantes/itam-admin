@@ -629,12 +629,54 @@ export function composeOperatingSystem(os: string, edition: string, other: strin
   return base;
 }
 
+/** Shown on the PC view. Not an inventory asset and has no asset code. */
+export const PERSONAL_PERIPHERAL_LABEL = "Personal";
+export const SHARED_PRINTER_LABEL = "Shared";
+
+export function isSharedPrinterLabel(value?: string | null): boolean {
+  return /^shared\b/i.test((value ?? "").trim());
+}
+
+export function parseSharedPrinter(value?: string | null): { shared: boolean; label: string } {
+  const trimmed = (value ?? "").trim();
+  const match = trimmed.match(/^shared\s*(?:[—-]\s*(.*))?$/i);
+  if (!match) return { shared: false, label: "" };
+  return { shared: true, label: (match[1] ?? "").trim() };
+}
+
+export function composeSharedPrinter(label: string): string {
+  const place = label.trim();
+  return place ? `${SHARED_PRINTER_LABEL} — ${place}` : SHARED_PRINTER_LABEL;
+}
+
+/** Assigned printers without an explicit use still read as Dedicated. */
+export function printerUseBadge(asset: {
+  item_type?: string | null;
+  printer_use?: string | null;
+  assigned_to?: string | null;
+}): "SHARED" | "DEDICATED" | null {
+  if (asset.item_type !== "PRINTER") return null;
+  if (asset.printer_use === "SHARED") return "SHARED";
+  if (asset.printer_use === "DEDICATED" || (asset.assigned_to ?? "").trim()) return "DEDICATED";
+  return null;
+}
+
+export function isPersonalPeripheralLabel(value?: string | null): boolean {
+  return (value ?? "").trim().toLowerCase() === PERSONAL_PERIPHERAL_LABEL.toLowerCase();
+}
+
+export function hasPersonalPeripheral(value?: string | null): boolean {
+  if (!value?.trim()) return false;
+  return value.split("|").some((part) => isPersonalPeripheralLabel(part));
+}
+
 export function composeLaptopKeyboard(
   builtin: string,
   builtinNotes: string,
   hasExternal: boolean,
   model: string,
   externalCond: string,
+  personal = false,
 ) {
   const parts: string[] = [];
   if (builtin && builtin !== "N_A") {
@@ -644,7 +686,9 @@ export function composeLaptopKeyboard(
     }
     parts.push(builtIn);
   }
-  if (hasExternal) {
+  if (personal) {
+    parts.push(PERSONAL_PERIPHERAL_LABEL);
+  } else if (hasExternal) {
     const ext: string[] = ["External USB"];
     if (model.trim()) ext.push(model.trim());
     if (externalCond && externalCond !== "N_A") ext.push(formatCondition(externalCond));
@@ -659,6 +703,7 @@ export function composeLaptopPointer(
   hasExternal: boolean,
   model: string,
   mouseCondition: string,
+  personal = false,
 ) {
   const parts: string[] = [];
   if (trackpad && trackpad !== "N_A") {
@@ -668,7 +713,9 @@ export function composeLaptopPointer(
     }
     parts.push(builtIn);
   }
-  if (hasExternal) {
+  if (personal) {
+    parts.push(PERSONAL_PERIPHERAL_LABEL);
+  } else if (hasExternal) {
     const ext: string[] = ["External USB"];
     if (model.trim()) ext.push(model.trim());
     if (mouseCondition && mouseCondition !== "N_A") ext.push(formatCondition(mouseCondition));
@@ -691,11 +738,16 @@ export function parseLaptopKeyboard(value: string) {
     hasExternal: false,
     externalModel: "",
     externalCond: "",
+    personal: false,
   };
   const trimmed = value.trim();
   if (!trimmed) return result;
+  if (isPersonalPeripheralLabel(trimmed)) {
+    result.personal = true;
+    return result;
+  }
 
-  if (/Built-in|External USB/i.test(trimmed)) {
+  if (/Built-in|External USB|Personal/i.test(trimmed)) {
     trimmed.split("|").forEach((part) => {
       const segment = part.trim();
       if (/^Built-in/i.test(segment)) {
@@ -706,6 +758,8 @@ export function parseLaptopKeyboard(value: string) {
           result.builtin = normalizeConditionLabel(m[1]);
           result.builtinNotes = notesM?.[1]?.trim() ?? "";
         }
+      } else if (isPersonalPeripheralLabel(segment)) {
+        result.personal = true;
       } else if (/^External USB/i.test(segment)) {
         result.hasExternal = true;
         const rest = segment.replace(/^External USB\s*(?:[—-]\s*)?/i, "");
@@ -717,6 +771,12 @@ export function parseLaptopKeyboard(value: string) {
           result.externalModel = pieces.slice(0, -1).join(" — ");
         } else {
           result.externalModel = rest;
+        }
+        if (isPersonalPeripheralLabel(result.externalModel) || isPersonalPeripheralLabel(rest)) {
+          result.personal = true;
+          result.hasExternal = false;
+          result.externalModel = "";
+          result.externalCond = "";
         }
       }
     });
@@ -735,11 +795,16 @@ export function parseLaptopPointer(value: string) {
     hasExternal: false,
     externalModel: "",
     externalCond: "",
+    personal: false,
   };
   const trimmed = value.trim();
   if (!trimmed) return result;
+  if (isPersonalPeripheralLabel(trimmed)) {
+    result.personal = true;
+    return result;
+  }
 
-  if (/Built-in Trackpad|External USB/i.test(trimmed)) {
+  if (/Built-in Trackpad|External USB|Personal/i.test(trimmed)) {
     trimmed.split("|").forEach((part) => {
       const segment = part.trim();
       if (/^Built-in Trackpad/i.test(segment)) {
@@ -750,6 +815,8 @@ export function parseLaptopPointer(value: string) {
           result.trackpad = normalizeConditionLabel(m[1]);
           result.trackpadNotes = notesM?.[1]?.trim() ?? "";
         }
+      } else if (isPersonalPeripheralLabel(segment)) {
+        result.personal = true;
       } else if (/^External USB/i.test(segment)) {
         result.hasExternal = true;
         const rest = segment.replace(/^External USB\s*(?:[—-]\s*)?/i, "");
@@ -767,6 +834,12 @@ export function parseLaptopPointer(value: string) {
           } else {
             result.externalModel = rest;
           }
+        }
+        if (isPersonalPeripheralLabel(result.externalModel) || isPersonalPeripheralLabel(rest)) {
+          result.personal = true;
+          result.hasExternal = false;
+          result.externalModel = "";
+          result.externalCond = "";
         }
       }
     });

@@ -116,6 +116,9 @@ export function PeripheralAssetForm({
   const itemTypeOptions = createMode ? spareItemTypeOptions : componentItemTypeOptions;
 
   const assignedTo = String(form.employeeName).trim();
+  const isPrinter = itemType === "PRINTER";
+  const printerUse = String(form.printerUse ?? "");
+  const isSharedPrinter = isPrinter && printerUse === "SHARED";
   const isSpareStock =
     String(form.status) === "AVAILABLE" || String(form.status) === "RESERVED";
   const nameLabel =
@@ -155,13 +158,52 @@ export function PeripheralAssetForm({
 
       <FormSection id="peripheral-section-assignment" title="Assignment" icon={User}>
         <div className="grid gap-3 md:grid-cols-2">
+          {isPrinter && (
+            <Field label="Use" required>
+              <Select
+                value={printerUse}
+                onChange={(v) => {
+                  set("printerUse", v);
+                  if (v === "SHARED") {
+                    set("employeeName", "");
+                    set("jobTitle", "");
+                    const status = String(form.status ?? "");
+                    if (status === "" || status === "AVAILABLE" || status === "RESERVED") {
+                      set("status", "IN_USE");
+                    }
+                  }
+                }}
+                options={[
+                  { value: "", label: "—" },
+                  { value: "DEDICATED", label: "Dedicated — one employee" },
+                  { value: "SHARED", label: "Shared — one place, many people" },
+                ]}
+                disabled={!write}
+              />
+            </Field>
+          )}
+          {isPrinter && (
+            <Field label="Location" required={isSharedPrinter}>
+              <input
+                className={inputClass}
+                value={String(form.location ?? "")}
+                onChange={(e) => set("location", e.target.value)}
+                placeholder="e.g. 2nd Floor Accounting"
+                readOnly={!write}
+              />
+            </Field>
+          )}
           <Field label="Assigned To">
             <input
               className={inputClass}
-              value={String(form.employeeName)}
+              value={isSharedPrinter ? "" : String(form.employeeName)}
               onChange={(e) => set("employeeName", e.target.value)}
-              placeholder="Unassigned — leave blank for spare / reserved stock"
-              readOnly={!write}
+              placeholder={
+                isSharedPrinter
+                  ? "No single assignee"
+                  : "Unassigned — leave blank for spare / reserved stock"
+              }
+              readOnly={!write || isSharedPrinter}
             />
           </Field>
           <Field label="Job Title">
@@ -198,12 +240,18 @@ export function PeripheralAssetForm({
               disabled={!write}
             />
           </Field>
-          {!assignedTo && (
+          {isSharedPrinter ? (
+            <p className="md:col-span-2 text-xs text-slate-500">
+              One printer asset for the floor. Put the place in Location. It stays In Use with no
+              assignee, and it does not print on anyone’s Device Agreement. On a PC, check Uses a
+              shared printer and type this asset code plus the place.
+            </p>
+          ) : !assignedTo ? (
             <p className="md:col-span-2 text-xs text-slate-500">
               No assignee — keep asset status as <span className="text-slate-300">Available</span> or{" "}
               <span className="text-slate-300">Reserved</span>. Assign later via Edit.
             </p>
-          )}
+          ) : null}
         </div>
       </FormSection>
 

@@ -30,6 +30,8 @@ const LABELS: Record<string, string> = {
   MOUSE: "Mouse",
   MONITOR: "Monitor",
   PRINTER: "Printer",
+  SHARED: "Shared",
+  DEDICATED: "Dedicated",
   PROJECTOR: "Projector",
   WEBCAM: "Webcam",
   UPS: "UPS",

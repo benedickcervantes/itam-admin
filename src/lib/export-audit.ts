@@ -74,6 +74,7 @@ function joinStorage(row: AuditRegister): string {
 /** Combine a peripheral name with its condition/type, e.g. "Logitech (Good)". */
 function joinWithCondition(name?: string | null, extra?: string | null): string {
   const label = name?.trim() ?? "";
+  if (label.toLowerCase() === "personal") return "Personal";
   const detail = extra ? labelEnumOrBlank(extra) : "";
   if (label && detail) return `${label} (${detail})`;
   return label || detail;

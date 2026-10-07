@@ -21,6 +21,7 @@ import {
   composeLaptopPower,
   composeMonitorRecord,
   composePeripheralPair,
+  composeSharedPrinter,
   composeRam,
   composeRamSlots,
   composeStorage,
@@ -190,15 +191,17 @@ export function DeviceInventoryForm({
           Boolean(form.hasExternalKeyboard),
           String(form.keyboardExternalModel),
           String(form.keyboardExternalCondition),
+          Boolean(form.keyboardPersonal),
         ) || "—"
       );
     }
-    return String(form.desktopKeyboardModel) || "—";
+    return form.keyboardPersonal ? "Personal" : String(form.desktopKeyboardModel) || "—";
   }, [
     form.deviceType,
     form.keyboardBuiltinCondition,
     form.keyboardBuiltinNotes,
     form.hasExternalKeyboard,
+    form.keyboardPersonal,
     form.keyboardExternalModel,
     form.keyboardExternalCondition,
     form.desktopKeyboardModel,
@@ -214,15 +217,17 @@ export function DeviceInventoryForm({
           Boolean(form.hasExternalMouse),
           String(form.mouseExternalModel),
           String(form.mouseExternalCondition),
+          Boolean(form.mousePersonal),
         ) || "—"
       );
     }
-    return String(form.desktopMouseModel) || "—";
+    return form.mousePersonal ? "Personal" : String(form.desktopMouseModel) || "—";
   }, [
     form.deviceType,
     form.trackpadCondition,
     form.trackpadNotes,
     form.hasExternalMouse,
+    form.mousePersonal,
     form.mouseExternalModel,
     form.mouseExternalCondition,
     form.desktopMouseModel,
@@ -250,14 +255,18 @@ export function DeviceInventoryForm({
 
   const printerPreview = useMemo(
     () =>
-      composePeripheralPair(
-        String(form.printerPrimary),
-        Boolean(form.hasSecondaryPrinter),
-        String(form.printerSecondary),
-        String(form.printerPrimaryCondition),
-        String(form.printerSecondaryCondition),
-      ) || "—",
+      (form.printerShared
+        ? composeSharedPrinter(String(form.printerSharedLabel ?? ""))
+        : composePeripheralPair(
+            String(form.printerPrimary),
+            Boolean(form.hasSecondaryPrinter),
+            String(form.printerSecondary),
+            String(form.printerPrimaryCondition),
+            String(form.printerSecondaryCondition),
+          )) || "—",
     [
+      form.printerShared,
+      form.printerSharedLabel,
       form.printerPrimary,
       form.printerPrimaryCondition,
       form.hasSecondaryPrinter,
@@ -267,6 +276,7 @@ export function DeviceInventoryForm({
   );
 
   const webcamPreview = useMemo(() => {
+    if (form.webcamPersonal) return "Personal";
     const model = String(form.desktopWebcamModel).trim();
     const condition = String(form.webcamCondition).trim();
     if (!model) return "—";
@@ -274,7 +284,7 @@ export function DeviceInventoryForm({
       return `${model} — ${formatCondition(condition)}`;
     }
     return model;
-  }, [form.desktopWebcamModel, form.webcamCondition]);
+  }, [form.desktopWebcamModel, form.webcamCondition, form.webcamPersonal]);
 
   const screenPreview = useMemo(() => {
     const dt = String(form.deviceType);
@@ -1157,6 +1167,25 @@ export function DeviceInventoryForm({
               <label className="flex items-center gap-2 text-sm text-slate-300">
                 <input
                   type="checkbox"
+                  checked={Boolean(form.keyboardPersonal)}
+                  onChange={(e) => {
+                    set("keyboardPersonal", e.target.checked);
+                    if (e.target.checked) set("hasExternalKeyboard", false);
+                  }}
+                  disabled={!write}
+                  className="rounded border-slate-600"
+                />
+                Personal keyboard (employee-owned)
+              </label>
+              {form.keyboardPersonal && (
+                <p className="text-xs text-slate-500">
+                  Not saved as a company asset. A company keyboard on this PC is returned to Available.
+                </p>
+              )}
+              {!form.keyboardPersonal && (
+              <label className="flex items-center gap-2 text-sm text-slate-300">
+                <input
+                  type="checkbox"
                   checked={Boolean(form.hasExternalKeyboard)}
                   onChange={(e) => set("hasExternalKeyboard", e.target.checked)}
                   disabled={!write}
@@ -1164,7 +1193,8 @@ export function DeviceInventoryForm({
                 />
                 External USB keyboard connected
               </label>
-              {form.hasExternalKeyboard && (
+              )}
+              {form.hasExternalKeyboard && !form.keyboardPersonal && (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="External Keyboard — Brand / Model">
                     <input
@@ -1215,6 +1245,25 @@ export function DeviceInventoryForm({
               <label className="flex items-center gap-2 text-sm text-slate-300">
                 <input
                   type="checkbox"
+                  checked={Boolean(form.mousePersonal)}
+                  onChange={(e) => {
+                    set("mousePersonal", e.target.checked);
+                    if (e.target.checked) set("hasExternalMouse", false);
+                  }}
+                  disabled={!write}
+                  className="rounded border-slate-600"
+                />
+                Personal mouse (employee-owned)
+              </label>
+              {form.mousePersonal && (
+                <p className="text-xs text-slate-500">
+                  Not saved as a company asset. A company mouse on this PC is returned to Available.
+                </p>
+              )}
+              {!form.mousePersonal && (
+              <label className="flex items-center gap-2 text-sm text-slate-300">
+                <input
+                  type="checkbox"
                   checked={Boolean(form.hasExternalMouse)}
                   onChange={(e) => set("hasExternalMouse", e.target.checked)}
                   disabled={!write}
@@ -1222,7 +1271,8 @@ export function DeviceInventoryForm({
                 />
                 External USB mouse connected
               </label>
-              {form.hasExternalMouse && (
+              )}
+              {form.hasExternalMouse && !form.mousePersonal && (
                 <div className="grid gap-3 sm:grid-cols-2">
                   <Field label="External Mouse — Brand / Model">
                     <input
@@ -1250,45 +1300,96 @@ export function DeviceInventoryForm({
             </Subsection>
           </div>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2">
-            <Field label="Keyboard — Brand / Model">
+          <div className="space-y-4">
+            <label className="flex items-center gap-2 text-sm text-slate-300">
               <input
-                className={inputClass}
-                value={String(form.desktopKeyboardModel)}
-                onChange={(e) => set("desktopKeyboardModel", e.target.value)}
-                placeholder="e.g. Wired USB keyboard, Logitech MK270"
-                readOnly={!write}
-              />
-            </Field>
-            <Field label="Keyboard Condition">
-              <Select
-                value={String(form.keyboardCondition)}
-                onChange={(v) => set("keyboardCondition", v)}
-                options={inputConditionOptions.filter((o) => o.value !== "N_A")}
+                type="checkbox"
+                checked={Boolean(form.keyboardPersonal)}
+                onChange={(e) => set("keyboardPersonal", e.target.checked)}
                 disabled={!write}
+                className="rounded border-slate-600"
               />
-            </Field>
-            <Field label="Mouse — Brand / Model">
+              Personal keyboard (employee-owned)
+            </label>
+            {form.keyboardPersonal ? (
+              <p className="text-xs text-slate-500">
+                Not saved as a company asset. A company keyboard on this PC is returned to Available.
+              </p>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2">
+                <Field label="Keyboard — Brand / Model">
+                  <input
+                    className={inputClass}
+                    value={String(form.desktopKeyboardModel)}
+                    onChange={(e) => set("desktopKeyboardModel", e.target.value)}
+                    placeholder="e.g. Wired USB keyboard, Logitech MK270"
+                    readOnly={!write}
+                  />
+                </Field>
+                <Field label="Keyboard Condition">
+                  <Select
+                    value={String(form.keyboardCondition)}
+                    onChange={(v) => set("keyboardCondition", v)}
+                    options={inputConditionOptions.filter((o) => o.value !== "N_A")}
+                    disabled={!write}
+                  />
+                </Field>
+              </div>
+            )}
+            <label className="flex items-center gap-2 text-sm text-slate-300">
               <input
-                className={inputClass}
-                value={String(form.desktopMouseModel)}
-                onChange={(e) => set("desktopMouseModel", e.target.value)}
-                placeholder="e.g. USB optical mouse"
-                readOnly={!write}
-              />
-            </Field>
-            <Field label="Mouse Condition">
-              <Select
-                value={String(form.mouseCondition)}
-                onChange={(v) => set("mouseCondition", v)}
-                options={mouseConditionOptions}
+                type="checkbox"
+                checked={Boolean(form.mousePersonal)}
+                onChange={(e) => set("mousePersonal", e.target.checked)}
                 disabled={!write}
+                className="rounded border-slate-600"
               />
-            </Field>
+              Personal mouse (employee-owned)
+            </label>
+            {form.mousePersonal ? (
+              <p className="text-xs text-slate-500">
+                Not saved as a company asset. A company mouse on this PC is returned to Available.
+              </p>
+            ) : (
+              <div className="grid gap-3 md:grid-cols-2">
+                <Field label="Mouse — Brand / Model">
+                  <input
+                    className={inputClass}
+                    value={String(form.desktopMouseModel)}
+                    onChange={(e) => set("desktopMouseModel", e.target.value)}
+                    placeholder="e.g. USB optical mouse"
+                    readOnly={!write}
+                  />
+                </Field>
+                <Field label="Mouse Condition">
+                  <Select
+                    value={String(form.mouseCondition)}
+                    onChange={(v) => set("mouseCondition", v)}
+                    options={mouseConditionOptions}
+                    disabled={!write}
+                  />
+                </Field>
+              </div>
+            )}
           </div>
         )}
 
         <Subsection title="Webcam">
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={Boolean(form.webcamPersonal)}
+              onChange={(e) => set("webcamPersonal", e.target.checked)}
+              disabled={!write}
+              className="rounded border-slate-600"
+            />
+            Personal webcam (employee-owned)
+          </label>
+          {form.webcamPersonal ? (
+            <p className="text-xs text-slate-500">
+              Not saved as a company asset. A company webcam on this PC is returned to Available.
+            </p>
+          ) : (
           <div className="grid gap-3 md:grid-cols-2">
             <Field
               label={
@@ -1314,61 +1415,101 @@ export function DeviceInventoryForm({
               />
             </Field>
           </div>
+          )}
           <RecordedPreview label="Recorded webcam" value={webcamPreview} />
         </Subsection>
 
         <div className="space-y-4">
           <Subsection title="Printer">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Primary Printer — Brand / Model">
-                <input
-                  className={inputClass}
-                  value={String(form.printerPrimary)}
-                  onChange={(e) => set("printerPrimary", e.target.value)}
-                  placeholder="e.g. HP LaserJet Pro M404dn"
-                  readOnly={!write}
-                />
-              </Field>
-              <Field label="Primary Printer — Condition">
-                <Select
-                  value={String(form.printerPrimaryCondition)}
-                  onChange={(v) => set("printerPrimaryCondition", v)}
-                  options={inputConditionOptions.filter((o) => o.value !== "N_A")}
-                  disabled={!write}
-                />
-              </Field>
-            </div>
             <label className="flex items-center gap-2 text-sm text-slate-300">
               <input
                 type="checkbox"
-                checked={Boolean(form.hasSecondaryPrinter)}
-                onChange={(e) => set("hasSecondaryPrinter", e.target.checked)}
+                checked={Boolean(form.printerShared)}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  set("printerShared", checked);
+                  if (checked) {
+                    set("printerPrimary", "");
+                    set("printerPrimaryCondition", "");
+                    set("hasSecondaryPrinter", false);
+                    set("printerSecondary", "");
+                    set("printerSecondaryCondition", "");
+                  }
+                }}
                 disabled={!write}
                 className="rounded border-slate-600"
               />
-              Second printer connected
+              Uses a shared printer
             </label>
-            {form.hasSecondaryPrinter && (
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Secondary Printer — Brand / Model">
+            {form.printerShared ? (
+              <Field label="Shared printer — asset code and place">
+                <input
+                  className={inputClass}
+                  value={String(form.printerSharedLabel)}
+                  onChange={(e) => set("printerSharedLabel", e.target.value)}
+                  placeholder="e.g. AST-0071 · 2nd Floor Accounting"
+                  readOnly={!write}
+                />
+              </Field>
+            ) : (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Primary Printer — Brand / Model">
+                    <input
+                      className={inputClass}
+                      value={String(form.printerPrimary)}
+                      onChange={(e) => set("printerPrimary", e.target.value)}
+                      placeholder="e.g. HP LaserJet Pro M404dn"
+                      readOnly={!write}
+                    />
+                  </Field>
+                  <Field label="Primary Printer — Condition">
+                    <Select
+                      value={String(form.printerPrimaryCondition)}
+                      onChange={(v) => set("printerPrimaryCondition", v)}
+                      options={inputConditionOptions.filter((o) => o.value !== "N_A")}
+                      disabled={!write}
+                    />
+                  </Field>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-slate-300">
                   <input
-                    className={inputClass}
-                    value={String(form.printerSecondary)}
-                    onChange={(e) => set("printerSecondary", e.target.value)}
-                    placeholder="e.g. Canon PIXMA TS3450"
-                    readOnly={!write}
-                  />
-                </Field>
-                <Field label="Secondary Printer — Condition">
-                  <Select
-                    value={String(form.printerSecondaryCondition)}
-                    onChange={(v) => set("printerSecondaryCondition", v)}
-                    options={inputConditionOptions.filter((o) => o.value !== "N_A")}
+                    type="checkbox"
+                    checked={Boolean(form.hasSecondaryPrinter)}
+                    onChange={(e) => set("hasSecondaryPrinter", e.target.checked)}
                     disabled={!write}
+                    className="rounded border-slate-600"
                   />
-                </Field>
-              </div>
+                  Second printer connected
+                </label>
+                {form.hasSecondaryPrinter && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Secondary Printer — Brand / Model">
+                      <input
+                        className={inputClass}
+                        value={String(form.printerSecondary)}
+                        onChange={(e) => set("printerSecondary", e.target.value)}
+                        placeholder="e.g. Canon PIXMA TS3450"
+                        readOnly={!write}
+                      />
+                    </Field>
+                    <Field label="Secondary Printer — Condition">
+                      <Select
+                        value={String(form.printerSecondaryCondition)}
+                        onChange={(v) => set("printerSecondaryCondition", v)}
+                        options={inputConditionOptions.filter((o) => o.value !== "N_A")}
+                        disabled={!write}
+                      />
+                    </Field>
+                  </div>
+                )}
+              </>
             )}
+            <p className="text-xs text-slate-500">
+              {form.printerShared
+                ? "Label only. The shared printer keeps its own asset code and does not appear on this employee’s Device Agreement. A company printer that was assigned to this PC returns to Available after Save."
+                : "A dedicated printer is assigned to this employee and appears on their Device Agreement."}
+            </p>
             <RecordedPreview label="Recorded printer(s)" value={printerPreview} />
           </Subsection>
         </div>
