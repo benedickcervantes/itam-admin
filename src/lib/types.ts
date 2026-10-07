@@ -81,6 +81,7 @@ export type Asset = {
   os?: string | null;
   os_license_status?: string | null;
   printer?: string | null;
+  printer_use?: string | null;
   monitor?: string | null;
   keyboard?: string | null;
   keyboard_condition?: string | null;

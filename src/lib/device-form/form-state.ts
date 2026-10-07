@@ -6,10 +6,14 @@ import {
   composeDesktopPower,
   composeLaptopKeyboard,
   composeLaptopPointer,
+  isPersonalPeripheralLabel,
+  PERSONAL_PERIPHERAL_LABEL,
   composeLaptopPower,
   composeGpuPair,
   composeMonitorRecord,
   composePeripheralPair,
+  composeSharedPrinter,
+  parseSharedPrinter,
   composeRam,
   composeRamSlots,
   composeStorage,
@@ -159,10 +163,14 @@ export function emptyForm(): DeviceFormState {
     hasSecondaryPrinter: false,
     printerSecondary: "",
     printerSecondaryCondition: "",
+    printerShared: false,
+    printerSharedLabel: "",
+    printerUse: "",
     printer: "",
     keyboardBuiltinCondition: "",
     keyboardBuiltinNotes: "",
     hasExternalKeyboard: false,
+    keyboardPersonal: false,
     keyboardExternalModel: "",
     keyboardExternalCondition: "",
     keyboard: "",
@@ -172,11 +180,13 @@ export function emptyForm(): DeviceFormState {
     trackpadCondition: "",
     trackpadNotes: "",
     hasExternalMouse: false,
+    mousePersonal: false,
     mouseExternalModel: "",
     mouseExternalCondition: "",
     mouse: "",
     mouseType: "",
     desktopMouseModel: "",
+    webcamPersonal: false,
     desktopWebcamModel: "",
     webcam: "",
     webcamCondition: "",
@@ -221,7 +231,8 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
   const kbParsed = isLaptopDevice(deviceType) ? parseLaptopKeyboard(row.keyboard ?? "") : null;
   const pointerParsed = isLaptopDevice(deviceType) ? parseLaptopPointer(row.mouse ?? "") : null;
   const monitorParsed = parseMonitorRecord(row.monitor ?? "");
-  const printerParsed = parsePeripheralPair(row.printer ?? "");
+  const sharedPrinter = parseSharedPrinter(row.printer);
+  const printerParsed = parsePeripheralPair(sharedPrinter.shared ? "" : (row.printer ?? ""));
   const gpuParsed = parseGpuPair(row.graphics_gpu ?? "");
   const osParsed = parseOperatingSystem(row.operating_system ?? "");
   const savedKeyboardCondition = row.keyboard_condition ?? "";
@@ -284,6 +295,8 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
     hasSecondaryPrinter: printerParsed.hasSecondary,
     printerSecondary: printerParsed.secondary,
     printerSecondaryCondition: printerParsed.secondaryCondition,
+    printerShared: sharedPrinter.shared,
+    printerSharedLabel: sharedPrinter.label,
     printer: row.printer ?? "",
     keyboardBuiltinCondition:
       kbParsed?.builtin ||
@@ -292,25 +305,30 @@ export function formStateFromAudit(row: AuditRegister): DeviceFormState {
         : ""),
     keyboardBuiltinNotes: kbParsed?.builtinNotes ?? "",
     hasExternalKeyboard: kbParsed?.hasExternal ?? false,
+    keyboardPersonal: kbParsed?.personal || isPersonalPeripheralLabel(row.keyboard),
     keyboardExternalModel: kbParsed?.externalModel ?? "",
     keyboardExternalCondition: kbParsed?.externalCond ?? "",
     keyboard: row.keyboard ?? "",
     keyboardCondition: isLaptopDevice(deviceType) ? "" : savedKeyboardCondition,
     mouseCondition: isLaptopDevice(deviceType) ? "" : (row.mouse_condition ?? ""),
-    desktopKeyboardModel: isLaptopDevice(deviceType) ? "" : (row.keyboard ?? ""),
+    desktopKeyboardModel:
+      isLaptopDevice(deviceType) || isPersonalPeripheralLabel(row.keyboard) ? "" : (row.keyboard ?? ""),
     trackpadCondition: pointerParsed?.trackpad ?? "",
     trackpadNotes: pointerParsed?.trackpadNotes ?? "",
     hasExternalMouse: pointerParsed?.hasExternal ?? false,
+    mousePersonal: pointerParsed?.personal || isPersonalPeripheralLabel(row.mouse),
     mouseExternalModel: pointerParsed?.externalModel ?? "",
     mouseExternalCondition:
       pointerParsed?.externalCond ||
       (isLaptopDevice(deviceType) ? (row.mouse_condition ?? "") : ""),
     mouse: row.mouse ?? "",
     mouseType: "",
-    desktopMouseModel: isLaptopDevice(deviceType) ? "" : (row.mouse ?? ""),
-    desktopWebcamModel: resolvedWebcam.model,
+    desktopMouseModel:
+      isLaptopDevice(deviceType) || isPersonalPeripheralLabel(row.mouse) ? "" : (row.mouse ?? ""),
+    webcamPersonal: isPersonalPeripheralLabel(resolvedWebcam.model),
+    desktopWebcamModel: isPersonalPeripheralLabel(resolvedWebcam.model) ? "" : resolvedWebcam.model,
     webcam: resolvedWebcam.model,
-    webcamCondition: resolvedWebcam.condition,
+    webcamCondition: isPersonalPeripheralLabel(resolvedWebcam.model) ? "" : resolvedWebcam.condition,
     powerChargerStatus: powerParsed.charger,
     powerBatteryStatus: powerParsed.battery,
     powerDesktopConnectionType: powerParsed.desktopConnectionType,
@@ -351,7 +369,8 @@ export function formStateFromAsset(row: Asset): DeviceFormState {
   const kbParsed = isLaptopDevice(deviceType) ? parseLaptopKeyboard(hardware.keyboard ?? "") : null;
   const pointerParsed = isLaptopDevice(deviceType) ? parseLaptopPointer(hardware.mouse ?? "") : null;
   const monitorParsed = parseMonitorRecord(hardware.monitor ?? "");
-  const printerParsed = parsePeripheralPair(hardware.printer ?? "");
+  const sharedPrinter = parseSharedPrinter(hardware.printer);
+  const printerParsed = parsePeripheralPair(sharedPrinter.shared ? "" : (hardware.printer ?? ""));
   const gpuParsed = parseGpuPair(hardware.gpu ?? "");
   const osParsed = parseOperatingSystem(hardware.os ?? "");
   const savedKeyboardCondition = hardware.keyboard_condition ?? "";
@@ -421,6 +440,16 @@ export function formStateFromAsset(row: Asset): DeviceFormState {
     hasSecondaryPrinter: printerParsed.hasSecondary,
     printerSecondary: printerParsed.secondary,
     printerSecondaryCondition: printerParsed.secondaryCondition,
+    printerShared: sharedPrinter.shared,
+    printerSharedLabel: sharedPrinter.label,
+    printerUse:
+      hardware.item_type === "PRINTER"
+        ? hardware.printer_use === "SHARED"
+          ? "SHARED"
+          : hardware.printer_use === "DEDICATED" || (hardware.assigned_to ?? "").trim()
+            ? "DEDICATED"
+            : ""
+        : "",
     printer: hardware.printer ?? "",
     keyboardBuiltinCondition:
       kbParsed?.builtin ||
@@ -429,25 +458,30 @@ export function formStateFromAsset(row: Asset): DeviceFormState {
         : ""),
     keyboardBuiltinNotes: kbParsed?.builtinNotes ?? "",
     hasExternalKeyboard: kbParsed?.hasExternal ?? false,
+    keyboardPersonal: kbParsed?.personal || isPersonalPeripheralLabel(hardware.keyboard),
     keyboardExternalModel: kbParsed?.externalModel ?? "",
     keyboardExternalCondition: kbParsed?.externalCond ?? "",
     keyboard: hardware.keyboard ?? "",
     keyboardCondition: isLaptopDevice(deviceType) ? "" : (hardware.keyboard_condition ?? ""),
     mouseCondition: isLaptopDevice(deviceType) ? "" : (hardware.mouse_condition ?? ""),
-    desktopKeyboardModel: isLaptopDevice(deviceType) ? "" : (hardware.keyboard ?? ""),
+    desktopKeyboardModel:
+      isLaptopDevice(deviceType) || isPersonalPeripheralLabel(hardware.keyboard) ? "" : (hardware.keyboard ?? ""),
     trackpadCondition: pointerParsed?.trackpad ?? "",
     trackpadNotes: pointerParsed?.trackpadNotes ?? "",
     hasExternalMouse: pointerParsed?.hasExternal ?? false,
+    mousePersonal: pointerParsed?.personal || isPersonalPeripheralLabel(hardware.mouse),
     mouseExternalModel: pointerParsed?.externalModel ?? "",
     mouseExternalCondition:
       pointerParsed?.externalCond ||
       (isLaptopDevice(deviceType) ? (hardware.mouse_condition ?? "") : ""),
     mouse: hardware.mouse ?? "",
     mouseType: "",
-    desktopMouseModel: isLaptopDevice(deviceType) ? "" : (hardware.mouse ?? ""),
-    desktopWebcamModel: resolvedWebcam.model,
+    desktopMouseModel:
+      isLaptopDevice(deviceType) || isPersonalPeripheralLabel(hardware.mouse) ? "" : (hardware.mouse ?? ""),
+    webcamPersonal: isPersonalPeripheralLabel(resolvedWebcam.model),
+    desktopWebcamModel: isPersonalPeripheralLabel(resolvedWebcam.model) ? "" : resolvedWebcam.model,
     webcam: resolvedWebcam.model,
-    webcamCondition: resolvedWebcam.condition,
+    webcamCondition: isPersonalPeripheralLabel(resolvedWebcam.model) ? "" : resolvedWebcam.condition,
     powerChargerStatus: powerParsed.charger,
     powerBatteryStatus: powerParsed.battery,
     powerDesktopConnectionType: powerParsed.desktopConnectionType,
@@ -496,39 +530,48 @@ export function prepareComposedForm(form: DeviceFormState): DeviceFormState {
           : "",
       );
 
+  const keyboardPersonal = Boolean(body.keyboardPersonal);
+  const mousePersonal = Boolean(body.mousePersonal);
+  const webcamPersonal = Boolean(body.webcamPersonal);
+
   if (isLaptopDevice(String(body.deviceType))) {
     body.keyboard = composeLaptopKeyboard(
       String(body.keyboardBuiltinCondition),
       String(body.keyboardBuiltinNotes),
-      Boolean(body.hasExternalKeyboard),
+      Boolean(body.hasExternalKeyboard) && !keyboardPersonal,
       String(body.keyboardExternalModel),
       String(body.keyboardExternalCondition),
+      keyboardPersonal,
     );
     body.keyboardCondition = resolveLaptopKeyboardCondition(
       String(body.keyboardBuiltinCondition),
-      Boolean(body.hasExternalKeyboard),
+      Boolean(body.hasExternalKeyboard) && !keyboardPersonal,
       String(body.keyboardExternalCondition),
     );
     body.mouse = composeLaptopPointer(
       String(body.trackpadCondition),
       String(body.trackpadNotes),
-      Boolean(body.hasExternalMouse),
+      Boolean(body.hasExternalMouse) && !mousePersonal,
       String(body.mouseExternalModel),
       String(body.mouseExternalCondition),
+      mousePersonal,
     );
     body.mouseCondition = resolveLaptopKeyboardCondition(
       String(body.trackpadCondition),
-      Boolean(body.hasExternalMouse),
+      Boolean(body.hasExternalMouse) && !mousePersonal,
       String(body.mouseExternalCondition),
     );
-    body.mouseType = "";
+    body.mouseType = mousePersonal ? "PERSONAL_BYOD" : "";
   } else {
-    body.keyboard = String(body.desktopKeyboardModel);
-    body.mouse = String(body.desktopMouseModel);
-    body.mouseType = "";
+    body.keyboard = keyboardPersonal ? PERSONAL_PERIPHERAL_LABEL : String(body.desktopKeyboardModel);
+    body.mouse = mousePersonal ? PERSONAL_PERIPHERAL_LABEL : String(body.desktopMouseModel);
+    body.mouseType = mousePersonal ? "PERSONAL_BYOD" : "";
+    if (keyboardPersonal) body.keyboardCondition = "";
+    if (mousePersonal) body.mouseCondition = "";
   }
 
-  body.webcam = String(body.desktopWebcamModel);
+  body.webcam = webcamPersonal ? PERSONAL_PERIPHERAL_LABEL : String(body.desktopWebcamModel);
+  if (webcamPersonal) body.webcamCondition = "";
 
   body.monitor = composeMonitorRecord(
     String(body.deviceType),
@@ -538,13 +581,15 @@ export function prepareComposedForm(form: DeviceFormState): DeviceFormState {
     String(body.monitorPrimaryCondition),
     String(body.monitorSecondaryCondition),
   );
-  body.printer = composePeripheralPair(
-    String(body.printerPrimary),
-    Boolean(body.hasSecondaryPrinter),
-    String(body.printerSecondary),
-    String(body.printerPrimaryCondition),
-    String(body.printerSecondaryCondition),
-  );
+  body.printer = body.printerShared
+    ? composeSharedPrinter(String(body.printerSharedLabel ?? ""))
+    : composePeripheralPair(
+        String(body.printerPrimary),
+        Boolean(body.hasSecondaryPrinter),
+        String(body.printerSecondary),
+        String(body.printerPrimaryCondition),
+        String(body.printerSecondaryCondition),
+      );
 
   if (
     isLaptopDevice(String(body.deviceType)) ||
@@ -590,7 +635,11 @@ export function validateAssetForm(form: DeviceFormState): string | null {
     return "Brand / Model is required.";
   }
   const assignedTo = String(form.employeeName ?? "").trim();
-  if (status === "IN_USE" && !assignedTo) {
+  const sharedPrinter = itemType === "PRINTER" && String(form.printerUse) === "SHARED";
+  if (sharedPrinter && !String(form.location ?? "").trim()) {
+    return "Location is required for a shared printer.";
+  }
+  if (status === "IN_USE" && !assignedTo && !sharedPrinter) {
     return "Assigned To is required when status is In Use.";
   }
   return null;
@@ -665,6 +714,20 @@ export function prepareAuditPayload(form: DeviceFormState): Record<string, strin
     result.priority = "LOW";
   }
 
+  const laptop = isLaptopDevice(String(form.deviceType));
+  if (!laptop && isPersonalPeripheralLabel(String(body.keyboard))) {
+    result.keyboardCondition = null as unknown as string;
+  }
+  if (isPersonalPeripheralLabel(String(body.mouse)) || Boolean(form.mousePersonal)) {
+    result.mouseType = "PERSONAL_BYOD";
+    if (!laptop) result.mouseCondition = null as unknown as string;
+  } else {
+    result.mouseType = null as unknown as string;
+  }
+  if (isPersonalPeripheralLabel(String(body.webcam))) {
+    result.webcamCondition = null as unknown as string;
+  }
+
   return result;
 }
 
@@ -731,6 +794,28 @@ function prepareComponentAssetPayload(
   }
   const employeeStatus = String(form.employeeStatus ?? "").trim();
   if (employeeStatus && !releaseToStock) payload.employeeStatus = employeeStatus;
+
+  if (itemType === "PRINTER") {
+    const printerUse = String(form.printerUse ?? "");
+    if (printerUse === "SHARED" || printerUse === "DEDICATED") {
+      payload.printerUse = printerUse;
+    }
+    const location = String(form.location ?? "").trim();
+    if (location) payload.location = location;
+    if (printerUse === "SHARED") {
+      payload.assignedTo = "";
+      delete payload.jobTitle;
+      delete payload.employeeStatus;
+      if (
+        !releaseToStock &&
+        status !== "UNDER_REPAIR" &&
+        status !== "RETIRED" &&
+        status !== "DISPOSED"
+      ) {
+        payload.status = "IN_USE";
+      }
+    }
+  }
 
   Object.keys(payload).forEach((k) => {
     // Keep assignedTo: "" so the API clears the assignee on update.

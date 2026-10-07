@@ -42,6 +42,8 @@ const STYLES: Record<string, string> = {
   POOR: "bg-orange-500/15 text-orange-300 ring-orange-500/30",
   NON_FUNCTIONAL: "bg-red-500/15 text-red-300 ring-red-500/30",
   IN_USE: "bg-sky-500/15 text-sky-300 ring-sky-500/30",
+  SHARED: "bg-sky-500/15 text-sky-300 ring-sky-500/30",
+  DEDICATED: "bg-violet-500/15 text-violet-300 ring-violet-500/30",
   AVAILABLE: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
   UNDER_REPAIR: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
   RESERVED: "bg-violet-500/15 text-violet-300 ring-violet-500/30",

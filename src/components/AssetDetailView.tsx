@@ -1,10 +1,12 @@
 "use client";
 
-import { Monitor, Mouse, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { History, Monitor, Mouse, User } from "lucide-react";
 import { Badge } from "@/components/Badge";
 import { DetailNotes, DetailRow, DetailSection, fmtLabel } from "@/components/DetailViewParts";
-import { assetCategoryFromAsset, formatCondition, isComponentItemType, isLaptopDevice, isInfrastructureDevice, showsInfraNetworkSpecs, showsInfraServerSpecs, showsInfraStorageSpecs, showsInfraMonitorSpecs } from "@/lib/device-form";
-import type { Asset } from "@/lib/types";
+import { fetchAllDeviceHistory } from "@/lib/api/device-history";
+import { assetCategoryFromAsset, formatCondition, hasPersonalPeripheral, isComponentItemType, isLaptopDevice, isInfrastructureDevice, isPersonalPeripheralLabel, printerUseBadge, showsInfraNetworkSpecs, showsInfraServerSpecs, showsInfraStorageSpecs, showsInfraMonitorSpecs } from "@/lib/device-form";
+import type { Asset, DeviceHistory } from "@/lib/types";
 
 function assetWithAuditFallback(asset: Asset): Asset {
   const audit = asset.audit_register;
@@ -86,6 +88,7 @@ export function AssetDetailView({ asset: rawAsset }: { asset: Asset }) {
           {(asset.item_type || asset.device_type) && (
             <Badge value={asset.item_type ?? asset.device_type} />
           )}
+          {printerUseBadge(asset) && <Badge value={printerUseBadge(asset)} />}
         </div>
         {asset.audit_register?.audit_code && (
           <p className="mt-3 text-xs text-slate-500">
@@ -108,6 +111,12 @@ export function AssetDetailView({ asset: rawAsset }: { asset: Asset }) {
         <DetailSection title="Device" icon={Monitor}>
           <DetailRow label={infra ? "Asset Name / Hostname" : "Computer"} value={asset.computer_name} />
           {asset.item_type && <DetailRow label="Type" value={fmtLabel(asset.item_type)} />}
+          {asset.item_type === "PRINTER" && (
+            <>
+              <DetailRow label="Printer Use" value={fmtLabel(printerUseBadge(asset))} />
+              <DetailRow label="Location" value={asset.location} />
+            </>
+          )}
           {asset.device_type && <DetailRow label="Device Type" value={fmtLabel(asset.device_type)} />}
           <DetailRow label="Brand / Model" value={asset.brand_model} />
           {screenDisplay && <DetailRow label={infraMonitor ? "Display" : "Built-in Display"} value={screenDisplay} />}
@@ -151,33 +160,176 @@ export function AssetDetailView({ asset: rawAsset }: { asset: Asset }) {
         <DetailSection title="Peripherals" icon={Mouse}>
           {isLaptop ? (
             <>
-              <DetailRow label="Built-in Keyboard" value={asset.keyboard} />
-              <DetailRow label="Built-in Trackpad" value={asset.mouse} />
+              <DetailRow
+                label={hasPersonalPeripheral(asset.keyboard) ? "Keyboard" : "Built-in Keyboard"}
+                value={asset.keyboard}
+              />
+              <DetailRow
+                label={hasPersonalPeripheral(asset.mouse) ? "Mouse / Trackpad" : "Built-in Trackpad"}
+                value={asset.mouse}
+              />
             </>
           ) : (
             <>
               <DetailRow label="Keyboard" value={asset.keyboard} />
               <DetailRow
                 label="Keyboard Condition"
-                value={asset.keyboard_condition ? formatCondition(asset.keyboard_condition) : null}
+                value={
+                  isPersonalPeripheralLabel(asset.keyboard) || !asset.keyboard_condition
+                    ? null
+                    : formatCondition(asset.keyboard_condition)
+                }
               />
               <DetailRow label="Mouse" value={asset.mouse} />
               <DetailRow
                 label="Mouse Condition"
-                value={asset.mouse_condition ? formatCondition(asset.mouse_condition) : null}
+                value={
+                  isPersonalPeripheralLabel(asset.mouse) || !asset.mouse_condition
+                    ? null
+                    : formatCondition(asset.mouse_condition)
+                }
               />
             </>
           )}
           <DetailRow label="Webcam" value={asset.webcam} />
           <DetailRow
             label="Webcam Condition"
-            value={asset.webcam_condition ? formatCondition(asset.webcam_condition) : null}
+            value={
+              isPersonalPeripheralLabel(asset.webcam) || !asset.webcam_condition
+                ? null
+                : formatCondition(asset.webcam_condition)
+            }
           />
           <DetailRow label="Printer" value={asset.printer} />
         </DetailSection>
       )}
 
       <DetailNotes value={asset.notes} />
+      <AssetDeviceHistory asset={asset} />
+    </div>
+  );
+}
+
+function fmtHistoryDate(value?: string | null) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value.slice(0, 10);
+  return d.toLocaleDateString([], { year: "numeric", month: "short", day: "numeric" });
+}
+
+function isReleasedToStock(row: DeviceHistory): boolean {
+  if (!row.returned_date) return false;
+  const notes = (row.notes ?? "").toLowerCase();
+  return /released to available|released to reserved|moved to spare|spare stock|available from/i.test(notes);
+}
+
+function historyStatus(row: DeviceHistory): { label: string; className: string } {
+  if (!row.returned_date) {
+    return { label: "Current", className: "bg-emerald-950/50 text-emerald-300" };
+  }
+  if (isReleasedToStock(row)) {
+    return { label: "Available", className: "bg-sky-950/60 text-sky-300" };
+  }
+  return { label: "Previous", className: "bg-amber-950/40 text-amber-300" };
+}
+
+function displayAssignee(row: DeviceHistory): string {
+  if (isReleasedToStock(row)) return "Available (spare)";
+  return row.assigned_to?.trim() || "—";
+}
+
+function displayLastUser(row: DeviceHistory): string {
+  if (isReleasedToStock(row)) return row.assigned_to?.trim() || row.last_user?.trim() || "—";
+  return row.last_user?.trim() || "—";
+}
+
+function AssetDeviceHistory({ asset }: { asset: Asset }) {
+  const [rows, setRows] = useState<DeviceHistory[] | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setRows(null);
+    setError("");
+    fetchAllDeviceHistory({ assetId: asset.id, status: "all" })
+      .then((items) => {
+        if (!cancelled) setRows(items);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRows([]);
+          setError("Could not load device history.");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [asset.id]);
+
+  return (
+    <section className="min-w-0 overflow-hidden rounded-xl border border-slate-700/70 bg-slate-900/30">
+      <div className="flex items-center gap-2.5 border-b border-slate-700/50 bg-slate-800/35 px-4 py-2.5">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#2E7D9A]/15">
+          <History className="h-3.5 w-3.5 text-[#2E7D9A]" />
+        </span>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-300">Device History</h3>
+        {rows && rows.length > 0 && (
+          <span className="ml-auto text-[11px] font-medium text-slate-500">{rows.length}</span>
+        )}
+      </div>
+      <div className="px-4 py-3">
+        {rows === null && !error && <p className="py-2 text-sm text-slate-500">Loading device history...</p>}
+        {error && <p className="py-2 text-sm text-red-400">{error}</p>}
+        {rows && rows.length === 0 && !error && (
+          <p className="py-2 text-sm text-slate-500">No device history recorded for this asset.</p>
+        )}
+        {rows && rows.length > 0 && (
+          <ul className="divide-y divide-slate-700/40">
+            {rows.map((row) => {
+              const status = historyStatus(row);
+              const computer = row.computer_name?.trim();
+              const showComputer = Boolean(computer && computer !== asset.computer_name?.trim());
+              return (
+                <li key={row.id} className="py-3 first:pt-1 last:pb-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-mono text-sm font-medium text-[#2E7D9A]">{row.record_code}</span>
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${status.className}`}
+                    >
+                      {status.label}
+                    </span>
+                  </div>
+                  <dl className="mt-2 grid gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                    <HistoryFact label="Assigned To" value={displayAssignee(row)} />
+                    <HistoryFact label="Last User" value={displayLastUser(row)} />
+                    <HistoryFact label="Department" value={row.department?.name} />
+                    {showComputer && <HistoryFact label="Computer" value={computer} />}
+                    <HistoryFact label="Assigned" value={fmtHistoryDate(row.assigned_date)} />
+                    {row.returned_date && <HistoryFact label="Returned" value={fmtHistoryDate(row.returned_date)} />}
+                    {row.assigned_by?.trim() && <HistoryFact label="Assigned By" value={row.assigned_by} />}
+                  </dl>
+                  {row.notes?.trim() && (
+                    <p className="mt-2 text-sm leading-relaxed break-words whitespace-pre-wrap text-slate-400">
+                      {row.notes}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function HistoryFact({ label, value }: { label: string; value?: string | null }) {
+  const text = value?.trim();
+  if (!text || text === "—") return null;
+  return (
+    <div className="min-w-0">
+      <dt className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</dt>
+      <dd className="text-sm break-words text-slate-200">{text}</dd>
     </div>
   );
 }
