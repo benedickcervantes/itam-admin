@@ -45,7 +45,7 @@ import { REFERENCE_DATA } from "@/lib/reference-data";
 import { labelEnum } from "@/lib/labels";
 import { ASSETS_TOUR_STORAGE_KEY, getAssetsTourSteps } from "@/lib/tours/assets";
 import { useSessionUser } from "@/components/SessionContext";
-import { emptyForm, emptyFormForCategory, formStateFromAsset, isComponentItemType, isSparePeripheralCategory, prepareAssetPayload, ramSlotDefaults, showsInfraNetworkSpecs, showsInfraServerSpecs, showsInfraStorageSpecs, sparePeripheralTag, validateAssetForm, type AssetCategory } from "@/lib/device-form";
+import { emptyForm, emptyFormForCategory, formStateFromAsset, isComponentItemType, isSparePeripheralCategory, prepareAssetPayload, printerUseBadge, ramSlotDefaults, showsInfraNetworkSpecs, showsInfraServerSpecs, showsInfraStorageSpecs, sparePeripheralTag, validateAssetForm, type AssetCategory } from "@/lib/device-form";
 import type { Asset, Department } from "@/lib/types";
 
 type ViewMode = "table" | "grid";
@@ -765,11 +765,11 @@ export default function AssetsPage() {
               <table className="data-table data-table--fixed" style={{ minWidth: "72rem" }}>
                 <colgroup>
                   <col style={{ width: "8%" }} />
+                  <col style={{ width: "8%" }} />
+                  <col style={{ width: "16%" }} />
+                  <col style={{ width: "20%" }} />
+                  <col style={{ width: "11%" }} />
                   <col style={{ width: "9%" }} />
-                  <col style={{ width: "18%" }} />
-                  <col style={{ width: "14%" }} />
-                  <col style={{ width: "13%" }} />
-                  <col style={{ width: "10%" }} />
                   <col style={{ width: "9%" }} />
                   <col style={{ width: "9%" }} />
                   <col style={{ width: "10%" }} />
@@ -800,14 +800,27 @@ export default function AssetsPage() {
                       </td>
                     </tr>
                   ) : (
-                    items.map((row, rowIndex) => (
-                      <tr key={row.id} className="cursor-pointer" onClick={() => void openView(row)}>
+                    items.map((row, rowIndex) => {
+                      const printerUse = printerUseBadge(row);
+                      const assigneeLabel =
+                        printerUse === "SHARED"
+                          ? row.location?.trim() || "—"
+                          : row.assigned_to ?? "—";
+                      return (
+                        <tr key={row.id} className="cursor-pointer" onClick={() => void openView(row)}>
                         <td className="font-mono text-[#2E7D9A]">{row.asset_code}</td>
                         <td>
                           <Badge value={row.item_type ?? row.device_type} />
                         </td>
                         <td className="cell-wrap font-medium text-white">{row.brand_model ?? "—"}</td>
-                        <td className="cell-wrap text-slate-300">{row.assigned_to ?? "—"}</td>
+                        <td className="text-slate-300">
+                          <div className="flex items-center gap-1.5">
+                            {printerUse && <Badge value={printerUse} className="shrink-0" />}
+                            <span className="min-w-0 truncate" title={assigneeLabel}>
+                              {assigneeLabel}
+                            </span>
+                          </div>
+                        </td>
                         <td className="cell-wrap">{row.department?.name ?? "—"}</td>
                         <td>
                           {row.status !== "AVAILABLE" &&
@@ -829,7 +842,8 @@ export default function AssetsPage() {
                           {renderRowActions(row, rowIndex === 0)}
                         </td>
                       </tr>
-                    ))
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -856,7 +870,14 @@ export default function AssetsPage() {
                       <div className="min-w-0">
                         <p className="font-mono text-sm font-medium text-[#2E7D9A]">{row.asset_code}</p>
                         <p className="mt-1 truncate text-base font-medium text-white">{row.computer_name}</p>
-                        <p className="truncate text-sm text-slate-400">{row.assigned_to ?? "—"}</p>
+                        <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-slate-400">
+                          {printerUseBadge(row) && <Badge value={printerUseBadge(row)} />}
+                          <span className="truncate">
+                            {printerUseBadge(row) === "SHARED"
+                              ? row.location?.trim() || "—"
+                              : row.assigned_to ?? "—"}
+                          </span>
+                        </p>
                       </div>
                       <div onClick={(e) => e.stopPropagation()}>
                         {renderRowActions(row, rowIndex === 0)}
