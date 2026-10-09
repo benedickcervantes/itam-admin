@@ -122,6 +122,22 @@ export function fetchSoftwareDevices(query: Record<string, string | number | und
   return apiJson<Paginated<SoftwareDeviceRow>>(`/api/v1/software/devices${qs(query)}`, { auth: true });
 }
 
+export async function fetchAllSoftwareDevices(
+  query: Record<string, string | number | undefined> = {},
+): Promise<SoftwareDeviceRow[]> {
+  const limit = 100;
+  const all: SoftwareDeviceRow[] = [];
+  let page = 1;
+  let totalPages = 1;
+  do {
+    const res = await fetchSoftwareDevices({ ...query, page, limit });
+    all.push(...res.items);
+    totalPages = res.totalPages || 1;
+    page += 1;
+  } while (page <= totalPages);
+  return all;
+}
+
 export function fetchSoftwareDevice(assetId: string) {
   return apiJson<SoftwareDeviceDetail>(`/api/v1/software/devices/${assetId}`, { auth: true });
 }
