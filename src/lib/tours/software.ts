@@ -26,7 +26,15 @@ export function getSoftwareTourSteps(canWrite: boolean): TourStep[] {
       target: '[data-tour="sw-filters"]',
       title: "Find a computer",
       content:
-        "Search by computer name, user, asset code, or department. Filter by department, or by compliance: Complete, Missing standard, or With extras. Active filters show as chips you can clear.",
+        "Search by computer name, user, asset code, or department. Filter by department, or by compliance: Complete, Missing standard, or With additional. Active filters show as chips you can clear.",
+      placement: "bottom",
+    },
+    {
+      id: "sw-toolbar",
+      target: '[data-tour="sw-toolbar"]',
+      title: "Table, grid, and export",
+      content:
+        "Table is best for scanning many computers. Grid shows one card per PC. Export downloads the filtered list as Excel or PDF, using the same report layout as the other modules. Customize columns when you only need some fields.",
       placement: "bottom",
     },
     {

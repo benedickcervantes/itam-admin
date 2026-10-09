@@ -2,11 +2,24 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Eye, Library, Monitor, type LucideIcon } from "lucide-react";
+import {
+  ChevronDown,
+  Download,
+  Eye,
+  FileSpreadsheet,
+  FileText,
+  LayoutGrid,
+  Library,
+  List,
+  Loader2,
+  Monitor,
+  type LucideIcon,
+} from "lucide-react";
 import { ActiveFilters } from "@/components/ActiveFilters";
 import { Badge } from "@/components/Badge";
 import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
-import { TableSkeleton } from "@/components/TableSkeleton";
+import { SoftwareExportColumnDialog } from "@/components/SoftwareExportColumnDialog";
+import { CardGridSkeleton, TableSkeleton } from "@/components/TableSkeleton";
 import { Header } from "@/components/Header";
 import { Pagination } from "@/components/Pagination";
 import { SpotlightTour, shouldAutoStartTour, type TourStep } from "@/components/SpotlightTour";
@@ -17,8 +30,22 @@ import { SoftwareCatalogPanel } from "@/components/software/SoftwareCatalogPanel
 import { canWrite, isViewer } from "@/lib/auth/permissions";
 import { SOFTWARE_TOUR_STORAGE_KEY, getSoftwareTourSteps } from "@/lib/tours/software";
 import { fetchDepartments } from "@/lib/api/departments";
-import { fetchSoftwareDevices, type SoftwareDeviceRow } from "@/lib/api/software";
+import { fetchAllSoftwareDevices, fetchSoftwareDevices, type SoftwareDeviceRow } from "@/lib/api/software";
+import {
+  ALL_SOFTWARE_EXPORT_COLUMN_KEYS,
+  exportSoftwareExcel,
+  exportSoftwarePdf,
+  type SoftwareExportColumnKey,
+} from "@/lib/export-software";
 import type { Department } from "@/lib/types";
+
+type ViewMode = "table" | "grid";
+const VIEW_MODE_STORAGE_KEY = "software-view";
+
+function readStoredViewMode(): ViewMode {
+  if (typeof window === "undefined") return "table";
+  return localStorage.getItem(VIEW_MODE_STORAGE_KEY) === "grid" ? "grid" : "table";
+}
 
 type Tab = "devices" | "catalog";
 type ComplianceFilter = "" | "complete" | "missing" | "extras";
@@ -26,7 +53,7 @@ type ComplianceFilter = "" | "complete" | "missing" | "extras";
 const COMPLIANCE_LABEL: Record<Exclude<ComplianceFilter, "">, string> = {
   complete: "Complete",
   missing: "Missing standard",
-  extras: "With extras",
+  extras: "With additional",
 };
 
 function coveredCount(row: SoftwareDeviceRow) {
@@ -55,6 +82,12 @@ export function SoftwarePage() {
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>(readStoredViewMode);
+  const [exporting, setExporting] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   const [openAssetId, setOpenAssetId] = useState<string | null>(searchParams.get("asset"));
   const [reloadKey, setReloadKey] = useState(0);
   const [tourOpen, setTourOpen] = useState(false);
@@ -81,6 +114,78 @@ export function SoftwarePage() {
       .then(setDepartments)
       .catch(() => setDepartments([]));
   }, []);
+
+  useEffect(() => {
+    if (!success) return;
+    const timer = window.setTimeout(() => setSuccess(""), 5000);
+    return () => window.clearTimeout(timer);
+  }, [success]);
+
+  useEffect(() => {
+    if (!exportMenuOpen) return;
+    const onClick = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [exportMenuOpen]);
+
+  const changeViewMode = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+  };
+
+  const buildFilterSummary = () => {
+    const parts: string[] = [];
+    if (search) parts.push(`Search: "${search}"`);
+    if (departmentId) parts.push(`Department: ${departments.find((dept) => dept.id === departmentId)?.name ?? departmentId}`);
+    if (compliance) parts.push(`Compliance: ${COMPLIANCE_LABEL[compliance]}`);
+    return parts.length ? parts.join(" · ") : "None (all records)";
+  };
+
+  const runExport = async (
+    format: "excel" | "pdf",
+    columns: SoftwareExportColumnKey[] = ALL_SOFTWARE_EXPORT_COLUMN_KEYS,
+  ) => {
+    if (exporting) return;
+    if (columns.length === 0) {
+      setError("Select at least one column to export.");
+      setExportDialogOpen(true);
+      return;
+    }
+    setExportMenuOpen(false);
+    setExporting(true);
+    setError("");
+    setSuccess("");
+    try {
+      const exported = await fetchAllSoftwareDevices({
+        search: search || undefined,
+        departmentId: departmentId || undefined,
+        compliance: compliance || undefined,
+      });
+      if (exported.length === 0) {
+        setError("No computers match the current filters to export.");
+        return;
+      }
+      const filterSummary = buildFilterSummary();
+      if (format === "excel") {
+        await exportSoftwareExcel(exported, filterSummary, columns);
+      } else {
+        exportSoftwarePdf(exported, filterSummary, columns);
+      }
+      const label = format === "excel" ? "Excel" : "PDF";
+      setSuccess(
+        `Exported ${exported.length} computer ${exported.length === 1 ? "record" : "records"} to ${label} (${columns.length} column${columns.length === 1 ? "" : "s"}).`,
+      );
+      setExportDialogOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -128,7 +233,7 @@ export function SoftwarePage() {
     const needsDevice = id.startsWith("sw-device");
     const needsCatalog = id.startsWith("sw-catalog");
 
-    if (id === "sw-filters" || id === "sw-list" || needsDevice) setTab("devices");
+    if (id === "sw-filters" || id === "sw-toolbar" || id === "sw-list" || needsDevice) setTab("devices");
     if (needsCatalog) setTab("catalog");
 
     if (needsDevice) {
@@ -230,8 +335,87 @@ export function SoftwarePage() {
                 <option value="">All computers</option>
                 <option value="complete">Complete</option>
                 <option value="missing">Missing standard</option>
-                <option value="extras">With extras</option>
+                <option value="extras">With additional</option>
               </FilterSelect>
+              <div className="flex flex-wrap items-center gap-2 lg:ml-auto" data-tour="sw-toolbar">
+                <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="View mode">
+                  <button
+                    type="button"
+                    onClick={() => changeViewMode("table")}
+                    aria-pressed={viewMode === "table"}
+                    title="Table view"
+                    className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition ${
+                      viewMode === "table" ? "bg-[#2E7D9A] text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    <List className="h-4 w-4" />
+                    <span className="hidden sm:inline">Table</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => changeViewMode("grid")}
+                    aria-pressed={viewMode === "grid"}
+                    title="Grid view"
+                    className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition ${
+                      viewMode === "grid" ? "bg-[#2E7D9A] text-white" : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                    }`}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                    <span className="hidden sm:inline">Grid</span>
+                  </button>
+                </div>
+                <div className="relative" ref={exportMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setExportMenuOpen((open) => !open)}
+                    disabled={exporting}
+                    aria-haspopup="menu"
+                    aria-expanded={exportMenuOpen}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-600 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    {exporting ? "Exporting..." : "Export"}
+                    {!exporting && <ChevronDown className="h-4 w-4" />}
+                  </button>
+                  {exportMenuOpen && !exporting && (
+                    <div
+                      role="menu"
+                      className="absolute right-0 z-20 mt-1 min-w-[14rem] overflow-hidden rounded-lg border border-slate-700 bg-slate-900 shadow-lg"
+                    >
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setExportMenuOpen(false);
+                          setExportDialogOpen(true);
+                        }}
+                        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                      >
+                        <Download className="h-4 w-4 text-[#2E7D9A]" />
+                        Customize columns...
+                        <span className="ml-auto text-xs text-slate-500">{ALL_SOFTWARE_EXPORT_COLUMN_KEYS.length} columns</span>
+                      </button>
+                      <div className="border-t border-slate-800" />
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => void runExport("excel")}
+                        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                      >
+                        <FileSpreadsheet className="h-4 w-4 text-emerald-400" /> Export as Excel
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => void runExport("pdf")}
+                        className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-slate-200 hover:bg-slate-800"
+                      >
+                        <FileText className="h-4 w-4 text-red-400" /> Export as PDF
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             <ActiveFilters
@@ -281,7 +465,11 @@ export function SoftwarePage() {
             {error && (
               <p className="rounded-lg border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-300">{error}</p>
             )}
+            {success && (
+              <p className="rounded-lg border border-emerald-900/40 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-300">{success}</p>
+            )}
 
+            {viewMode === "table" ? (
             <div className="card overflow-hidden" data-tour="sw-list">
               <div className="table-scroll">
                 <table className="data-table">
@@ -291,7 +479,7 @@ export function SoftwarePage() {
                       <th>User</th>
                       <th>Department</th>
                       <th>Standard</th>
-                      <th style={{ textAlign: "right" }}>Extras</th>
+                      <th style={{ textAlign: "right" }}>Additional</th>
                       <th>Compliance</th>
                     </tr>
                   </thead>
@@ -326,7 +514,7 @@ export function SoftwarePage() {
                               <div className={row.standard_missing > 0 ? "text-amber-200" : "text-slate-200"}>
                                 {met}/{row.standard_total}
                                 {row.additional_count > 0 && (
-                                  <span className="text-slate-400"> · {row.additional_count} extra</span>
+                                  <span className="text-slate-400"> · {row.additional_count} additional</span>
                                 )}
                               </div>
                               {row.missing_software.length > 0 && (
@@ -349,6 +537,64 @@ export function SoftwarePage() {
                 </table>
               </div>
             </div>
+            ) : (
+              <div data-tour="sw-list">
+                {loading ? (
+                  <CardGridSkeleton />
+                ) : rows.length === 0 ? (
+                  <div className="flex flex-col items-center py-8">
+                    <p className="text-center text-sm text-slate-400">No computers match these filters</p>
+                    <TourEmptyCta onStart={startTour} />
+                  </div>
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    {rows.map((row) => {
+                      const met = coveredCount(row);
+                      return (
+                        <article
+                          key={row.id}
+                          className="card cursor-pointer p-4 transition hover:border-[#2E7D9A]/50 hover:bg-slate-800/40"
+                          onClick={() => setOpenAssetId(row.id)}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="truncate text-base font-medium text-white">{row.computer_name}</p>
+                              <p className="text-xs text-slate-500">{row.asset_code}</p>
+                            </div>
+                            <Badge value={row.compliance === "COMPLETE" ? "COMPLETE" : "MISSING"} />
+                          </div>
+                          <dl className="mt-3 space-y-2 text-sm">
+                            <div className="flex items-center justify-between gap-2">
+                              <dt className="text-slate-500">User</dt>
+                              <dd className="truncate text-slate-300">{row.assigned_to?.trim() || "—"}</dd>
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <dt className="text-slate-500">Department</dt>
+                              <dd className="truncate text-slate-300">{row.department || "—"}</dd>
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <dt className="text-slate-500">Standard</dt>
+                              <dd className={row.standard_missing > 0 ? "text-amber-200" : "text-slate-200"}>
+                                {met}/{row.standard_total}
+                              </dd>
+                            </div>
+                            <div className="flex items-center justify-between gap-2">
+                              <dt className="text-slate-500">Additional</dt>
+                              <dd className="text-slate-300">{row.additional_count}</dd>
+                            </div>
+                          </dl>
+                          {row.missing_software.length > 0 && (
+                            <p className="mt-3 line-clamp-2 text-xs text-amber-200/80" title={row.missing_software.join(", ")}>
+                              {row.missing_software.join(", ")}
+                            </p>
+                          )}
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             <Pagination
               page={page}
@@ -367,6 +613,16 @@ export function SoftwarePage() {
         write={write}
         onClose={() => setOpenAssetId(null)}
         onChanged={() => setReloadKey((value) => value + 1)}
+      />
+
+      <SoftwareExportColumnDialog
+        open={exportDialogOpen}
+        filterSummary={buildFilterSummary()}
+        exporting={exporting}
+        onClose={() => {
+          if (!exporting) setExportDialogOpen(false);
+        }}
+        onExport={(format, columns) => void runExport(format, columns)}
       />
 
       <SpotlightTour
