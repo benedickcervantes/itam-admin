@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
+  AppWindow,
   ArrowRightLeft,
   ChevronDown,
   Download,
@@ -31,6 +33,7 @@ import { SpotlightTour, shouldAutoStartTour, type TourStep } from "@/components/
 import { TourEmptyCta, TourNudge, useTourHint } from "@/components/TourNudge";
 import { CardGridSkeleton, TableSkeleton } from "@/components/TableSkeleton";
 import { createAsset, deleteAsset, fetchAllAssets, fetchAsset, fetchAssets, updateAsset } from "@/lib/api/assets";
+import { isComputerAsset } from "@/lib/computer-asset";
 import { verifyPassword } from "@/lib/api/auth";
 import { AssetExportColumnDialog } from "@/components/AssetExportColumnDialog";
 import {
@@ -963,7 +966,7 @@ export default function AssetsPage() {
           ) : undefined
         }
         footer={
-          drawerMode === "view" && editing && write ? (
+          drawerMode === "view" && editing ? (
             <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
               <button
                 type="button"
@@ -972,7 +975,16 @@ export default function AssetsPage() {
               >
                 Close
               </button>
-              {isComponentItemType(editing.item_type) && (
+              {isComputerAsset(editing) && (
+                <Link
+                  href={`/software?asset=${editing.id}`}
+                  className="inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-center gap-2 rounded-lg border border-slate-600 bg-slate-900/40 px-4 text-sm font-medium leading-none text-sky-300 transition hover:border-sky-600/50 hover:bg-sky-950/35"
+                >
+                  <AppWindow className="h-4 w-4 shrink-0" />
+                  Software
+                </Link>
+              )}
+              {write && isComponentItemType(editing.item_type) && (
                 <button
                   type="button"
                   onClick={() => setDrawerMode("move")}
@@ -982,16 +994,18 @@ export default function AssetsPage() {
                   Move
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => {
-                  if (editing) setForm(formStateFromAsset(editing));
-                  setDrawerMode("edit");
-                }}
-                className="inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-center rounded-lg bg-[#2E7D9A] px-4 text-sm font-medium leading-none text-white transition hover:bg-[#256b85]"
-              >
-                Edit
-              </button>
+              {write && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (editing) setForm(formStateFromAsset(editing));
+                    setDrawerMode("edit");
+                  }}
+                  className="inline-flex h-10 min-w-[9rem] shrink-0 items-center justify-center rounded-lg bg-[#2E7D9A] px-4 text-sm font-medium leading-none text-white transition hover:bg-[#256b85]"
+                >
+                  Edit
+                </button>
+              )}
             </div>
           ) : drawerMode === "move" ? (
             <div className="ml-auto flex items-center justify-end gap-2">
