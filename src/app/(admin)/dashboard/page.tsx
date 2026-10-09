@@ -24,6 +24,7 @@ import {
   Mouse,
   Hammer,
   Eye,
+  AppWindow,
   LayoutGrid,
   Gauge,
   ShieldAlert,
@@ -51,6 +52,7 @@ import {
   type DashboardPeriod,
 } from "@/lib/api/dashboard";
 import { formatPercent } from "@/lib/labels";
+import { SoftwareComplianceSection } from "@/components/software/SoftwareComplianceSection";
 
 const PERIOD_OPTIONS: { value: DashboardPeriod; label: string; shortLabel: string }[] = [
   { value: "week", label: "Weekly", shortLabel: "Week" },
@@ -63,7 +65,8 @@ const SECTIONS: DashboardSection[] = [
   { id: "glance", label: "At a Glance", shortLabel: "Glance", icon: LayoutGrid },
   { id: "overview", label: "Overview", icon: Gauge },
   { id: "breakdown", label: "Breakdown", icon: PieChart },
-  { id: "health", label: "Health & Risk", shortLabel: "Health", icon: ShieldAlert },
+  { id: "health", label: "Health", shortLabel: "Health", icon: ShieldAlert },
+  { id: "software", label: "Software", shortLabel: "Software", icon: AppWindow },
   { id: "workforce", label: "Workforce", icon: Users },
   { id: "departments", label: "Departments", shortLabel: "Depts", icon: Building2 },
   { id: "priority", label: "Priority", icon: ListOrdered },
@@ -330,18 +333,7 @@ export default function DashboardPage() {
                   />
                 </div>
               </div>
-              <div className="card p-4">
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <h3 className="font-medium text-white">Risk & Compliance</h3>
-                  <SectionAlert count={data.riskCompliance.immediateActions} label="Immediate" />
-                </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <MiniStat icon={Siren} color="red" label="Immediate Actions" value={data.riskCompliance.immediateActions} />
-                  <MiniStat icon={Flame} color="orange" label="High Priority" value={data.riskCompliance.highPriority} />
-                  <MiniStat icon={ShieldOff} color="red" label="Cracked OS" value={data.riskCompliance.crackedOs} />
-                  <MiniStat icon={KeyRound} color="amber" label="Not Activated OS" value={data.riskCompliance.notActivatedOs} />
-                </div>
-              </div>
+              <SoftwareComplianceSection />
             </section>
 
             <section id="workforce" className="grid scroll-mt-[var(--dashboard-nav-offset,4rem)] gap-6 lg:grid-cols-2">
@@ -357,15 +349,14 @@ export default function DashboardPage() {
               </div>
               <div className="card p-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
-                  <h3 className="font-medium text-white">Peripherals & Service Log</h3>
-                  <SectionAlert count={data.peripheralsMaintenance.openMaintenance} label="Open" />
+                  <h3 className="font-medium text-white">Risk & Compliance</h3>
+                  <SectionAlert count={data.riskCompliance.immediateActions} label="Immediate" />
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <MiniStat icon={Hammer} color="orange" label="Open Service / Repair" value={data.peripheralsMaintenance.openMaintenance} />
-                  <MiniStat icon={RefreshCw} color="amber" label="Assets Under Repair" value={data.peripheralsMaintenance.assetsUnderRepair} />
-                  <MiniStat icon={Keyboard} color="red" label="Keyboard Faulty / Replace" value={data.peripheralsMaintenance.keyboardFaulty} />
-                  <MiniStat icon={Keyboard} color="amber" label="Fading Keys" value={data.peripheralsMaintenance.keyboardFadingKeys} />
-                  <MiniStat icon={Mouse} color="red" label="Mouse / Trackpad Faulty" value={data.peripheralsMaintenance.mouseFaulty} />
+                  <MiniStat icon={Siren} color="red" label="Immediate Actions" value={data.riskCompliance.immediateActions} />
+                  <MiniStat icon={Flame} color="orange" label="High Priority" value={data.riskCompliance.highPriority} />
+                  <MiniStat icon={ShieldOff} color="red" label="Cracked OS" value={data.riskCompliance.crackedOs} />
+                  <MiniStat icon={KeyRound} color="amber" label="Not Activated OS" value={data.riskCompliance.notActivatedOs} />
                 </div>
               </div>
             </section>
@@ -498,6 +489,22 @@ export default function DashboardPage() {
                         ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            </section>
+
+            <section id="peripherals" className="scroll-mt-[var(--dashboard-nav-offset,4rem)]">
+              <div className="card p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h3 className="font-medium text-white">Peripherals & Service Log</h3>
+                  <SectionAlert count={data.peripheralsMaintenance.openMaintenance} label="Open" />
+                </div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+                  <MiniStat icon={Hammer} color="orange" label="Open Service / Repair" value={data.peripheralsMaintenance.openMaintenance} />
+                  <MiniStat icon={RefreshCw} color="amber" label="Assets Under Repair" value={data.peripheralsMaintenance.assetsUnderRepair} />
+                  <MiniStat icon={Keyboard} color="red" label="Keyboard Faulty / Replace" value={data.peripheralsMaintenance.keyboardFaulty} />
+                  <MiniStat icon={Keyboard} color="amber" label="Fading Keys" value={data.peripheralsMaintenance.keyboardFadingKeys} />
+                  <MiniStat icon={Mouse} color="red" label="Mouse / Trackpad Faulty" value={data.peripheralsMaintenance.mouseFaulty} />
                 </div>
               </div>
             </section>

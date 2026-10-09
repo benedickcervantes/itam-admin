@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { CircleHelp, X } from "lucide-react";
 
 export type TourStep = {
@@ -363,7 +364,10 @@ export function SpotlightTour({
   const placement = pickPlacement(step.placement, rect);
   const hasTarget = Boolean(step.target && rect);
 
-  return (
+  // Portal to body so the ring uses viewport coordinates. The admin shell is
+  // CSS-scaled (90% and other display sizes); a fixed overlay inside that
+  // transform would sit off the highlighted control.
+  const overlay = (
     <div className="fixed inset-0 z-[80]" role="dialog" aria-modal="true" aria-labelledby="spotlight-tour-title">
       {/* Dim: solid when no target; cutout uses box-shadow alone so the hole stays clear. */}
       {!hasTarget && <div className="absolute inset-0 bg-slate-950/70" aria-hidden />}
@@ -456,6 +460,9 @@ export function SpotlightTour({
       </div>
     </div>
   );
+
+  if (typeof document === "undefined") return overlay;
+  return createPortal(overlay, document.body);
 }
 
 /** Returns true if the tour has not been marked seen yet. */

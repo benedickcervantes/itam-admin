@@ -49,6 +49,11 @@ const STYLES: Record<string, string> = {
   RESERVED: "bg-violet-500/15 text-violet-300 ring-violet-500/30",
   RETIRED: "bg-slate-500/15 text-slate-300 ring-slate-500/30",
   DISPOSED: "bg-red-500/15 text-red-300 ring-red-500/30",
+  STANDARD: "bg-sky-500/15 text-sky-300 ring-sky-500/30",
+  ADDITIONAL: "bg-violet-500/15 text-violet-300 ring-violet-500/30",
+  INSTALLED: "bg-emerald-500/15 text-emerald-300 ring-emerald-500/30",
+  MISSING: "bg-amber-500/15 text-amber-300 ring-amber-500/30",
+  NOT_NEEDED: "bg-slate-500/15 text-slate-300 ring-slate-500/30",
 };
 
 export function Badge({

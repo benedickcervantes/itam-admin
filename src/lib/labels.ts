@@ -112,6 +112,13 @@ const LABELS: Record<string, string> = {
   DisposalRecord: "Disposal",
   Supplier: "Supplier",
   RecommendationSpec: "Recommendation spec",
+  SoftwareCatalog: "Software catalog",
+  AssetSoftware: "Software checklist",
+  STANDARD: "Standard",
+  ADDITIONAL: "Additional",
+  INSTALLED: "Installed",
+  MISSING: "Missing",
+  NOT_NEEDED: "Not needed",
 };
 
 const COMPACT_LABELS: Record<string, string> = {
