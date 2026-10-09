@@ -39,7 +39,7 @@ export function SoftwareComplianceSection() {
             <MiniStat icon={AppWindow} color="teal" label="Computers" value={data.computers} href="/software" />
             <MiniStat icon={CircleCheck} color="emerald" label="Complete" value={data.complete} href="/software?compliance=complete" />
             <MiniStat icon={TriangleAlert} color="amber" label="Missing standard" value={data.missing} href="/software?compliance=missing" />
-            <MiniStat icon={PackagePlus} color="violet" label="With extras" value={data.with_extras} href="/software?compliance=extras" />
+            <MiniStat icon={PackagePlus} color="violet" label="With additional" value={data.with_extras} href="/software?compliance=extras" />
           </div>
         )}
       </div>
