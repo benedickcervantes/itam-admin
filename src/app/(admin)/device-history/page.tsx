@@ -18,8 +18,8 @@ import { AssignmentDetailView } from "@/components/AssignmentDetailView";
 import { AssignmentForm } from "@/components/AssignmentForm";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Drawer } from "@/components/Drawer";
-import { ActiveFilters } from "@/components/ActiveFilters";
-import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
+import { ActiveFilters, valueFilterChips } from "@/components/ActiveFilters";
+import { FilterMultiSelect, FilterSearch } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { TourEmptyCta, TourNudge, useTourHint } from "@/components/TourNudge";
 import { Pagination } from "@/components/Pagination";
@@ -35,6 +35,7 @@ import {
 } from "@/lib/api/device-history";
 import { verifyPassword } from "@/lib/api/auth";
 import { fetchDepartments } from "@/lib/api/departments";
+import { csvParam, dropFilterValue, summarizeFilter } from "@/lib/multi-filter";
 import { canWrite } from "@/lib/auth/permissions";
 import { AssignmentExportColumnDialog } from "@/components/AssignmentExportColumnDialog";
 import {
@@ -125,9 +126,9 @@ export default function DeviceHistoryPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [departmentId, setDepartmentId] = useState("");
-  /** active = current only; returned = closed moves; all = both. Default all so releases/moves are visible. */
-  const [statusFilter, setStatusFilter] = useState<"active" | "returned" | "all">("all");
+  const [departmentId, setDepartmentId] = useState<string[]>([]);
+  /** Empty = all records. active = current only; returned = closed moves. */
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -177,14 +178,16 @@ export default function DeviceHistoryPage() {
   const buildFilterSummary = () => {
     const parts: string[] = [];
     if (search) parts.push(`Search: "${search}"`);
-    if (statusFilter === "returned") {
-      parts.push("Show: Previous / Available");
-    } else if (statusFilter === "active") {
-      parts.push("Show: Current only");
-    }
-    if (departmentId) {
-      parts.push(`Department: ${departments.find((d) => d.id === departmentId)?.name ?? departmentId}`);
-    }
+    const show = summarizeFilter("Show", statusFilter, (value) =>
+      value === "active" ? "Current only" : "Previous / Available",
+    );
+    const department = summarizeFilter(
+      "Department",
+      departmentId,
+      (id) => departments.find((d) => d.id === id)?.name ?? id,
+    );
+    if (show) parts.push(show);
+    if (department) parts.push(department);
     return parts.length ? parts.join(" ? ") : "None (all records)";
   };
 
@@ -213,7 +216,8 @@ export default function DeviceHistoryPage() {
     try {
       const rows = await fetchAllDeviceHistory({
         search: search || undefined,
-        departmentId: departmentId || undefined,
+        departmentId: csvParam(departmentId),
+        status: csvParam(statusFilter),
       });
       if (rows.length === 0) {
         setError("No device history records match the current filters to export.");
@@ -244,8 +248,8 @@ export default function DeviceHistoryPage() {
       const res = await fetchDeviceHistory({
         page,
         search: search || undefined,
-        departmentId: departmentId || undefined,
-        status: statusFilter,
+        departmentId: csvParam(departmentId),
+        status: csvParam(statusFilter),
       });
       if (seq !== loadSeq.current) return;
       if (res.totalPages > 0 && page > res.totalPages) {
@@ -480,35 +484,31 @@ export default function DeviceHistoryPage() {
             data-tour="history-filters"
             className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-end"
           >
-            <FilterSelect
+            <FilterMultiSelect
               label="Department"
-              value={departmentId}
+              values={departmentId}
               onChange={(v) => {
                 setPage(1);
                 setDepartmentId(v);
               }}
+              emptyLabel="All departments"
               className="w-full sm:w-auto"
-            >
-              <option value="">All departments</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </FilterSelect>
-            <FilterSelect
+              options={departments.map((d) => ({ value: d.id, label: d.name }))}
+            />
+            <FilterMultiSelect
               label="Show"
-              value={statusFilter}
+              values={statusFilter}
               onChange={(v) => {
                 setPage(1);
-                setStatusFilter(v as "active" | "returned" | "all");
+                setStatusFilter(v);
               }}
+              emptyLabel="All records"
               className="w-full sm:w-auto"
-            >
-              <option value="all">All records</option>
-              <option value="active">Current only (in use)</option>
-              <option value="returned">Previous / Available (spare)</option>
-            </FilterSelect>
+              options={[
+                { value: "active", label: "Current only (in use)" },
+                { value: "returned", label: "Previous / Available (spare)" },
+              ]}
+            />
           </div>
           <div
             data-tour="history-view-mode"
@@ -621,39 +621,32 @@ export default function DeviceHistoryPage() {
                     },
                   ]
                 : []),
-              ...(departmentId
-                ? [
-                    {
-                      key: "department",
-                      label: "Department",
-                      value: departments.find((d) => d.id === departmentId)?.name ?? "Department",
-                      onRemove: () => {
-                        setDepartmentId("");
-                        setPage(1);
-                      },
-                    },
-                  ]
-                : []),
-              ...(statusFilter !== "all"
-                ? [
-                    {
-                      key: "show",
-                      label: "Show",
-                      value:
-                        statusFilter === "active" ? "Current only" : "Previous / Available",
-                      onRemove: () => {
-                        setStatusFilter("all");
-                        setPage(1);
-                      },
-                    },
-                  ]
-                : []),
+              ...valueFilterChips(
+                "department",
+                "Department",
+                departmentId,
+                (id) => departments.find((d) => d.id === id)?.name ?? "Department",
+                (value) => {
+                  setDepartmentId(dropFilterValue(departmentId, value));
+                  setPage(1);
+                },
+              ),
+              ...valueFilterChips(
+                "show",
+                "Show",
+                statusFilter,
+                (value) => (value === "active" ? "Current only" : "Previous / Available"),
+                (value) => {
+                  setStatusFilter(dropFilterValue(statusFilter, value));
+                  setPage(1);
+                },
+              ),
             ]}
             onClearAll={() => {
               setSearchInput("");
               setSearch("");
-              setDepartmentId("");
-              setStatusFilter("all");
+              setDepartmentId([]);
+              setStatusFilter([]);
               setPage(1);
             }}
           />

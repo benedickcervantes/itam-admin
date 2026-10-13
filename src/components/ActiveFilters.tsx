@@ -10,6 +10,22 @@ export type ActiveFilterItem = {
   onRemove: () => void;
 };
 
+/** One removable chip per selected value so a single choice can be dropped. */
+export function valueFilterChips(
+  keyPrefix: string,
+  label: string,
+  values: readonly string[],
+  labelFor: (value: string) => string,
+  onRemove: (value: string) => void,
+): ActiveFilterItem[] {
+  return values.map((value) => ({
+    key: `${keyPrefix}:${value}`,
+    label,
+    value: labelFor(value),
+    onRemove: () => onRemove(value),
+  }));
+}
+
 export function ActiveFilters({
   filters,
   onClearAll,

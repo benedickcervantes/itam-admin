@@ -26,7 +26,7 @@ export function getMaintenanceTourSteps(canCreate: boolean): TourStep[] {
       target: '[data-tour="service-filters"]',
       title: "Filter by status",
       content:
-        "Narrow by Open, In Progress, Completed, or Cancelled so you can work the active repair queue or review closed jobs.",
+        "Narrow by Open, In Progress, Completed, or Cancelled. Select more than one status to compare those jobs in the same table.",
       placement: "bottom",
     },
     {

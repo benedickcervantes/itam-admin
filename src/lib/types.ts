@@ -284,10 +284,23 @@ export type ActivityLog = {
   created_at: string;
 };
 
+/** Same separator `csvParam` uses before this expands each value into its own query key. */
+const MULTI_VALUE_SEPARATOR = "\u001f";
+
 function qs(params: Record<string, string | number | undefined>) {
   const sp = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {
-    if (v !== undefined && v !== "") sp.set(k, String(v));
+    if (v === undefined || v === "") return;
+    const text = String(v);
+    // One key per value. A control-character join is stripped by the dev proxy
+    // and then fails UUID validation (`departmentId must be a UUID`).
+    if (text.includes(MULTI_VALUE_SEPARATOR)) {
+      for (const part of text.split(MULTI_VALUE_SEPARATOR)) {
+        if (part !== "") sp.append(k, part);
+      }
+      return;
+    }
+    sp.set(k, text);
   });
   const s = sp.toString();
   return s ? `?${s}` : "";

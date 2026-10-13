@@ -18,8 +18,8 @@ import {
 } from "lucide-react";
 import { ActivityLogExportColumnDialog } from "@/components/ActivityLogExportColumnDialog";
 import { Badge } from "@/components/Badge";
-import { ActiveFilters } from "@/components/ActiveFilters";
-import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
+import { ActiveFilters, valueFilterChips } from "@/components/ActiveFilters";
+import { FilterMultiSelect, FilterSearch, FilterSelect } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { TourEmptyCta, TourNudge, useTourHint } from "@/components/TourNudge";
 import { Pagination } from "@/components/Pagination";
@@ -46,6 +46,7 @@ import {
   type ActivityLogExportColumnKey,
 } from "@/lib/export-activity-logs";
 import { labelEnum } from "@/lib/labels";
+import { csvParam, dropFilterValue, summarizeFilter } from "@/lib/multi-filter";
 import { ACTIVITY_LOGS_TOUR_STORAGE_KEY, getActivityLogsTourSteps } from "@/lib/tours/activity-logs";
 import type { ActivityFieldChange, ActivityLog, AdminUser } from "@/lib/types";
 
@@ -142,9 +143,9 @@ export default function ActivityLogsPage() {
   const [actors, setActors] = useState<AdminUser[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [actionFilter, setActionFilter] = useState("");
-  const [entityFilter, setEntityFilter] = useState("");
-  const [actorFilter, setActorFilter] = useState("");
+  const [actionFilter, setActionFilter] = useState<string[]>([]);
+  const [entityFilter, setEntityFilter] = useState<string[]>([]);
+  const [actorFilter, setActorFilter] = useState<string[]>([]);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [page, setPage] = useState(1);
@@ -173,7 +174,13 @@ export default function ActivityLogsPage() {
   const tourSteps = useMemo(() => getActivityLogsTourSteps(), []);
 
   const hasActiveFilters = Boolean(
-    searchInput || search || actionFilter || entityFilter || actorFilter || fromDate || toDate,
+    searchInput ||
+      search ||
+      actionFilter.length ||
+      entityFilter.length ||
+      actorFilter.length ||
+      fromDate ||
+      toDate,
   );
 
   const dateRangeInvalid = Boolean(fromDate && toDate && fromDate > toDate);
@@ -240,9 +247,9 @@ export default function ActivityLogsPage() {
     if (dateRangeInvalid) return null;
     return {
       search: search || undefined,
-      action: actionFilter || undefined,
-      entityType: entityFilter || undefined,
-      actorUserId: actorFilter || undefined,
+      action: csvParam(actionFilter),
+      entityType: csvParam(entityFilter),
+      actorUserId: csvParam(actorFilter),
       from: fromDate ? localDayStartIso(fromDate) : undefined,
       to: toDate ? localDayEndIso(toDate) : undefined,
     };
@@ -299,9 +306,9 @@ export default function ActivityLogsPage() {
   const clearFilters = () => {
     setSearchInput("");
     setSearch("");
-    setActionFilter("");
-    setEntityFilter("");
-    setActorFilter("");
+    setActionFilter([]);
+    setEntityFilter([]);
+    setActorFilter([]);
     setFromDate("");
     setToDate("");
     setPage(1);
@@ -325,12 +332,16 @@ export default function ActivityLogsPage() {
   const buildFilterSummary = () => {
     const parts: string[] = [];
     if (search) parts.push(`Search: "${search}"`);
-    if (actionFilter) parts.push(`Action: ${labelEnum(actionFilter)}`);
-    if (entityFilter) parts.push(`Entity: ${labelEntityType(entityFilter)}`);
-    if (actorFilter) {
-      const actor = actors.find((a) => a.id === actorFilter);
-      parts.push(`Actor: ${actor?.full_name ?? actorFilter}`);
-    }
+    const action = summarizeFilter("Action", actionFilter, labelEnum);
+    const entity = summarizeFilter("Entity", entityFilter, labelEntityType);
+    const actor = summarizeFilter(
+      "Actor",
+      actorFilter,
+      (id) => actors.find((row) => row.id === id)?.full_name ?? id,
+    );
+    if (action) parts.push(action);
+    if (entity) parts.push(entity);
+    if (actor) parts.push(actor);
     if (fromDate) parts.push(`From: ${fromDate}`);
     if (toDate) parts.push(`To: ${toDate}`);
     return parts.length ? parts.join(" · ") : "None (all records)";
@@ -415,54 +426,39 @@ export default function ActivityLogsPage() {
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
           <div data-tour="logs-filters" className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-end">
-            <FilterSelect
+            <FilterMultiSelect
               label="Action"
-              value={actionFilter}
+              values={actionFilter}
               onChange={(v) => {
                 setPage(1);
                 setActionFilter(v);
               }}
+              emptyLabel="All actions"
               className="w-full sm:w-auto"
-            >
-              <option value="">All actions</option>
-              {ACTIVITY_ACTIONS.map((action) => (
-                <option key={action} value={action}>
-                  {labelEnum(action)}
-                </option>
-              ))}
-            </FilterSelect>
-            <FilterSelect
+              options={ACTIVITY_ACTIONS.map((action) => ({ value: action, label: labelEnum(action) }))}
+            />
+            <FilterMultiSelect
               label="Entity"
-              value={entityFilter}
+              values={entityFilter}
               onChange={(v) => {
                 setPage(1);
                 setEntityFilter(v);
               }}
+              emptyLabel="All entities"
               className="w-full sm:w-auto"
-            >
-              <option value="">All entities</option>
-              {ACTIVITY_ENTITY_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {labelEntityType(type)}
-                </option>
-              ))}
-            </FilterSelect>
-            <FilterSelect
+              options={ACTIVITY_ENTITY_TYPES.map((type) => ({ value: type, label: labelEntityType(type) }))}
+            />
+            <FilterMultiSelect
               label="Actor"
-              value={actorFilter}
+              values={actorFilter}
               onChange={(v) => {
                 setPage(1);
                 setActorFilter(v);
               }}
+              emptyLabel="All actors"
               className="w-full sm:w-auto"
-            >
-              <option value="">All actors</option>
-              {actors.map((actor) => (
-                <option key={actor.id} value={actor.id}>
-                  {actor.full_name}
-                </option>
-              ))}
-            </FilterSelect>
+              options={actors.map((actor) => ({ value: actor.id, label: actor.full_name }))}
+            />
           </div>
           <div data-tour="logs-dates" className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-end">
             <label className="flex w-full flex-col gap-1 sm:w-auto">
@@ -609,45 +605,24 @@ export default function ActivityLogsPage() {
                     },
                   ]
                 : []),
-              ...(actionFilter
-                ? [
-                    {
-                      key: "action",
-                      label: "Action",
-                      value: labelEnum(actionFilter),
-                      onRemove: () => {
-                        setActionFilter("");
-                        setPage(1);
-                      },
-                    },
-                  ]
-                : []),
-              ...(entityFilter
-                ? [
-                    {
-                      key: "entity",
-                      label: "Entity",
-                      value: labelEntityType(entityFilter),
-                      onRemove: () => {
-                        setEntityFilter("");
-                        setPage(1);
-                      },
-                    },
-                  ]
-                : []),
-              ...(actorFilter
-                ? [
-                    {
-                      key: "actor",
-                      label: "Actor",
-                      value: actors.find((a) => a.id === actorFilter)?.full_name ?? "Actor",
-                      onRemove: () => {
-                        setActorFilter("");
-                        setPage(1);
-                      },
-                    },
-                  ]
-                : []),
+              ...valueFilterChips("action", "Action", actionFilter, labelEnum, (value) => {
+                setActionFilter(dropFilterValue(actionFilter, value));
+                setPage(1);
+              }),
+              ...valueFilterChips("entity", "Entity", entityFilter, labelEntityType, (value) => {
+                setEntityFilter(dropFilterValue(entityFilter, value));
+                setPage(1);
+              }),
+              ...valueFilterChips(
+                "actor",
+                "Actor",
+                actorFilter,
+                (id) => actors.find((row) => row.id === id)?.full_name ?? "Actor",
+                (value) => {
+                  setActorFilter(dropFilterValue(actorFilter, value));
+                  setPage(1);
+                },
+              ),
               ...(fromDate
                 ? [
                     {

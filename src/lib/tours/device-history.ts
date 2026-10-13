@@ -26,7 +26,7 @@ export function getDeviceHistoryTourSteps(canWrite: boolean): TourStep[] {
       target: '[data-tour="history-filters"]',
       title: "Filter the trail",
       content:
-        "Department narrows by org unit. Show: Current only = in use now; Previous / Available (spare) = closed moves and Hold as Available releases. On Available rows, Assigned To shows Available (spare) and Last User shows who had it before.",
+        "Department narrows by org unit. Show: Current only = in use now; Previous / Available (spare) = closed moves and Hold as Available releases. Select more than one department or both Show options to compare them together. On Available rows, Assigned To shows Available (spare) and Last User shows who had it before.",
       placement: "bottom",
     },
     {

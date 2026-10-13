@@ -26,7 +26,7 @@ export function getDisposalsTourSteps(canCreate: boolean): TourStep[] {
       target: '[data-tour="disp-filters"]',
       title: "Filter by disposal method",
       content:
-        "Narrow by how assets were disposed (e.g. recycle, destroy, donate, sell). Useful for compliance and vendor reports.",
+        "Narrow by how assets were disposed (e.g. recycle, destroy, donate, sell). Select more than one method to compare them in the same table. Useful for compliance and vendor reports.",
       placement: "bottom",
     },
     {

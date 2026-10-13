@@ -21,7 +21,7 @@ export function getAssetsTourSteps(canCreate: boolean): TourStep[] {
       target: '[data-tour="assets-filters"]',
       title: "Narrow with filters",
       content:
-        "Filter by department, asset status (Available, In Use…), employee status, or item type. Active filters appear as chips below so you can clear them one by one.",
+        "Filter by department, asset status (Available, In Use…), employee status, or item type. Select more than one value in a filter to compare those groups in the same table. Active filters appear as chips you can clear one by one.",
       placement: "bottom",
     },
     {

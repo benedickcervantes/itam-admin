@@ -31,7 +31,7 @@ export function getUsersTourSteps(canManage: boolean): TourStep[] {
       target: '[data-tour="users-filters"]',
       title: "Filter the directory",
       content:
-        "Narrow by role (Super Admin, IT Admin, Viewer), department, or active/inactive status.",
+        "Narrow by role (Super Admin, IT Admin, Viewer), department, or active/inactive status. Select more than one value to compare those groups in the same table.",
       placement: "bottom",
     },
     {

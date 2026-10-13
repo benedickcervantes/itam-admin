@@ -21,8 +21,8 @@ import { AuditDetailView } from "@/components/AuditDetailView";
 import { DeviceFormToolbar } from "@/components/DeviceFormToolbar";
 import { DeviceInventoryForm } from "@/components/DeviceInventoryForm";
 import { Drawer, inputClass, selectClass } from "@/components/Drawer";
-import { ActiveFilters } from "@/components/ActiveFilters";
-import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
+import { ActiveFilters, valueFilterChips } from "@/components/ActiveFilters";
+import { FilterMultiSelect, FilterSearch } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { TourEmptyCta, TourNudge, useTourHint } from "@/components/TourNudge";
 import { Pagination } from "@/components/Pagination";
@@ -51,6 +51,7 @@ import { REFERENCE_DATA } from "@/lib/reference-data";
 import { useSessionUser } from "@/components/SessionContext";
 import { emptyForm, formStateFromAudit, prepareAuditPayload, ramSlotDefaults, validateAuditForm } from "@/lib/device-form";
 import { formatItemsNeededList, ITEMS_NEEDED_TABLE_LABEL, labelEnum } from "@/lib/labels";
+import { csvParam, dropFilterValue, summarizeFilter } from "@/lib/multi-filter";
 import { AUDIT_TOUR_STORAGE_KEY, getAuditTourSteps } from "@/lib/tours/audit-register";
 import type { Department } from "@/lib/types";
 
@@ -93,12 +94,12 @@ export default function AuditRegisterPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [itemNeeded, setItemNeeded] = useState("");
-  const [auditStatus, setAuditStatus] = useState("");
-  const [priority, setPriority] = useState("");
-  const [deviceAvailability, setDeviceAvailability] = useState("");
-  const [deviceType, setDeviceType] = useState("");
-  const [overallAssessment, setOverallAssessment] = useState("");
+  const [itemNeeded, setItemNeeded] = useState<string[]>([]);
+  const [auditStatus, setAuditStatus] = useState<string[]>([]);
+  const [priority, setPriority] = useState<string[]>([]);
+  const [deviceAvailability, setDeviceAvailability] = useState<string[]>([]);
+  const [deviceType, setDeviceType] = useState<string[]>([]);
+  const [overallAssessment, setOverallAssessment] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -151,13 +152,20 @@ export default function AuditRegisterPage() {
   const buildFilterSummary = () => {
     const parts: string[] = [];
     if (search) parts.push(`Search: "${search}"`);
-    if (itemNeeded) parts.push(`Items needed: ${labelEnum(itemNeeded)}`);
-    if (auditStatus) parts.push(`Status: ${auditStatus}`);
-    if (priority) parts.push(`Priority: ${labelEnum(priority)}`);
-    if (deviceAvailability === "AVAILABLE") parts.push("Device: Available");
-    if (deviceAvailability === "ASSIGNED") parts.push("Device: Assigned");
-    if (deviceType) parts.push(`Type: ${labelEnum(deviceType)}`);
-    if (overallAssessment) parts.push(`Assessment: ${labelEnum(overallAssessment)}`);
+    const items = summarizeFilter("Items needed", itemNeeded, labelEnum);
+    const statusSummary = summarizeFilter("Status", auditStatus, labelEnum);
+    const prioritySummary = summarizeFilter("Priority", priority, labelEnum);
+    const device = summarizeFilter("Device", deviceAvailability, (value) =>
+      value === "AVAILABLE" ? "Available" : "Assigned",
+    );
+    const type = summarizeFilter("Type", deviceType, labelEnum);
+    const assessment = summarizeFilter("Assessment", overallAssessment, labelEnum);
+    if (items) parts.push(items);
+    if (statusSummary) parts.push(statusSummary);
+    if (prioritySummary) parts.push(prioritySummary);
+    if (device) parts.push(device);
+    if (type) parts.push(type);
+    if (assessment) parts.push(assessment);
     return parts.length ? parts.join(" · ") : "None (all records)";
   };
 
@@ -186,15 +194,12 @@ export default function AuditRegisterPage() {
     try {
       const rows = await fetchAllAuditRegisters({
         search: search || undefined,
-        upgradeComponent: itemNeeded || undefined,
-        auditStatus: auditStatus || undefined,
-        priority: priority || undefined,
-        deviceAvailability:
-          deviceAvailability === "AVAILABLE" || deviceAvailability === "ASSIGNED"
-            ? deviceAvailability
-            : undefined,
-        deviceType: deviceType === "DESKTOP" || deviceType === "LAPTOP" ? deviceType : undefined,
-        overallAssessment: isAuditAssessment(overallAssessment) ? overallAssessment : undefined,
+        upgradeComponent: csvParam(itemNeeded),
+        auditStatus: csvParam(auditStatus),
+        priority: csvParam(priority),
+        deviceAvailability: csvParam(deviceAvailability),
+        deviceType: csvParam(deviceType),
+        overallAssessment: csvParam(overallAssessment),
       });
       if (rows.length === 0) {
         setError("No audit records match the current filters to export.");
@@ -225,15 +230,12 @@ export default function AuditRegisterPage() {
       const res = await fetchAuditRegisters({
         page,
         search: search || undefined,
-        upgradeComponent: itemNeeded || undefined,
-        auditStatus: auditStatus || undefined,
-        priority: priority || undefined,
-        deviceAvailability:
-          deviceAvailability === "AVAILABLE" || deviceAvailability === "ASSIGNED"
-            ? deviceAvailability
-            : undefined,
-        deviceType: deviceType === "DESKTOP" || deviceType === "LAPTOP" ? deviceType : undefined,
-        overallAssessment: isAuditAssessment(overallAssessment) ? overallAssessment : undefined,
+        upgradeComponent: csvParam(itemNeeded),
+        auditStatus: csvParam(auditStatus),
+        priority: csvParam(priority),
+        deviceAvailability: csvParam(deviceAvailability),
+        deviceType: csvParam(deviceType),
+        overallAssessment: csvParam(overallAssessment),
       });
       if (seq !== loadSeq.current) return;
 
@@ -274,7 +276,7 @@ export default function AuditRegisterPage() {
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("overallAssessment")?.trim();
     if (!q || !isAuditAssessment(q)) return;
-    setOverallAssessment(q);
+    setOverallAssessment([q]);
     setPage(1);
   }, []);
 
@@ -660,75 +662,51 @@ export default function AuditRegisterPage() {
           </div>
 
           <div data-tour="audit-filters" className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-            <FilterSelect
+            <FilterMultiSelect
               label="Items needed"
-              value={itemNeeded}
+              values={itemNeeded}
               onChange={(v) => setFilterAndResetPage(() => setItemNeeded(v))}
-            >
-              <option value="">All items needed</option>
-              {ITEMS_NEEDED_FILTER_OPTIONS.map((item) => (
-                <option key={item} value={item}>
-                  {labelEnum(item)}
-                </option>
-              ))}
-            </FilterSelect>
-            <FilterSelect
+              emptyLabel="All items needed"
+              options={ITEMS_NEEDED_FILTER_OPTIONS.map((item) => ({ value: item, label: labelEnum(item) }))}
+            />
+            <FilterMultiSelect
               label="Status"
-              value={auditStatus}
+              values={auditStatus}
               onChange={(v) => setFilterAndResetPage(() => setAuditStatus(v))}
-            >
-              <option value="">All statuses</option>
-              {REFERENCE_DATA.auditStatuses.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </FilterSelect>
-            <FilterSelect
+              emptyLabel="All statuses"
+              options={REFERENCE_DATA.auditStatuses.map((s) => ({ value: s, label: labelEnum(s) }))}
+            />
+            <FilterMultiSelect
               label="Priority"
-              value={priority}
+              values={priority}
               onChange={(v) => setFilterAndResetPage(() => setPriority(v))}
-            >
-              <option value="">All priorities</option>
-              {REFERENCE_DATA.priorities.map((p) => (
-                <option key={p} value={p}>
-                  {labelEnum(p)}
-                </option>
-              ))}
-            </FilterSelect>
-            <FilterSelect
+              emptyLabel="All priorities"
+              options={REFERENCE_DATA.priorities.map((p) => ({ value: p, label: labelEnum(p) }))}
+            />
+            <FilterMultiSelect
               label="Device status"
-              value={deviceAvailability}
+              values={deviceAvailability}
               onChange={(v) => setFilterAndResetPage(() => setDeviceAvailability(v))}
-            >
-              <option value="">All devices</option>
-              <option value="AVAILABLE">Available</option>
-              <option value="ASSIGNED">Assigned</option>
-            </FilterSelect>
-            <FilterSelect
+              emptyLabel="All devices"
+              options={[
+                { value: "AVAILABLE", label: "Available" },
+                { value: "ASSIGNED", label: "Assigned" },
+              ]}
+            />
+            <FilterMultiSelect
               label="Item type"
-              value={deviceType}
+              values={deviceType}
               onChange={(v) => setFilterAndResetPage(() => setDeviceType(v))}
-            >
-              <option value="">All types</option>
-              {AUDIT_ITEM_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {labelEnum(t)}
-                </option>
-              ))}
-            </FilterSelect>
-            <FilterSelect
+              emptyLabel="All types"
+              options={AUDIT_ITEM_TYPES.map((t) => ({ value: t, label: labelEnum(t) }))}
+            />
+            <FilterMultiSelect
               label="Assessment"
-              value={overallAssessment}
+              values={overallAssessment}
               onChange={(v) => setFilterAndResetPage(() => setOverallAssessment(v))}
-            >
-              <option value="">All assessments</option>
-              {REFERENCE_DATA.assessments.map((a) => (
-                <option key={a} value={a}>
-                  {labelEnum(a)}
-                </option>
-              ))}
-            </FilterSelect>
+              emptyLabel="All assessments"
+              options={REFERENCE_DATA.assessments.map((a) => ({ value: a, label: labelEnum(a) }))}
+            />
           </div>
 
           <ActiveFilters
@@ -747,77 +725,61 @@ export default function AuditRegisterPage() {
                     },
                   ]
                 : []),
-              ...(itemNeeded
-                ? [
-                    {
-                      key: "itemNeeded",
-                      label: "Items needed",
-                      value: labelEnum(itemNeeded),
-                      onRemove: () => setFilterAndResetPage(() => setItemNeeded("")),
-                    },
-                  ]
-                : []),
-              ...(auditStatus
-                ? [
-                    {
-                      key: "status",
-                      label: "Status",
-                      value: labelEnum(auditStatus),
-                      onRemove: () => setFilterAndResetPage(() => setAuditStatus("")),
-                    },
-                  ]
-                : []),
-              ...(priority
-                ? [
-                    {
-                      key: "priority",
-                      label: "Priority",
-                      value: labelEnum(priority),
-                      onRemove: () => setFilterAndResetPage(() => setPriority("")),
-                    },
-                  ]
-                : []),
-              ...(deviceAvailability === "AVAILABLE" || deviceAvailability === "ASSIGNED"
-                ? [
-                    {
-                      key: "deviceAvailability",
-                      label: "Device",
-                      value: deviceAvailability === "AVAILABLE" ? "Available" : "Assigned",
-                      onRemove: () => setFilterAndResetPage(() => setDeviceAvailability("")),
-                    },
-                  ]
-                : []),
-              ...(deviceType
-                ? [
-                    {
-                      key: "deviceType",
-                      label: "Type",
-                      value: labelEnum(deviceType),
-                      onRemove: () => setFilterAndResetPage(() => setDeviceType("")),
-                    },
-                  ]
-                : []),
-              ...(overallAssessment
-                ? [
-                    {
-                      key: "overallAssessment",
-                      label: "Assessment",
-                      value: labelEnum(overallAssessment),
-                      onRemove: () => setFilterAndResetPage(() => setOverallAssessment("")),
-                    },
-                  ]
-                : []),
+              ...valueFilterChips(
+                "itemNeeded",
+                "Items needed",
+                itemNeeded,
+                labelEnum,
+                (value) => setFilterAndResetPage(() => setItemNeeded(dropFilterValue(itemNeeded, value))),
+              ),
+              ...valueFilterChips(
+                "status",
+                "Status",
+                auditStatus,
+                labelEnum,
+                (value) => setFilterAndResetPage(() => setAuditStatus(dropFilterValue(auditStatus, value))),
+              ),
+              ...valueFilterChips(
+                "priority",
+                "Priority",
+                priority,
+                labelEnum,
+                (value) => setFilterAndResetPage(() => setPriority(dropFilterValue(priority, value))),
+              ),
+              ...valueFilterChips(
+                "deviceAvailability",
+                "Device",
+                deviceAvailability,
+                (value) => (value === "AVAILABLE" ? "Available" : "Assigned"),
+                (value) =>
+                  setFilterAndResetPage(() => setDeviceAvailability(dropFilterValue(deviceAvailability, value))),
+              ),
+              ...valueFilterChips(
+                "deviceType",
+                "Type",
+                deviceType,
+                labelEnum,
+                (value) => setFilterAndResetPage(() => setDeviceType(dropFilterValue(deviceType, value))),
+              ),
+              ...valueFilterChips(
+                "overallAssessment",
+                "Assessment",
+                overallAssessment,
+                labelEnum,
+                (value) =>
+                  setFilterAndResetPage(() => setOverallAssessment(dropFilterValue(overallAssessment, value))),
+              ),
             ]}
             onClearAll={() => {
               setFilterAndResetPage(() => {
                 setSearchInput("");
                 setSearch("");
-                setItemNeeded("");
-                setAuditStatus("");
-                setPriority("");
-                setDeviceAvailability("");
-                setDeviceType("");
-                setOverallAssessment("");
+                setItemNeeded([]);
+                setAuditStatus([]);
+                setPriority([]);
+                setDeviceAvailability([]);
+                setDeviceType([]);
+                setOverallAssessment([]);
               });
             }}
           />

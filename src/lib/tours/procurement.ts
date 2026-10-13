@@ -26,7 +26,7 @@ export function getProcurementTourSteps(canCreate: boolean): TourStep[] {
       target: '[data-tour="proc-filters"]',
       title: "Filter by status & category",
       content:
-        "Status shows Active vs Inactive vendors. Category narrows by what they supply (e.g. laptops, servers, networking). Use both to shortlist vendors quickly.",
+        "Status shows Active vs Inactive vendors. Category narrows by what they supply (e.g. laptops, servers, networking). Select more than one status or category to compare those vendors in the same table.",
       placement: "bottom",
     },
     {

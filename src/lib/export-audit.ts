@@ -1,4 +1,5 @@
 import { desktopConnectionLabel, isLaptopDevice, parsePower } from "./device-form";
+import { labeledPrinterAssignment } from "./device-form/helpers";
 import { formatItemsNeededList, labelEnum } from "./labels";
 import type { AuditRegister } from "./types";
 
@@ -91,7 +92,7 @@ const COLUMN_SECTIONS: ColumnSection[] = [
     columns: [
       { key: "auditId", header: "Audit ID", required: true, width: 12, value: (r) => r.audit_code },
       { key: "employee", header: "Employee", required: true, width: 24, value: (r) => r.employee_name ?? "" },
-      { key: "department", header: "Department", required: true, width: 18, value: (r) => r.department?.name ?? "" },
+      { key: "department", header: "Department", required: true, width: 28, value: (r) => r.department?.name ?? "" },
       { key: "jobTitle", header: "Job Title", width: 22, value: (r) => r.job_title ?? "" },
     ],
   },
@@ -117,7 +118,7 @@ const COLUMN_SECTIONS: ColumnSection[] = [
       { key: "keyboard", header: "Keyboard", width: 22, value: (r) => joinWithCondition(r.keyboard, r.keyboard_condition) },
       { key: "mouse", header: "Mouse", width: 20, value: (r) => joinWithCondition(r.mouse, r.mouse_condition) },
       { key: "webcam", header: "Webcam", width: 22, value: (r) => joinWithCondition(r.webcam, r.webcam_condition) },
-      { key: "printer", header: "Printer", width: 26, value: (r) => r.printer ?? "" },
+      { key: "printer", header: "Printer", width: 30, value: (r) => labeledPrinterAssignment(r.printer) },
     ],
   },
   {
