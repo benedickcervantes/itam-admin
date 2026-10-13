@@ -17,8 +17,8 @@ import {
 import { Badge } from "@/components/Badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Drawer } from "@/components/Drawer";
-import { ActiveFilters } from "@/components/ActiveFilters";
-import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
+import { ActiveFilters, valueFilterChips } from "@/components/ActiveFilters";
+import { FilterMultiSelect, FilterSearch } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { TourEmptyCta, TourNudge, useTourHint } from "@/components/TourNudge";
 import { Pagination } from "@/components/Pagination";
@@ -47,6 +47,7 @@ import {
 import { todayIso, validateMaintenanceForm } from "@/lib/maintenance-form";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 import { labelEnum } from "@/lib/labels";
+import { csvParam, dropFilterValue, summarizeFilter } from "@/lib/multi-filter";
 import { MAINTENANCE_TOUR_STORAGE_KEY, getMaintenanceTourSteps } from "@/lib/tours/maintenance";
 import type { Asset, MaintenanceRecord } from "@/lib/types";
 
@@ -99,7 +100,7 @@ export default function MaintenancePage() {
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -149,7 +150,8 @@ export default function MaintenancePage() {
   const buildFilterSummary = () => {
     const parts: string[] = [];
     if (search) parts.push(`Search: "${search}"`);
-    if (status) parts.push(`Status: ${labelEnum(status)}`);
+    const statusSummary = summarizeFilter("Status", status, labelEnum);
+    if (statusSummary) parts.push(statusSummary);
     return parts.length ? parts.join(" · ") : "None (all records)";
   };
 
@@ -178,7 +180,7 @@ export default function MaintenancePage() {
     try {
       const rows = await fetchAllMaintenance({
         search: search || undefined,
-        status: status || undefined,
+        status: csvParam(status),
       });
       if (rows.length === 0) {
         setError("No service/repair records match the current filters to export.");
@@ -209,7 +211,7 @@ export default function MaintenancePage() {
       const res = await fetchMaintenance({
         page,
         search: search || undefined,
-        status: status || undefined,
+        status: csvParam(status),
       });
       if (seq !== loadSeq.current) return;
       if (res.totalPages > 0 && page > res.totalPages) {
@@ -458,22 +460,17 @@ export default function MaintenancePage() {
             />
           </div>
           <div data-tour="service-filters" className="w-full sm:w-auto">
-            <FilterSelect
+            <FilterMultiSelect
               label="Status"
-              value={status}
+              values={status}
               onChange={(v) => {
                 setPage(1);
                 setStatus(v);
               }}
+              emptyLabel="All statuses"
               className="w-full sm:w-auto"
-            >
-              <option value="">All statuses</option>
-              {REFERENCE_DATA.maintenanceStatuses.map((s) => (
-                <option key={s} value={s}>
-                  {labelEnum(s)}
-                </option>
-              ))}
-            </FilterSelect>
+              options={REFERENCE_DATA.maintenanceStatuses.map((s) => ({ value: s, label: labelEnum(s) }))}
+            />
           </div>
           <div
             data-tour="service-view-mode"
@@ -586,24 +583,15 @@ export default function MaintenancePage() {
                     },
                   ]
                 : []),
-              ...(status
-                ? [
-                    {
-                      key: "status",
-                      label: "Status",
-                      value: labelEnum(status),
-                      onRemove: () => {
-                        setStatus("");
-                        setPage(1);
-                      },
-                    },
-                  ]
-                : []),
+              ...valueFilterChips("status", "Status", status, labelEnum, (value) => {
+                setStatus(dropFilterValue(status, value));
+                setPage(1);
+              }),
             ]}
             onClearAll={() => {
               setSearchInput("");
               setSearch("");
-              setStatus("");
+              setStatus([]);
               setPage(1);
             }}
           />

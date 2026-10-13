@@ -17,8 +17,8 @@ import {
 import { Badge } from "@/components/Badge";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Drawer } from "@/components/Drawer";
-import { ActiveFilters } from "@/components/ActiveFilters";
-import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
+import { ActiveFilters, valueFilterChips } from "@/components/ActiveFilters";
+import { FilterMultiSelect, FilterSearch } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { TourEmptyCta, TourNudge, useTourHint } from "@/components/TourNudge";
 import { Pagination } from "@/components/Pagination";
@@ -44,6 +44,7 @@ import {
   type SupplierExportColumnKey,
 } from "@/lib/export-suppliers";
 import { labelEnum } from "@/lib/labels";
+import { csvParam, dropFilterValue, summarizeFilter } from "@/lib/multi-filter";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 import {
   buildSupplierBody,
@@ -98,8 +99,8 @@ export default function ProcurementPage() {
   const [items, setItems] = useState<Supplier[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -149,8 +150,10 @@ export default function ProcurementPage() {
   const buildFilterSummary = () => {
     const parts: string[] = [];
     if (search) parts.push(`Search: "${search}"`);
-    if (statusFilter) parts.push(`Status: ${labelEnum(statusFilter)}`);
-    if (categoryFilter) parts.push(`Category: ${labelEnum(categoryFilter)}`);
+    const statusSummary = summarizeFilter("Status", statusFilter, labelEnum);
+    const categorySummary = summarizeFilter("Category", categoryFilter, labelEnum);
+    if (statusSummary) parts.push(statusSummary);
+    if (categorySummary) parts.push(categorySummary);
     return parts.length ? parts.join(" · ") : "None (all records)";
   };
 
@@ -179,8 +182,8 @@ export default function ProcurementPage() {
     try {
       const rows = await fetchAllSuppliers({
         search: search || undefined,
-        status: statusFilter || undefined,
-        category: categoryFilter || undefined,
+        status: csvParam(statusFilter),
+        category: csvParam(categoryFilter),
       });
       if (rows.length === 0) {
         setError("No suppliers match the current filters to export.");
@@ -211,8 +214,8 @@ export default function ProcurementPage() {
       const res = await fetchSuppliers({
         page,
         search: search || undefined,
-        status: statusFilter || undefined,
-        category: categoryFilter || undefined,
+        status: csvParam(statusFilter),
+        category: csvParam(categoryFilter),
       });
       if (seq !== loadSeq.current) return;
       if (res.totalPages > 0 && page > res.totalPages) {
@@ -444,38 +447,28 @@ export default function ProcurementPage() {
             data-tour="proc-filters"
             className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-end"
           >
-            <FilterSelect
+            <FilterMultiSelect
               label="Status"
-              value={statusFilter}
+              values={statusFilter}
               onChange={(v) => {
                 setPage(1);
                 setStatusFilter(v);
               }}
+              emptyLabel="All statuses"
               className="w-full sm:w-auto"
-            >
-              <option value="">All statuses</option>
-              {REFERENCE_DATA.supplierStatuses.map((s) => (
-                <option key={s} value={s}>
-                  {labelEnum(s)}
-                </option>
-              ))}
-            </FilterSelect>
-            <FilterSelect
+              options={REFERENCE_DATA.supplierStatuses.map((s) => ({ value: s, label: labelEnum(s) }))}
+            />
+            <FilterMultiSelect
               label="Category"
-              value={categoryFilter}
+              values={categoryFilter}
               onChange={(v) => {
                 setPage(1);
                 setCategoryFilter(v);
               }}
+              emptyLabel="All categories"
               className="w-full sm:w-auto"
-            >
-              <option value="">All categories</option>
-              {REFERENCE_DATA.supplierCategories.map((s) => (
-                <option key={s} value={s}>
-                  {labelEnum(s)}
-                </option>
-              ))}
-            </FilterSelect>
+              options={REFERENCE_DATA.supplierCategories.map((s) => ({ value: s, label: labelEnum(s) }))}
+            />
           </div>
           <div
             data-tour="proc-view-mode"
@@ -588,38 +581,20 @@ export default function ProcurementPage() {
                     },
                   ]
                 : []),
-              ...(statusFilter
-                ? [
-                    {
-                      key: "status",
-                      label: "Status",
-                      value: labelEnum(statusFilter),
-                      onRemove: () => {
-                        setStatusFilter("");
-                        setPage(1);
-                      },
-                    },
-                  ]
-                : []),
-              ...(categoryFilter
-                ? [
-                    {
-                      key: "category",
-                      label: "Category",
-                      value: labelEnum(categoryFilter),
-                      onRemove: () => {
-                        setCategoryFilter("");
-                        setPage(1);
-                      },
-                    },
-                  ]
-                : []),
+              ...valueFilterChips("status", "Status", statusFilter, labelEnum, (value) => {
+                setStatusFilter(dropFilterValue(statusFilter, value));
+                setPage(1);
+              }),
+              ...valueFilterChips("category", "Category", categoryFilter, labelEnum, (value) => {
+                setCategoryFilter(dropFilterValue(categoryFilter, value));
+                setPage(1);
+              }),
             ]}
             onClearAll={() => {
               setSearchInput("");
               setSearch("");
-              setStatusFilter("");
-              setCategoryFilter("");
+              setStatusFilter([]);
+              setCategoryFilter([]);
               setPage(1);
             }}
           />

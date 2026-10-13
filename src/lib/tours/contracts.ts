@@ -47,7 +47,7 @@ export function getContractsTourSteps(canGenerate: boolean): TourStep[] {
       target: '[data-tour="dca-filters"]',
       title: "Filter by employee",
       content:
-        "Show only agreements for one employee — useful when re-issuing or checking coverage.",
+        "Show agreements for one or more employees so you can compare coverage when re-issuing or checking who is covered.",
       placement: "bottom",
     },
   ];

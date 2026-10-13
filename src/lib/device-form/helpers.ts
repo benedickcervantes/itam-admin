@@ -649,6 +649,14 @@ export function composeSharedPrinter(label: string): string {
   return place ? `${SHARED_PRINTER_LABEL} — ${place}` : SHARED_PRINTER_LABEL;
 }
 
+/** Shared printer text already starts with "Shared". Dedicated models get the same word the table badge shows. */
+export function labeledPrinterAssignment(value?: string | null): string {
+  const text = (value ?? "").trim();
+  if (!text) return "";
+  if (isSharedPrinterLabel(text) || /^dedicated\b/i.test(text)) return text;
+  return `Dedicated — ${text}`;
+}
+
 /** Assigned printers without an explicit use still read as Dedicated. */
 export function printerUseBadge(asset: {
   item_type?: string | null;

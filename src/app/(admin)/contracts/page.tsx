@@ -15,8 +15,8 @@ import {
 } from "lucide-react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Drawer } from "@/components/Drawer";
-import { ActiveFilters } from "@/components/ActiveFilters";
-import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
+import { ActiveFilters, valueFilterChips } from "@/components/ActiveFilters";
+import { FilterMultiSelect, FilterSearch } from "@/components/FilterSelect";
 import { GenerateContractForm } from "@/components/GenerateContractForm";
 import { Header } from "@/components/Header";
 import { PdfPreviewFrame } from "@/components/PdfPreviewFrame";
@@ -36,6 +36,7 @@ import {
 } from "@/lib/api/device-contracts";
 import { fetchAssetsByUser, fetchDeviceHistoryAssignees } from "@/lib/api/device-history";
 import { canWrite } from "@/lib/auth/permissions";
+import { csvParam, dropFilterValue } from "@/lib/multi-filter";
 import { CONTRACTS_TOUR_STORAGE_KEY, getContractsTourSteps } from "@/lib/tours/contracts";
 import type { Asset, DeviceContract } from "@/lib/types";
 
@@ -74,7 +75,7 @@ export default function ContractsPage() {
   const [assignees, setAssignees] = useState<string[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [employeeFilter, setEmployeeFilter] = useState("");
+  const [employeeFilter, setEmployeeFilter] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -144,7 +145,7 @@ export default function ContractsPage() {
         page,
         limit: 20,
         search: search || undefined,
-        employeeName: employeeFilter || undefined,
+        employeeName: csvParam(employeeFilter),
       });
       if (seq !== loadSeq.current) return;
       if ((res.totalPages || 0) > 0 && page > (res.totalPages || 1)) {
@@ -613,21 +614,16 @@ export default function ContractsPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" data-tour="dca-filters">
-            <FilterSelect
+            <FilterMultiSelect
               label="Employee"
-              value={employeeFilter}
+              values={employeeFilter}
               onChange={(v) => {
                 setPage(1);
                 setEmployeeFilter(v);
               }}
-            >
-              <option value="">All employees</option>
-              {employeeOptions.map((name) => (
-                <option key={name} value={name}>
-                  {name}
-                </option>
-              ))}
-            </FilterSelect>
+              emptyLabel="All employees"
+              options={employeeOptions.map((name) => ({ value: name, label: name }))}
+            />
           </div>
 
           <ActiveFilters
@@ -645,21 +641,14 @@ export default function ContractsPage() {
                     },
                   ]
                 : []),
-              ...(employeeFilter
-                ? [
-                    {
-                      key: "employee",
-                      label: "Employee",
-                      value: employeeFilter,
-                      onRemove: () => setEmployeeFilter(""),
-                    },
-                  ]
-                : []),
+              ...valueFilterChips("employee", "Employee", employeeFilter, (name) => name, (value) =>
+                setEmployeeFilter(dropFilterValue(employeeFilter, value)),
+              ),
             ]}
             onClearAll={() => {
               setSearchInput("");
               setSearch("");
-              setEmployeeFilter("");
+              setEmployeeFilter([]);
             }}
           />
         </div>

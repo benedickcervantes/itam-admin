@@ -44,7 +44,7 @@ const COLUMN_SECTIONS: ColumnSection[] = [
       { key: "assetId", header: "Asset ID", required: true, width: 14, value: (r) => r.asset_code },
       { key: "computer", header: "Computer", required: true, width: 28, value: (r) => r.computer_name },
       { key: "user", header: "User", width: 24, value: (r) => r.assigned_to?.trim() || "" },
-      { key: "department", header: "Department", width: 22, value: (r) => r.department?.trim() || "" },
+      { key: "department", header: "Department", width: 28, value: (r) => r.department?.trim() || "" },
     ],
   },
   {

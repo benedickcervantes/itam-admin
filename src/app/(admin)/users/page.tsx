@@ -22,8 +22,8 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Drawer } from "@/components/Drawer";
 import { UserDetailView, UserForm } from "@/components/UserForm";
 import { UserExportColumnDialog } from "@/components/UserExportColumnDialog";
-import { ActiveFilters } from "@/components/ActiveFilters";
-import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
+import { ActiveFilters, valueFilterChips } from "@/components/ActiveFilters";
+import { FilterMultiSelect, FilterSearch } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { TourEmptyCta, TourNudge, useTourHint } from "@/components/TourNudge";
 import { Pagination } from "@/components/Pagination";
@@ -41,6 +41,7 @@ import {
   type UserExportColumnKey,
 } from "@/lib/export-users";
 import { labelEnum } from "@/lib/labels";
+import { dropFilterValue, summarizeFilter } from "@/lib/multi-filter";
 import { matchesSearchTokens } from "@/lib/search";
 import { USERS_TOUR_STORAGE_KEY, getUsersTourSteps } from "@/lib/tours/users";
 import { validateUserForm } from "@/lib/user-form";
@@ -100,9 +101,9 @@ export default function UsersPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
-  const [departmentFilter, setDepartmentFilter] = useState("");
-  const [activeFilter, setActiveFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string[]>([]);
+  const [departmentFilter, setDepartmentFilter] = useState<string[]>([]);
+  const [activeFilter, setActiveFilter] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -199,10 +200,9 @@ export default function UsersPage() {
   const filtered = useMemo(() => {
     return items.filter((row) => {
       if (!matchesSearchTokens(search, [row.full_name, row.email])) return false;
-      if (roleFilter && row.role !== roleFilter) return false;
-      if (departmentFilter && row.department_id !== departmentFilter) return false;
-      if (activeFilter === "active" && !row.is_active) return false;
-      if (activeFilter === "inactive" && row.is_active) return false;
+      if (roleFilter.length && !roleFilter.includes(row.role)) return false;
+      if (departmentFilter.length && !departmentFilter.includes(row.department_id ?? "")) return false;
+      if (activeFilter.length && !activeFilter.includes(row.is_active ? "active" : "inactive")) return false;
       return true;
     });
   }, [items, search, roleFilter, departmentFilter, activeFilter]);
@@ -211,7 +211,9 @@ export default function UsersPage() {
   // Client-side paging: never read past the last page after filters shrink the list.
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-  const hasActiveFilters = Boolean(searchInput || search || roleFilter || departmentFilter || activeFilter);
+  const hasActiveFilters = Boolean(
+    searchInput || search || roleFilter.length || departmentFilter.length || activeFilter.length,
+  );
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
@@ -220,9 +222,9 @@ export default function UsersPage() {
   const clearFilters = () => {
     setSearchInput("");
     setSearch("");
-    setRoleFilter("");
-    setDepartmentFilter("");
-    setActiveFilter("");
+    setRoleFilter([]);
+    setDepartmentFilter([]);
+    setActiveFilter([]);
     setPage(1);
   };
 
@@ -236,12 +238,18 @@ export default function UsersPage() {
   const buildFilterSummary = () => {
     const parts: string[] = [];
     if (search) parts.push(`Search: "${search}"`);
-    if (roleFilter) parts.push(`Role: ${labelEnum(roleFilter)}`);
-    if (departmentFilter) {
-      parts.push(`Department: ${departments.find((d) => d.id === departmentFilter)?.name ?? departmentFilter}`);
-    }
-    if (activeFilter === "active") parts.push("Status: Active");
-    if (activeFilter === "inactive") parts.push("Status: Inactive");
+    const role = summarizeFilter("Role", roleFilter, labelEnum);
+    const department = summarizeFilter(
+      "Department",
+      departmentFilter,
+      (id) => departments.find((d) => d.id === id)?.name ?? id,
+    );
+    const accountStatus = summarizeFilter("Status", activeFilter, (value) =>
+      value === "active" ? "Active" : "Inactive",
+    );
+    if (role) parts.push(role);
+    if (department) parts.push(department);
+    if (accountStatus) parts.push(accountStatus);
     return parts.length ? parts.join(" · ") : "None (all records)";
   };
 
@@ -546,47 +554,42 @@ export default function UsersPage() {
             />
           </div>
           <div data-tour="users-filters" className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-end">
-            <FilterSelect
+            <FilterMultiSelect
               label="Role"
-              value={roleFilter}
+              values={roleFilter}
               onChange={(v) => {
                 setPage(1);
                 setRoleFilter(v);
               }}
+              emptyLabel="All roles"
               className="w-full sm:w-auto"
-            >
-              <option value="">All roles</option>
-              {ROLES.map((role) => (
-                <option key={role} value={role}>{labelEnum(role)}</option>
-              ))}
-            </FilterSelect>
-            <FilterSelect
+              options={ROLES.map((role) => ({ value: role, label: labelEnum(role) }))}
+            />
+            <FilterMultiSelect
               label="Department"
-              value={departmentFilter}
+              values={departmentFilter}
               onChange={(v) => {
                 setPage(1);
                 setDepartmentFilter(v);
               }}
+              emptyLabel="All departments"
               className="w-full sm:w-auto"
-            >
-              <option value="">All departments</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>{d.name}</option>
-              ))}
-            </FilterSelect>
-            <FilterSelect
+              options={departments.map((d) => ({ value: d.id, label: d.name }))}
+            />
+            <FilterMultiSelect
               label="Status"
-              value={activeFilter}
+              values={activeFilter}
               onChange={(v) => {
                 setPage(1);
                 setActiveFilter(v);
               }}
+              emptyLabel="All statuses"
               className="w-full sm:w-auto"
-            >
-              <option value="">All statuses</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </FilterSelect>
+              options={[
+                { value: "active", label: "Active" },
+                { value: "inactive", label: "Inactive" },
+              ]}
+            />
           </div>
           <div
             data-tour="users-view-mode"
@@ -699,45 +702,36 @@ export default function UsersPage() {
                     },
                   ]
                 : []),
-              ...(roleFilter
-                ? [
-                    {
-                      key: "role",
-                      label: "Role",
-                      value: labelEnum(roleFilter),
-                      onRemove: () => {
-                        setRoleFilter("");
-                        setPage(1);
-                      },
-                    },
-                  ]
-                : []),
-              ...(departmentFilter
-                ? [
-                    {
-                      key: "department",
-                      label: "Department",
-                      value: departments.find((d) => d.id === departmentFilter)?.name ?? "Department",
-                      onRemove: () => {
-                        setDepartmentFilter("");
-                        setPage(1);
-                      },
-                    },
-                  ]
-                : []),
-              ...(activeFilter
-                ? [
-                    {
-                      key: "status",
-                      label: "Status",
-                      value: activeFilter === "active" ? "Active" : "Inactive",
-                      onRemove: () => {
-                        setActiveFilter("");
-                        setPage(1);
-                      },
-                    },
-                  ]
-                : []),
+              ...valueFilterChips(
+                "role",
+                "Role",
+                roleFilter,
+                labelEnum,
+                (value) => {
+                  setRoleFilter(dropFilterValue(roleFilter, value));
+                  setPage(1);
+                },
+              ),
+              ...valueFilterChips(
+                "department",
+                "Department",
+                departmentFilter,
+                (id) => departments.find((d) => d.id === id)?.name ?? "Department",
+                (value) => {
+                  setDepartmentFilter(dropFilterValue(departmentFilter, value));
+                  setPage(1);
+                },
+              ),
+              ...valueFilterChips(
+                "status",
+                "Status",
+                activeFilter,
+                (value) => (value === "active" ? "Active" : "Inactive"),
+                (value) => {
+                  setActiveFilter(dropFilterValue(activeFilter, value));
+                  setPage(1);
+                },
+              ),
             ]}
             onClearAll={clearFilters}
           />

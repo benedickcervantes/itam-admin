@@ -26,7 +26,7 @@ export function getAuditTourSteps(canCreate: boolean): TourStep[] {
       target: '[data-tour="audit-filters"]',
       title: "Filter by need & urgency",
       content:
-        "Narrow by Items needed, Audit Status, Priority, Device status, Item type (Desktop or Laptop), and Assessment. Use OK - No Issues for units that never needed work, and Upgraded for units that were already upgraded.",
+        "Narrow by Items needed, Audit Status, Priority, Device status, Item type (Desktop or Laptop), and Assessment. Select more than one value in a filter to compare those groups in the same table. Use OK - No Issues for units that never needed work, and Upgraded for units that were already upgraded.",
       placement: "bottom",
     },
     {

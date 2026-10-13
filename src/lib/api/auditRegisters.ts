@@ -11,10 +11,10 @@ export type AuditQuery = {
   auditStatus?: string;
   overallAssessment?: string;
   priority?: string;
-  /** AVAILABLE = Unassigned spare device; ASSIGNED = named employee. */
-  deviceAvailability?: "AVAILABLE" | "ASSIGNED";
-  /** IT Audit item type — Desktop (PC) or Laptop only. */
-  deviceType?: "DESKTOP" | "LAPTOP";
+  /** AVAILABLE, ASSIGNED, or several values joined for comparison. */
+  deviceAvailability?: string;
+  /** DESKTOP, LAPTOP, or both joined for comparison. */
+  deviceType?: string;
 };
 
 export function fetchAuditRegisters(query: AuditQuery = {}) {
