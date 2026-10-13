@@ -25,7 +25,7 @@ export function getActivityLogsTourSteps(): TourStep[] {
       target: '[data-tour="logs-filters"]',
       title: "Filter by action, entity & actor",
       content:
-        "Narrow by action (Create, Update, Delete, Login…), entity type (Asset, User, Disposal…), or the admin who performed it.",
+        "Narrow by action (Create, Update, Delete, Login…), entity type (Asset, User, Disposal…), or the admin who performed it. Select more than one value to compare those groups in the same table.",
       placement: "bottom",
     },
     {

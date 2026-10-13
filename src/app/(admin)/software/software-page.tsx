@@ -15,9 +15,9 @@ import {
   Monitor,
   type LucideIcon,
 } from "lucide-react";
-import { ActiveFilters } from "@/components/ActiveFilters";
+import { ActiveFilters, valueFilterChips } from "@/components/ActiveFilters";
 import { Badge } from "@/components/Badge";
-import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
+import { FilterMultiSelect, FilterSearch } from "@/components/FilterSelect";
 import { SoftwareExportColumnDialog } from "@/components/SoftwareExportColumnDialog";
 import { CardGridSkeleton, TableSkeleton } from "@/components/TableSkeleton";
 import { Header } from "@/components/Header";
@@ -37,6 +37,7 @@ import {
   exportSoftwarePdf,
   type SoftwareExportColumnKey,
 } from "@/lib/export-software";
+import { csvParam, dropFilterValue, summarizeFilter } from "@/lib/multi-filter";
 import type { Department } from "@/lib/types";
 
 type ViewMode = "table" | "grid";
@@ -48,13 +49,16 @@ function readStoredViewMode(): ViewMode {
 }
 
 type Tab = "devices" | "catalog";
-type ComplianceFilter = "" | "complete" | "missing" | "extras";
 
-const COMPLIANCE_LABEL: Record<Exclude<ComplianceFilter, "">, string> = {
-  complete: "Complete",
-  missing: "Missing standard",
-  extras: "With additional",
-};
+const COMPLIANCE_OPTIONS = [
+  { value: "complete", label: "Complete" },
+  { value: "missing", label: "Missing standard" },
+  { value: "extras", label: "With additional" },
+] as const;
+
+function complianceLabel(value: string) {
+  return COMPLIANCE_OPTIONS.find((option) => option.value === value)?.label ?? value;
+}
 
 function coveredCount(row: SoftwareDeviceRow) {
   return row.standard_installed + row.standard_not_needed;
@@ -69,11 +73,11 @@ export function SoftwarePage() {
   const [tab, setTab] = useState<Tab>(searchParams.get("tab") === "catalog" ? "catalog" : "devices");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [departmentId, setDepartmentId] = useState("");
-  const [compliance, setCompliance] = useState<ComplianceFilter>(() => {
+  const [departmentId, setDepartmentId] = useState<string[]>([]);
+  const [compliance, setCompliance] = useState<string[]>(() => {
     const value = searchParams.get("compliance");
-    if (value === "complete" || value === "missing" || value === "extras") return value;
-    return "";
+    if (value === "complete" || value === "missing" || value === "extras") return [value];
+    return [];
   });
   const [departments, setDepartments] = useState<Department[]>([]);
   const [rows, setRows] = useState<SoftwareDeviceRow[]>([]);
@@ -140,8 +144,14 @@ export function SoftwarePage() {
   const buildFilterSummary = () => {
     const parts: string[] = [];
     if (search) parts.push(`Search: "${search}"`);
-    if (departmentId) parts.push(`Department: ${departments.find((dept) => dept.id === departmentId)?.name ?? departmentId}`);
-    if (compliance) parts.push(`Compliance: ${COMPLIANCE_LABEL[compliance]}`);
+    const department = summarizeFilter(
+      "Department",
+      departmentId,
+      (id) => departments.find((dept) => dept.id === id)?.name ?? id,
+    );
+    const complianceSummary = summarizeFilter("Compliance", compliance, complianceLabel);
+    if (department) parts.push(department);
+    if (complianceSummary) parts.push(complianceSummary);
     return parts.length ? parts.join(" · ") : "None (all records)";
   };
 
@@ -162,8 +172,8 @@ export function SoftwarePage() {
     try {
       const exported = await fetchAllSoftwareDevices({
         search: search || undefined,
-        departmentId: departmentId || undefined,
-        compliance: compliance || undefined,
+        departmentId: csvParam(departmentId),
+        compliance: csvParam(compliance),
       });
       if (exported.length === 0) {
         setError("No computers match the current filters to export.");
@@ -195,8 +205,8 @@ export function SoftwarePage() {
         page,
         limit: 20,
         search: search || undefined,
-        departmentId: departmentId || undefined,
-        compliance: compliance || undefined,
+        departmentId: csvParam(departmentId),
+        compliance: csvParam(compliance),
       });
       setRows(res.items);
       setTotal(res.total);
@@ -318,25 +328,22 @@ export function SoftwarePage() {
                   className="w-full"
                 />
               </div>
-              <FilterSelect label="Department" value={departmentId} onChange={setDepartmentId} className="w-full lg:w-56">
-                <option value="">All departments</option>
-                {departments.map((dept) => (
-                  <option key={dept.id} value={dept.id}>
-                    {dept.name}
-                  </option>
-                ))}
-              </FilterSelect>
-              <FilterSelect
+              <FilterMultiSelect
+                label="Department"
+                values={departmentId}
+                onChange={setDepartmentId}
+                emptyLabel="All departments"
+                className="w-full lg:w-56"
+                options={departments.map((dept) => ({ value: dept.id, label: dept.name }))}
+              />
+              <FilterMultiSelect
                 label="Compliance"
-                value={compliance}
-                onChange={(value) => setCompliance(value as ComplianceFilter)}
+                values={compliance}
+                onChange={setCompliance}
+                emptyLabel="All computers"
                 className="w-full lg:w-52"
-              >
-                <option value="">All computers</option>
-                <option value="complete">Complete</option>
-                <option value="missing">Missing standard</option>
-                <option value="extras">With additional</option>
-              </FilterSelect>
+                options={COMPLIANCE_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+              />
               <div className="flex flex-wrap items-center gap-2 lg:ml-auto" data-tour="sw-toolbar">
                 <div className="inline-flex rounded-lg border border-slate-600 p-0.5" role="group" aria-label="View mode">
                   <button
@@ -433,32 +440,26 @@ export function SoftwarePage() {
                       },
                     ]
                   : []),
-                ...(departmentId
-                  ? [
-                      {
-                        key: "department",
-                        label: "Department",
-                        value: departments.find((dept) => dept.id === departmentId)?.name ?? "Department",
-                        onRemove: () => setDepartmentId(""),
-                      },
-                    ]
-                  : []),
-                ...(compliance
-                  ? [
-                      {
-                        key: "compliance",
-                        label: "Compliance",
-                        value: COMPLIANCE_LABEL[compliance],
-                        onRemove: () => setCompliance(""),
-                      },
-                    ]
-                  : []),
+                ...valueFilterChips(
+                  "department",
+                  "Department",
+                  departmentId,
+                  (id) => departments.find((dept) => dept.id === id)?.name ?? "Department",
+                  (value) => setDepartmentId(dropFilterValue(departmentId, value)),
+                ),
+                ...valueFilterChips(
+                  "compliance",
+                  "Compliance",
+                  compliance,
+                  complianceLabel,
+                  (value) => setCompliance(dropFilterValue(compliance, value)),
+                ),
               ]}
               onClearAll={() => {
                 setSearchInput("");
                 setSearch("");
-                setDepartmentId("");
-                setCompliance("");
+                setDepartmentId([]);
+                setCompliance([]);
               }}
             />
 

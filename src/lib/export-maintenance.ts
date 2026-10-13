@@ -39,7 +39,7 @@ const COLUMN_SECTIONS: ColumnSection[] = [
       { key: "recordId", header: "Record ID", width: 14, value: (r) => r.record_code },
       { key: "computer", header: "Computer", width: 22, value: (r) => r.computer_name ?? "" },
       { key: "employee", header: "Employee", width: 22, value: (r) => r.employee ?? "" },
-      { key: "department", header: "Department", width: 18, value: (r) => r.audit_register?.department?.name ?? "" },
+      { key: "department", header: "Department", width: 28, value: (r) => r.audit_register?.department?.name ?? "" },
     ],
   },
   {

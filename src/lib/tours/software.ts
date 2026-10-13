@@ -26,7 +26,7 @@ export function getSoftwareTourSteps(canWrite: boolean): TourStep[] {
       target: '[data-tour="sw-filters"]',
       title: "Find a computer",
       content:
-        "Search by computer name, user, asset code, or department. Filter by department, or by compliance: Complete, Missing standard, or With additional. Active filters show as chips you can clear.",
+        "Search by computer name, user, asset code, or department. Filter by department, or by compliance: Complete, Missing standard, or With additional. Select more than one value to compare those groups in the same table. Active filters show as chips you can clear.",
       placement: "bottom",
     },
     {

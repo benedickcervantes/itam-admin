@@ -1,3 +1,4 @@
+import { labeledPrinterAssignment, printerUseBadge } from "./device-form/helpers";
 import { labelEnum } from "./labels";
 import type { Asset } from "./types";
 
@@ -13,8 +14,10 @@ export type AssetExportColumnKey =
   | "brandModel"
   | "serialNo"
   | "assignedTo"
+  | "printerUse"
   | "jobTitle"
   | "department"
+  | "employeeStatus"
   | "status"
   | "condition"
   | "processor"
@@ -66,6 +69,34 @@ function fmtDate(value?: string | null): string {
   return value.slice(0, 10);
 }
 
+/** Matches the Assets table: Dedicated / Shared badge, and location for a shared printer. */
+function assignedToExport(row: Asset): string {
+  const use = printerUseBadge(row);
+  if (use === "SHARED") {
+    const place = row.location?.trim() ?? "";
+    return place ? `Shared — ${place}` : "Shared";
+  }
+  if (use === "DEDICATED") {
+    const name = row.assigned_to?.trim() ?? "";
+    return name ? `Dedicated — ${name}` : "Dedicated";
+  }
+  return row.assigned_to ?? "";
+}
+
+function printerUseExport(row: Asset): string {
+  return labelEnumOrBlank(printerUseBadge(row));
+}
+
+function employeeStatusExport(row: Asset): string {
+  if (row.status === "AVAILABLE" || row.status === "RESERVED" || !row.assigned_to?.trim()) return "";
+  return labelEnumOrBlank(row.audit_register?.employee_status);
+}
+
+function printerColumnExport(row: Asset): string {
+  if (row.item_type === "PRINTER") return row.printer ?? "";
+  return labeledPrinterAssignment(row.printer);
+}
+
 /**
  * Column layout for the Asset inventory, grouped into sections. Covers both
  * end-user devices and infrastructure (server/network) assets; columns that
@@ -86,9 +117,11 @@ const COLUMN_SECTIONS: ColumnSection[] = [
   {
     title: "ASSIGNMENT",
     columns: [
-      { key: "assignedTo", header: "Assigned To", width: 22, value: (r) => r.assigned_to ?? "" },
+      { key: "assignedTo", header: "Assigned To", width: 28, value: assignedToExport },
+      { key: "printerUse", header: "Printer Use", width: 14, value: printerUseExport },
       { key: "jobTitle", header: "Job Title", width: 22, value: (r) => r.job_title ?? "" },
-      { key: "department", header: "Department", width: 18, value: (r) => r.department?.name ?? "" },
+      { key: "department", header: "Department", width: 28, value: (r) => r.department?.name ?? "" },
+      { key: "employeeStatus", header: "Employee Status", width: 16, value: employeeStatusExport },
       { key: "status", header: "Status", width: 14, value: (r) => labelEnumOrBlank(r.status) },
       { key: "condition", header: "Condition", width: 14, value: (r) => labelEnumOrBlank(r.condition) },
     ],
@@ -114,7 +147,7 @@ const COLUMN_SECTIONS: ColumnSection[] = [
       { key: "keyboard", header: "Keyboard", width: 18, value: (r) => r.keyboard ?? "" },
       { key: "mouse", header: "Mouse", width: 16, value: (r) => r.mouse ?? "" },
       { key: "webcam", header: "Webcam", width: 18, value: (r) => r.webcam ?? "" },
-      { key: "printer", header: "Printer", width: 24, value: (r) => r.printer ?? "" },
+      { key: "printer", header: "Printer", width: 28, value: printerColumnExport },
     ],
   },
   {

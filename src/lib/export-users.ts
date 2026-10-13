@@ -42,7 +42,7 @@ const COLUMN_SECTIONS: ColumnSection[] = [
       {
         key: "department",
         header: "Department",
-        width: 20,
+        width: 28,
         value: (r) => r.department?.name ?? "",
       },
       {

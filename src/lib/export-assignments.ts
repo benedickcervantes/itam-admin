@@ -46,7 +46,7 @@ const COLUMN_SECTIONS: ColumnSection[] = [
     columns: [
       { key: "assignedTo", header: "Assigned To", width: 18, value: (r) => r.assigned_to },
       { key: "lastUser", header: "Last User", width: 18, value: (r) => r.last_user ?? "" },
-      { key: "department", header: "Department", width: 16, value: (r) => r.department?.name ?? "" },
+      { key: "department", header: "Department", width: 28, value: (r) => r.department?.name ?? "" },
       { key: "assignedDate", header: "Assigned Date", width: 12, value: (r) => r.assigned_date.slice(0, 10) },
       { key: "returnedDate", header: "Returned Date", width: 12, value: (r) => r.returned_date?.slice(0, 10) ?? "" },
       { key: "assignedBy", header: "Assigned By", width: 18, value: (r) => r.assigned_by ?? "" },

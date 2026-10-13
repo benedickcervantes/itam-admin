@@ -25,14 +25,15 @@ import { DeviceInventoryForm } from "@/components/DeviceInventoryForm";
 import { MovePeripheralForm } from "@/components/MovePeripheralForm";
 import { PeripheralAssetForm } from "@/components/PeripheralAssetForm";
 import { Drawer, inputClass, selectClass } from "@/components/Drawer";
-import { ActiveFilters } from "@/components/ActiveFilters";
-import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
+import { ActiveFilters, valueFilterChips } from "@/components/ActiveFilters";
+import { FilterMultiSelect, FilterSearch } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { Pagination } from "@/components/Pagination";
 import { SpotlightTour, shouldAutoStartTour, type TourStep } from "@/components/SpotlightTour";
 import { TourEmptyCta, TourNudge, useTourHint } from "@/components/TourNudge";
 import { CardGridSkeleton, TableSkeleton } from "@/components/TableSkeleton";
 import { createAsset, deleteAsset, fetchAllAssets, fetchAsset, fetchAssets, updateAsset } from "@/lib/api/assets";
+import { csvParam, dropFilterValue, summarizeFilter } from "@/lib/multi-filter";
 import { isComputerAsset } from "@/lib/computer-asset";
 import { verifyPassword } from "@/lib/api/auth";
 import { AssetExportColumnDialog } from "@/components/AssetExportColumnDialog";
@@ -87,10 +88,10 @@ export default function AssetsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [departmentId, setDepartmentId] = useState("");
-  const [status, setStatus] = useState("");
-  const [employeeStatus, setEmployeeStatus] = useState("");
-  const [itemType, setItemType] = useState("");
+  const [departmentId, setDepartmentId] = useState<string[]>([]);
+  const [status, setStatus] = useState<string[]>([]);
+  const [employeeStatus, setEmployeeStatus] = useState<string[]>([]);
+  const [itemType, setItemType] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -142,10 +143,18 @@ export default function AssetsPage() {
   const buildFilterSummary = () => {
     const parts: string[] = [];
     if (search) parts.push(`Search: "${search}"`);
-    if (departmentId) parts.push(`Department: ${departments.find((d) => d.id === departmentId)?.name ?? departmentId}`);
-    if (status) parts.push(`Status: ${labelEnum(status)}`);
-    if (employeeStatus) parts.push(`Employee status: ${labelEnum(employeeStatus)}`);
-    if (itemType) parts.push(`Type: ${labelEnum(itemType)}`);
+    const department = summarizeFilter(
+      "Department",
+      departmentId,
+      (id) => departments.find((d) => d.id === id)?.name ?? id,
+    );
+    const assetStatus = summarizeFilter("Status", status, labelEnum);
+    const employee = summarizeFilter("Employee status", employeeStatus, labelEnum);
+    const type = summarizeFilter("Type", itemType, labelEnum);
+    if (department) parts.push(department);
+    if (assetStatus) parts.push(assetStatus);
+    if (employee) parts.push(employee);
+    if (type) parts.push(type);
     return parts.length ? parts.join(" · ") : "None (all records)";
   };
 
@@ -174,10 +183,10 @@ export default function AssetsPage() {
     try {
       const rows = await fetchAllAssets({
         search: search || undefined,
-        departmentId: departmentId || undefined,
-        status: status || undefined,
-        employeeStatus: employeeStatus || undefined,
-        itemType: itemType || undefined,
+        departmentId: csvParam(departmentId),
+        status: csvParam(status),
+        employeeStatus: csvParam(employeeStatus),
+        itemType: csvParam(itemType),
       });
       if (rows.length === 0) {
         setError("No assets match the current filters to export.");
@@ -208,10 +217,10 @@ export default function AssetsPage() {
       const res = await fetchAssets({
         page,
         search: search || undefined,
-        departmentId: departmentId || undefined,
-        status: status || undefined,
-        employeeStatus: employeeStatus || undefined,
-        itemType: itemType || undefined,
+        departmentId: csvParam(departmentId),
+        status: csvParam(status),
+        employeeStatus: csvParam(employeeStatus),
+        itemType: csvParam(itemType),
       });
       if (seq !== loadSeq.current) return;
 
@@ -638,54 +647,34 @@ export default function AssetsPage() {
           </div>
 
           <div data-tour="assets-filters" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <FilterSelect
+            <FilterMultiSelect
               label="Department"
-              value={departmentId}
+              values={departmentId}
               onChange={(v) => setFilterAndResetPage(() => setDepartmentId(v))}
-            >
-              <option value="">All departments</option>
-              {departments.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.name}
-                </option>
-              ))}
-            </FilterSelect>
-            <FilterSelect
+              emptyLabel="All departments"
+              options={departments.map((d) => ({ value: d.id, label: d.name }))}
+            />
+            <FilterMultiSelect
               label="Asset status"
-              value={status}
+              values={status}
               onChange={(v) => setFilterAndResetPage(() => setStatus(v))}
-            >
-              <option value="">All statuses</option>
-              {REFERENCE_DATA.assetStatuses.map((s) => (
-                <option key={s} value={s}>
-                  {labelEnum(s)}
-                </option>
-              ))}
-            </FilterSelect>
-            <FilterSelect
+              emptyLabel="All statuses"
+              options={REFERENCE_DATA.assetStatuses.map((s) => ({ value: s, label: labelEnum(s) }))}
+            />
+            <FilterMultiSelect
               label="Employee status"
-              value={employeeStatus}
+              values={employeeStatus}
               onChange={(v) => setFilterAndResetPage(() => setEmployeeStatus(v))}
-            >
-              <option value="">All employee statuses</option>
-              {REFERENCE_DATA.employeeStatuses.map((s) => (
-                <option key={s} value={s}>
-                  {labelEnum(s)}
-                </option>
-              ))}
-            </FilterSelect>
-            <FilterSelect
+              emptyLabel="All employee statuses"
+              options={REFERENCE_DATA.employeeStatuses.map((s) => ({ value: s, label: labelEnum(s) }))}
+            />
+            <FilterMultiSelect
               label="Item type"
-              value={itemType}
+              values={itemType}
               onChange={(v) => setFilterAndResetPage(() => setItemType(v))}
-            >
-              <option value="">All types</option>
-              {ITEM_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {labelEnum(t)}
-                </option>
-              ))}
-            </FilterSelect>
+              emptyLabel="All types"
+              options={ITEM_TYPES.map((t) => ({ value: t, label: labelEnum(t) }))}
+            />
           </div>
 
           <ActiveFilters
@@ -704,56 +693,43 @@ export default function AssetsPage() {
                     },
                   ]
                 : []),
-              ...(departmentId
-                ? [
-                    {
-                      key: "department",
-                      label: "Department",
-                      value:
-                        departments.find((d) => d.id === departmentId)?.name ?? "Department",
-                      onRemove: () => setFilterAndResetPage(() => setDepartmentId("")),
-                    },
-                  ]
-                : []),
-              ...(status
-                ? [
-                    {
-                      key: "status",
-                      label: "Asset",
-                      value: labelEnum(status),
-                      onRemove: () => setFilterAndResetPage(() => setStatus("")),
-                    },
-                  ]
-                : []),
-              ...(employeeStatus
-                ? [
-                    {
-                      key: "employeeStatus",
-                      label: "Employee",
-                      value: labelEnum(employeeStatus),
-                      onRemove: () => setFilterAndResetPage(() => setEmployeeStatus("")),
-                    },
-                  ]
-                : []),
-              ...(itemType
-                ? [
-                    {
-                      key: "itemType",
-                      label: "Type",
-                      value: labelEnum(itemType),
-                      onRemove: () => setFilterAndResetPage(() => setItemType("")),
-                    },
-                  ]
-                : []),
+              ...valueFilterChips(
+                "department",
+                "Department",
+                departmentId,
+                (id) => departments.find((d) => d.id === id)?.name ?? "Department",
+                (value) => setFilterAndResetPage(() => setDepartmentId(dropFilterValue(departmentId, value))),
+              ),
+              ...valueFilterChips(
+                "status",
+                "Asset",
+                status,
+                labelEnum,
+                (value) => setFilterAndResetPage(() => setStatus(dropFilterValue(status, value))),
+              ),
+              ...valueFilterChips(
+                "employeeStatus",
+                "Employee",
+                employeeStatus,
+                labelEnum,
+                (value) => setFilterAndResetPage(() => setEmployeeStatus(dropFilterValue(employeeStatus, value))),
+              ),
+              ...valueFilterChips(
+                "itemType",
+                "Type",
+                itemType,
+                labelEnum,
+                (value) => setFilterAndResetPage(() => setItemType(dropFilterValue(itemType, value))),
+              ),
             ]}
             onClearAll={() => {
               setFilterAndResetPage(() => {
                 setSearchInput("");
                 setSearch("");
-                setDepartmentId("");
-                setStatus("");
-                setEmployeeStatus("");
-                setItemType("");
+                setDepartmentId([]);
+                setStatus([]);
+                setEmployeeStatus([]);
+                setItemType([]);
               });
             }}
           />

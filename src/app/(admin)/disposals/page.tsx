@@ -19,8 +19,8 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { DisposalDetailView } from "@/components/DisposalDetailView";
 import { DisposalForm } from "@/components/DisposalForm";
 import { Drawer } from "@/components/Drawer";
-import { ActiveFilters } from "@/components/ActiveFilters";
-import { FilterSearch, FilterSelect } from "@/components/FilterSelect";
+import { ActiveFilters, valueFilterChips } from "@/components/ActiveFilters";
+import { FilterMultiSelect, FilterSearch } from "@/components/FilterSelect";
 import { Header } from "@/components/Header";
 import { TourEmptyCta, TourNudge, useTourHint } from "@/components/TourNudge";
 import { Pagination } from "@/components/Pagination";
@@ -48,6 +48,7 @@ import {
 import { todayIso, validateDisposalForm } from "@/lib/disposal-form";
 import { REFERENCE_DATA } from "@/lib/reference-data";
 import { labelEnum } from "@/lib/labels";
+import { csvParam, dropFilterValue, summarizeFilter } from "@/lib/multi-filter";
 import { DISPOSALS_TOUR_STORAGE_KEY, getDisposalsTourSteps } from "@/lib/tours/disposals";
 import type { Asset, DisposalRecord } from "@/lib/types";
 
@@ -87,7 +88,7 @@ export default function DisposalsPage() {
   const [employees, setEmployees] = useState<string[]>([]);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [methodFilter, setMethodFilter] = useState("");
+  const [methodFilter, setMethodFilter] = useState<string[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -137,7 +138,8 @@ export default function DisposalsPage() {
   const buildFilterSummary = () => {
     const parts: string[] = [];
     if (search) parts.push(`Search: "${search}"`);
-    if (methodFilter) parts.push(`Method: ${labelEnum(methodFilter)}`);
+    const method = summarizeFilter("Method", methodFilter, labelEnum);
+    if (method) parts.push(method);
     return parts.length ? parts.join(" · ") : "None (all records)";
   };
 
@@ -166,7 +168,7 @@ export default function DisposalsPage() {
     try {
       const rows = await fetchAllDisposals({
         search: search || undefined,
-        disposalMethod: methodFilter || undefined,
+        disposalMethod: csvParam(methodFilter),
       });
       if (rows.length === 0) {
         setError("No disposal records match the current filters to export.");
@@ -197,7 +199,7 @@ export default function DisposalsPage() {
       const res = await fetchDisposals({
         page,
         search: search || undefined,
-        disposalMethod: methodFilter || undefined,
+        disposalMethod: csvParam(methodFilter),
       });
       if (seq !== loadSeq.current) return;
       if (res.totalPages > 0 && page > res.totalPages) {
@@ -448,22 +450,17 @@ export default function DisposalsPage() {
             />
           </div>
           <div data-tour="disp-filters" className="w-full sm:w-auto">
-            <FilterSelect
+            <FilterMultiSelect
               label="Method"
-              value={methodFilter}
+              values={methodFilter}
               onChange={(v) => {
                 setPage(1);
                 setMethodFilter(v);
               }}
+              emptyLabel="All methods"
               className="w-full sm:w-auto"
-            >
-              <option value="">All methods</option>
-              {REFERENCE_DATA.disposalMethods.map((s) => (
-                <option key={s} value={s}>
-                  {labelEnum(s)}
-                </option>
-              ))}
-            </FilterSelect>
+              options={REFERENCE_DATA.disposalMethods.map((s) => ({ value: s, label: labelEnum(s) }))}
+            />
           </div>
           <div
             data-tour="disp-view-mode"
@@ -576,24 +573,15 @@ export default function DisposalsPage() {
                     },
                   ]
                 : []),
-              ...(methodFilter
-                ? [
-                    {
-                      key: "method",
-                      label: "Method",
-                      value: labelEnum(methodFilter),
-                      onRemove: () => {
-                        setMethodFilter("");
-                        setPage(1);
-                      },
-                    },
-                  ]
-                : []),
+              ...valueFilterChips("method", "Method", methodFilter, labelEnum, (value) => {
+                setMethodFilter(dropFilterValue(methodFilter, value));
+                setPage(1);
+              }),
             ]}
             onClearAll={() => {
               setSearchInput("");
               setSearch("");
-              setMethodFilter("");
+              setMethodFilter([]);
               setPage(1);
             }}
           />
