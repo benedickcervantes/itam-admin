@@ -12,7 +12,7 @@
     "exceljs": "^4.4.0",
     "gsap": "^3.15.0",
     "lucide-react": "^1.21.0",
-    "next": "16.3.8",
+    "next": "16.4.6",
     "ogl": "^1.0.11",
     "react": "19.2.4",
     "react-dom": "19.2.4",
@@ -24,7 +24,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.3.8",
+    "eslint-config-next": "16.4.6",
     "tailwindcss": "^4",
     "typescript": "^5"
   },
@@ -32,9 +32,21 @@
     "postcss": ">=8.5.18",
     "sharp": ">=0.35.5",
     "uuid": ">=11.1.1",
-    "brace-expansion": ">=5.0.12",
+    "minimatch@3": {
+      "brace-expansion": "1.1.22"
+    },
+    "minimatch@5": {
+      "brace-expansion": "2.1.8"
+    },
+    "minimatch@11": {
+      "brace-expansion": "5.0.13"
+    },
     "js-yaml": ">=5.4.1",
     "source-map-js": ">=1.2.2",
-    "nanoid": ">=3.3.17"
+    "nanoid": ">=3.3.17",
+    "zod": ">=4.6.6",
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": ">=11.0.1"
+    }
   }
 }
